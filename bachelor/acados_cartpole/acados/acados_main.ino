@@ -1,7 +1,3 @@
-/* Schraub den pulley locker letzes mal ist cart gegen die wand gefahren*/
-
-
-
 #include <Wire.h>
 #include <AS5600.h>
 
@@ -17,12 +13,12 @@ constexpr uint8_t PIN_A = 2;
 constexpr uint8_t PIN_B = 3;
 constexpr uint8_t PIN_Z = 4;
 
-constexpr uint8_t Z_LOCKOUT_US = 1000;
-constexpr long cpr_ghh60 = 1024; // GHH60
-#define ZERO_ON_Z_RISING   1
+constexpr long cpr_ghh60 = 1024; 
+constexpr uint32_t Z_LOCKOUT_US = 5000;
 constexpr float TAU_V = 0.01f;  // 10 ms
 constexpr uint32_t position_limit = 20000;
 
+volatile unsigned long lastZMicros = 0;
 volatile bool tripped = false; // flag that indicates whether we exceeded the position limit
 volatile long x = 0; // cartpostion in coutns
 volatile long v = 0; // cartposition in counts/s
@@ -31,7 +27,7 @@ volatile long encoder_pos = 0;
 volatile int8_t dir_from_derivative = 0;
 volatile long z_counter = 0; 
 volatile bool z_primed = false;
-volatile unsigned long lastZMicros = 0; 
+ 
 
 //AS5600
 constexpr long cpr_as5600 = 4096;
@@ -98,13 +94,11 @@ void isrZ() {
   }
   lastZMicros = now;
 
-  #if ZERO_ON_Z_RISING
-    encoder_pos = 0;
-  #endif
+  encoder_pos = 0;
 
-  int8_t dir = dir_from_derivative;  // get direction from the counts gHH60
+  int8_t dir = dir_from_derivative;  // Primär: Richtung aus den Counts
 
-  // fallback in case there was no movement
+  // Fallback, falls in der letzten Ableitungsperiode keine Bewegung war
   if (dir == 0) {
     dir = dir_from_ab;
   }
@@ -119,11 +113,14 @@ void isrZ() {
   //only called once for initialisation
   if (z_primed == false) {
     z_counter = 0;
-    encoder_pos = 0;
+    x = 0;
     z_primed = true;
   }
 
 }
+
+
+
 //COMMUNICATION-------------------------------------------------------------------------
 void receive_parse_data() {
   /*
@@ -172,16 +169,17 @@ void send_state(float x, float v, float theta, float omega) {
   */
 
   float t = millis() * 0.001f; // in seconds
-
+  
   Serial.write('<'); // startmarker
   Serial.print(x);         
   Serial.write(',');
-  Serial.print(v);
-  Serial.write(',');
+  Serial.print(z_counter);
+  /*Serial.write(',');
   Serial.print(theta, 3);
   Serial.write(',');
   Serial.print(omega, 3);
-  Serial.write('>'); // endmarker
+  
+  */Serial.write('>'); // endmarker
   Serial.write('\n'); // only for debugging  
 }
 
@@ -421,7 +419,7 @@ void setup() {
 
   
   if (!as5600.begin()) {  //test if the sensor go recognized 
-    Serial.println("AS5600 not found on Wire. Check wiring.");
+    Serial.println("AS5600 not found");
     while (1) { delay(1000); }
   }
 
@@ -445,7 +443,7 @@ void setup() {
 
   // ISR
   attachInterrupt(digitalPinToInterrupt(PIN_A), isrA, RISING);
-  //attachInterrupt(digitalPinToInterrupt(PIN_Z), isrZ, RISING);
+  attachInterrupt(digitalPinToInterrupt(PIN_Z), isrZ, RISING);
 
   //init coordinatesystem
   //init_coordinate_system();

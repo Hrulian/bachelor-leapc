@@ -1,3 +1,7 @@
+import numpy as np
+import torch
+
+
 def force_to_pwm(force: float, velocity: float) -> int:
     a = 0.0475
     b = 0.0025
@@ -38,4 +42,20 @@ def countpersecond_to_meterspersecond(counts_per_second: int) -> float:
     revolutions_per_second = counts_per_second / counts_per_revolution
     velocity = revolutions_per_second * wheel_circumference
     return velocity
+
+
+def state_tuple_to_tensor(state, batch=True, dtype=torch.float32, device=None):
+    # takes a tuple or list of 4 floats, returns torch tensor
+    arr = np.asarray(state, dtype=np.float32)
+    t = torch.as_tensor(arr, dtype=dtype, device=device)
+    if batch and t.ndim == 1:
+        t = t.unsqueeze(0)
+    return t
+
+
+def u_converted(t) -> float:
+    # not used in main skript
+    # takes tensor or array-like, returns single float
+    return float(t.detach().cpu().numpy().squeeze().item())
+
 

@@ -1,4 +1,12 @@
-import sys, threading, queue, serial, time, itertools
+import threading, queue, serial, time, torch
+import numpy as np
+import matplotlib.pyplot as plt  
+
+from bachelor.acados_cartpole.helpers import force_to_pwm, state_tuple_to_tensor
+from my_parameter_manager import create_custom_cartpole_params
+from leap_c.examples.cartpole.planner import CartPolePlannerConfig, CartPolePlanner
+
+
 
 PORT = "/dev/ttyACM0"
 BAUD = 115200
@@ -14,10 +22,11 @@ ser.reset_input_buffer()
 #init the que
 state_que = queue.Queue() #FIFO-QUE
 
-# init test variables
-broken_frame_counter = 0
-u_counter = 100.0
-debug_id = itertools.count(1)
+# init the acados controller
+cfg = CartPolePlannerConfig()
+params = create_custom_cartpole_params()
+controller = CartPolePlanner(cfg, params)
+ctx = None
 
 
 
@@ -25,7 +34,7 @@ def listen_to_arduino():
     """
     -reads frames in the background with threading
     -frames come in the form  of <x,v,theta,thetadot>\n
-    -if full frame got received -> put it in a que as tuple
+    -if full frame got received -> put it inn a que as tuple
     """
     
     currently_receiving = False
@@ -101,28 +110,12 @@ def send_control(u: float):
     
     ser.write(f"<{u:.3f}>\n".encode('ascii'))
     
-    
-    
-def test_fct(x: float, v: float, theta: float, thetadot: float):
-    global u_counter
-    u_counter += 0.001
-    return u_counter
-            
-
 
 def main():
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
     arduinoThread.start()
-    
-    # while True:
-    #     print("waiting for Arduino Handshake")
-    #     print(broken_frame_counter)
-    #     msg = state_que.get() # blocks and waits for the arduino to end the setup
-    #     if msg == "ready":
-    #         print("Arduino Ready")
-    #         break
         
     
     try:
@@ -144,16 +137,25 @@ def main():
             # we finally got the newest state and extract it now
             x, v, theta, thetadot = state 
 
-            # now apply the control application
-            u = test_fct(x,v, theta, thetadot)
+            # prepare state as torch tensor for the planner
+            state_converted = state_tuple_to_tensor(state)
             
+            # call planner: returns (ctx, u0, x_traj, u_traj, value)
+            ctx, u0, x_traj, u_traj, value = controller(state_converted, ctx=ctx)
+            
+            # extract first control
+            u_force = float(u0.detach().cpu().numpy().squeeze().item())
+            
+            # convert first from N to PWM
+            u = force_to_pwm(u_force, v)
+            
+            
+           
             # and send it to the arduino
             send_control(u)
             
             # for debugging
-            idx = next(debug_id)
-            print(f"{x:.3f},{v:.3f},{theta:.3f},{thetadot:.3f},{idx},{broken_frame_counter}")
-            
+            print(f"{x:.3f},{v:.3f},{theta:.3f},{thetadot:.3f},{broken_frame_counter}")
             
     except KeyboardInterrupt:
         pass
