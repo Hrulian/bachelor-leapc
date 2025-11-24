@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from leap_c.examples.cartpole.acados_ocp import (
+from my_acados_ocp import (
     CartPoleAcadosCostType,
     CartPoleAcadosParamInterface,
-    create_cartpole_params,
+    create_custom_cartpole_params,
     export_parametric_ocp,
 )
 from leap_c.ocp.acados.parameters import AcadosParameter, AcadosParameterManager
@@ -33,7 +33,7 @@ class CartPolePlannerConfig:
     N_horizon: int = 10
     T_horizon: float = 0.5
     Fmax: float = 10.0
-    x_threshold: float = 2.4
+    x_threshold: float = 0.4
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"
@@ -75,7 +75,7 @@ class CartPolePlanner(AcadosPlanner):
         """
         self.cfg = CartPolePlannerConfig() if cfg is None else cfg
         params = (
-            create_cartpole_params(
+            create_custom_cartpole_params(
                 param_interface=self.cfg.param_interface,
                 N_horizon=self.cfg.N_horizon,
             )

@@ -1,11 +1,10 @@
 import numpy as np
 import time
-import torch
 import matplotlib.pyplot as plt  # added for plotting
 from helpers import state_tuple_to_tensor, u_converted
 
 from my_parameter_manager import create_custom_cartpole_params
-from leap_c.examples.cartpole.planner import CartPolePlannerConfig, CartPolePlanner
+from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner
 
 
 def main():

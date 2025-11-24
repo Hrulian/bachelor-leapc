@@ -3,10 +3,10 @@ import torch
 
 
 def force_to_pwm(force: float, velocity: float) -> int:
-    a = 0.0475
-    b = 0.0025
-    c = 0.15  # so far all dummy values
-    mass = 200
+    a = 40.24
+    b = 6.95
+    c = -0.21
+    mass = 0.15  # [kg] estimated: 0.54 g cart + 2* 30g kuggellager + 24g * welle + 0.012 * unknown parts
 
     u = ((force / mass) + a * velocity + c * sgn(velocity)) / b
 
@@ -45,10 +45,26 @@ def countpersecond_to_meterspersecond(counts_per_second: int) -> float:
 
 
 def state_tuple_to_tensor(state, batch=True, dtype=torch.float32, device=None):
-    # takes a tuple or list of 4 floats, returns torch tensor
-    arr = np.asarray(state, dtype=np.float32)
-    t = torch.as_tensor(arr, dtype=dtype, device=device)
-    if batch and t.ndim == 1:
+    # state: tuple or array-like of shape (4,) returns torch tensor of shape (4,)
+    arr = np.asarray(state)
+
+    def convert_one(s):
+        # s expected length 4: x_counts, theta, v_counts, omega
+        x_counts = int(s[0])
+        theta = float(s[1])
+        v_counts = int(s[2])
+        omega = float(s[3])
+
+        x_m = counts_to_meters(x_counts)
+        v_m_s = countpersecond_to_meterspersecond(v_counts)
+
+        # final order expected by controller: x, theta, v, omega
+        return np.array([x_m, theta, v_m_s, omega], dtype=np.float32)
+
+    
+    conv = convert_one(arr)
+    t = torch.as_tensor(conv, dtype=dtype, device=device)
+    if batch:
         t = t.unsqueeze(0)
     return t
 

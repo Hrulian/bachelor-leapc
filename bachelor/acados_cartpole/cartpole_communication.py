@@ -1,11 +1,7 @@
-import threading, queue, serial, time, torch
-import numpy as np
-import matplotlib.pyplot as plt  
+import threading, queue, serial, time
 
-from bachelor.acados_cartpole.helpers import force_to_pwm, state_tuple_to_tensor
-from my_parameter_manager import create_custom_cartpole_params
-from leap_c.examples.cartpole.planner import CartPolePlannerConfig, CartPolePlanner
-
+from my_helpers import force_to_pwm, state_tuple_to_tensor
+from my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
 
 
 PORT = "/dev/ttyACM0"
@@ -24,7 +20,7 @@ state_que = queue.Queue() #FIFO-QUE
 
 # init the acados controller
 cfg = CartPolePlannerConfig()
-params = create_custom_cartpole_params()
+params = create_custom_cartpole_params("stagewise", cfg.N_horizon)
 controller = CartPolePlanner(cfg, params)
 ctx = None
 
@@ -145,13 +141,11 @@ def main():
             
             # extract first control
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
-            
+
             # convert first from N to PWM
             u = force_to_pwm(u_force, v)
-            
-            
-           
-            # and send it to the arduino
+
+            # send PWM control to arduino
             send_control(u)
             
             # for debugging
@@ -162,9 +156,6 @@ def main():
     
     finally:
         ser.close()
-
-
-
 
 
 
