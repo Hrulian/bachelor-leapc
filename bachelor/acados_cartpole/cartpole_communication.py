@@ -108,6 +108,9 @@ def send_control(u: float):
     
 
 def main():
+    # ensures we reference the module-level variables
+    global ctx  
+    
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
@@ -143,15 +146,16 @@ def main():
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, v)
+            u = force_to_pwm(u_force, v, 50)
 
             # send PWM control to arduino
             send_control(u)
             
             # for debugging
-            print(f"{x:.3f},{v:.3f},{theta:.3f},{thetadot:.3f},{broken_frame_counter}")
+            print(f"{x},{v},{theta:.3f},{thetadot:.3f}, -> {u_force:.3f}N -> PWM {u}")
             
     except KeyboardInterrupt:
+        send_control(0.0)
         pass
     
     finally:

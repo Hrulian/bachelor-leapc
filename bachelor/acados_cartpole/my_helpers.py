@@ -2,28 +2,41 @@ import numpy as np
 import torch
 
 
-def force_to_pwm(force: float, velocity: float) -> int:
+def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 160) -> int:
+    """
+    Map force [N] and velocity [m/s] to PWM integer.
+    - compute actuator voltage-like command u from force/velocity model
+    - map u linearly to full-scale PWM (±255) using max_u
+    - then clamp to the application limit max_pwm_limit (e.g. 160)
+    """
     a = 40.24
     b = 6.95
     c = -0.21
-    mass = 0.15  # [kg] estimated: 0.54 g cart + 2* 30g kuggellager + 24g * welle + 0.012 * unknown parts
+    mass = 0.15  # [kg] estimated: 0.54 g cart + 2 * 30g kuggellager + 24g * welle + 0.012 * unknown parts
 
+    # compute control-like quantity u 
     u = ((force / mass) + a * velocity + c * sgn(velocity)) / b
 
-    # map u in [-24, 24] to pwm in [-255, 255]
+    # map u in [-max_u, max_u] to PWM in [-255, 255]
     max_u = 24.0
-    max_pwm = 255
-    scaled = u * (max_pwm / max_u)
+    pwm_full = (u / max_u) * 255.0
 
-    # round and clamp to [-255, 255]
-    pwm = int(round(scaled))
-    pwm = max(-max_pwm, min(max_pwm, pwm))
+    # saturate to hardware full-scale first (safe)
+    pwm_full = max(-255.0, min(255.0, pwm_full))
+
+    # round and then apply application cap
+    pwm = int(round(pwm_full))
+    pwm = max(-max_pwm_limit, min(max_pwm_limit, pwm))
     return pwm
 
 
 def sgn(x: float) -> int:
-    # Sign function that returns -1 for negative, 1 for positive, and 0 for zero
-    return (x > 0) - (x < 0)
+    """Sign function returning -1, 0 or +1."""
+    if x > 0:
+        return 1
+    if x < 0:
+        return -1
+    return 0
 
 
 def counts_to_meters(counts: int) -> float:

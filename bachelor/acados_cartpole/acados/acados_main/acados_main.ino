@@ -136,7 +136,6 @@ void send_state(long x, float theta, long v,  float omega) {
   Serial.print(v);
   Serial.write(',');
   Serial.print(omega, 3);
-  
   Serial.write('>'); // endmarker
   Serial.write('\n'); // only for debugging  
 }
@@ -169,7 +168,6 @@ inline void update_theta_omega(const float T) {
   omega_hat = (1.0f - alpha) * omega_hat + alpha * omega_raw;
   omega = omega_hat;
 }
-
 
 
 inline void update_x_v(const float T) {

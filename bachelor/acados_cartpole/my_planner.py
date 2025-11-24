@@ -32,7 +32,7 @@ class CartPolePlannerConfig:
 
     N_horizon: int = 10
     T_horizon: float = 0.5
-    Fmax: float = 10.0
+    Fmax: float = 8.0
     x_threshold: float = 0.4
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
