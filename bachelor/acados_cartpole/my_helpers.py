@@ -4,10 +4,15 @@ import torch
 
 def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 160) -> int:
     """
-    Map force [N] and velocity [m/s] to PWM integer.
-    - compute actuator voltage-like command u from force/velocity model
-    - map u linearly to full-scale PWM (±255) using max_u
-    - then clamp to the application limit max_pwm_limit (e.g. 160)
+    Map a desired force and current velocity to a PWM integer.
+
+    Parameters
+    - force: desired force in Newtons [N].
+    - velocity: current cart velocity in meters per second [m/s].
+    - max_pwm_limit: application cap for absolute PWM (default 160).
+
+    Returns
+    - pwm: integer PWM command in range [-max_pwm_limit, max_pwm_limit].
     """
     a = 40.24
     b = 6.95
@@ -31,7 +36,15 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 160) -> int
 
 
 def sgn(x: float) -> int:
-    """Sign function returning -1, 0 or +1."""
+    """
+    Sign function.
+
+    Parameters
+    - x: numeric input
+
+    Returns
+    - -1 if x < 0, 1 if x > 0, 0 if x == 0
+    """
     if x > 0:
         return 1
     if x < 0:
@@ -40,7 +53,15 @@ def sgn(x: float) -> int:
 
 
 def counts_to_meters(counts: int) -> float:
-    # Convert encoder counts to position in meters
+    """
+    Convert encoder counts to linear position in meters.
+
+    Parameters
+    - counts: encoder counts (integer).
+
+    Returns
+    - position in meters [m].
+    """
     counts_per_revolution = 1024  
     wheel_circumference = 0.04  
     revolutions = counts / counts_per_revolution
@@ -49,7 +70,15 @@ def counts_to_meters(counts: int) -> float:
 
 
 def countpersecond_to_meterspersecond(counts_per_second: int) -> float:
-    # Convert encoder counts per second to velocity in meters per second
+    """
+    Convert encoder counts-per-second to linear velocity in meters per second.
+
+    Parameters
+    - counts_per_second: encoder counts per second (integer).
+
+    Returns
+    - velocity in meters per second [m/s].
+    """
     counts_per_revolution = 1024  
     wheel_circumference = 0.04  
     revolutions_per_second = counts_per_second / counts_per_revolution
@@ -58,6 +87,24 @@ def countpersecond_to_meterspersecond(counts_per_second: int) -> float:
 
 
 def state_tuple_to_tensor(state, batch=True, dtype=torch.float32, device=None):
+    """
+    Convert a state tuple/array into a torch tensor suitable for the controller.
+
+    Input state format (expected):
+      (x_counts, theta_rad, v_counts_per_s, omega_rad_per_s)
+
+    Output tensor format (float32):
+      [x_m, theta_rad, v_m_s, omega_rad_s]
+
+    Parameters
+    - state: sequence or array-like of length 4 (or a 1D numpy array).
+    - batch: if True, returns shape (1,4); otherwise returns shape (4,).
+    - dtype: torch dtype (default torch.float32).
+    - device: optional torch device.
+
+    Returns
+    - torch.Tensor containing the converted state.
+    """
     # state: tuple or array-like of shape (4,) returns torch tensor of shape (4,)
     arr = np.asarray(state)
 
@@ -83,6 +130,15 @@ def state_tuple_to_tensor(state, batch=True, dtype=torch.float32, device=None):
 
 
 def u_converted(t) -> float:
+    """
+    Convert a control tensor or array-like to a python float.
+
+    Parameters
+    - t: torch.Tensor or array-like representing control (batched or unbatched).
+
+    Returns
+    - single float value (first element / first batch).
+    """
     # not used in main skript
     # takes tensor or array-like, returns single float
     return float(t.detach().cpu().numpy().squeeze().item())
