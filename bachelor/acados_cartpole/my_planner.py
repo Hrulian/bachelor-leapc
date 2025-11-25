@@ -30,9 +30,9 @@ class CartPolePlannerConfig:
         param_interface: Determines the exposed parameter interface of the planner.
     """
 
-    N_horizon: int = 10
-    T_horizon: float = 0.5
-    Fmax: float = 8.0
+    N_horizon: int = 20
+    T_horizon: float = 1.0
+    Fmax: float = 1.0
     x_threshold: float = 0.4
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"

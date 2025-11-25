@@ -1,3 +1,6 @@
+# changes: -set the values of the environment to match my real cartpole
+
+
 from typing import Literal
 
 import casadi as ca

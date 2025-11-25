@@ -29,7 +29,7 @@ ctx = None
 def listen_to_arduino():
     """
     -reads frames in the background with threading
-    -frames come in the form  of <x,v,theta,thetadot>\n
+    -frames come in the form  of <x,theta,v,thetadot>\n
     -if full frame got received -> put it inn a que as tuple
     """
     
@@ -134,7 +134,7 @@ def main():
                 continue
             
             # we finally got the newest state and extract it now
-            x, v, theta, thetadot = state 
+            x, theta, v, thetadot = state 
 
             # prepare state as torch tensor for the planner
             state_converted = state_tuple_to_tensor(state)
