@@ -21,8 +21,11 @@ ser = serial.Serial(PORT, BAUD, timeout=READ_TIMEOUT_S)
 time.sleep(2)                 
 ser.reset_input_buffer()  
 
-#init the que
+# init the que
 state_que = queue.Queue() #FIFO-QUE
+
+# init flag
+ready_flag = False
 
 # init the acados controller
 cfg = CartPolePlannerConfig()
@@ -118,20 +121,31 @@ def main():
 
     # ensures we reference the module-level variables
     global ctx  
+    global ready_flag
     
-    # prepare CSV logging (minimal, append-only)
+    # prepare CSV logging: remove any old log file at start so each run is fresh
     log_path = os.path.join(os.path.dirname(__file__), "pwm_log.csv")
-    log_exists = os.path.exists(log_path)
+    if os.path.exists(log_path):
+        try:
+            os.remove(log_path)
+        except Exception as e:
+            print("Warning: failed to remove old log file:", e)
+
     log_fh = open(log_path, "a", newline='')
     log_writer = csv.writer(log_fh)
-    if not log_exists:
-        log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_pwm"])
-        log_fh.flush()
+    # write header for a fresh run
+    log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_pwm"])
+    log_fh.flush()
+
+
+
 
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
     arduinoThread.start()
+    # collect planner timing statistics
+    planner_times = []
     
     
     try:
@@ -157,18 +171,39 @@ def main():
             state_converted = state_tuple_to_tensor(state)
             
             # call planner: returns (ctx, u0, x_traj, u_traj, value)
+            t0_planner = time.perf_counter()
             ctx, u0, x_traj, u_traj, value = controller(state_converted, ctx=ctx)
+            elapsed = time.perf_counter() - t0_planner
+            # store planner time in milliseconds with one decimal place
+            ms_elapsed = round(elapsed * 1000.0, 1)
+            planner_times.append(ms_elapsed)
             
             # extract first control
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 30)
+            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v))
 
             # send PWM control to arduino
-            send_control(u)
+            send_control(0)
+            
+            if ready_flag == False:
+                ready_flag = True
+                print("Controller is ready")            
+            
+            # debug: print the state vector (converted) immediately after sending control
+    
+            # try:
+            #     tnow_dbg = time.time()
+            #     x_m_dbg = counts_to_meters(x)
+            #     v_m_s_dbg = countpersecond_to_meterspersecond(v)
+            #     print(
+            #         f"DEBUG state @ {tnow_dbg:.3f}: x_m={x_m_dbg:.4f}, theta={theta:.4f}, v_m_s={v_m_s_dbg:.4f}, thetadot={thetadot:.4f}, u={u:.3f}"
+            #     )
+            # except Exception:
+            #     print("DEBUG: failed to compute debug state")
 
-            # write a minimal log row (converted values) after sending control
+            # write a minimal log row. Needed for plotting later
             try:
                 tnow = time.time()
                 x_m = counts_to_meters(x)
@@ -203,6 +238,17 @@ def main():
             plot_cartpole_log(log_path)
         except Exception as e:
             print('Plotting failed:', e)
+        # print planner timing statistics
+        try:
+            if planner_times:
+                avg_time = sum(planner_times) / len(planner_times)
+                max_time = max(planner_times)
+                print(f"Planner calls: {len(planner_times)}, avg={avg_time:.1f} ms, max={max_time:.1f} ms")
+                print(planner_times)
+            else:
+                print("Planner timing: no samples recorded")
+        except Exception:
+            print("Failed to compute planner timing statistics")
 
     finally:
         try:

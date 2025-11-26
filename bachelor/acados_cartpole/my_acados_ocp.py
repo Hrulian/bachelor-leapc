@@ -1,5 +1,7 @@
 # changes: -set the values of the environment to match my real cartpole
-
+#           -removed slack variables from ocp formulation
+#           -incre
+#           -adjusted weihts in cost function
 
 from typing import Literal
 
@@ -41,10 +43,10 @@ def create_custom_cartpole_params(
         AcadosParameter("l", default=np.array([0.38])),  # length of the rod [m]
         # Cost matrix factorization parameters
         AcadosParameter(
-            "q_diag_sqrt", default=np.sqrt(np.array([2e3, 2e3, 1e-2, 1e-2]))
+            "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1e-2, 1e-2]))
         ),  # cost weights of state residuals
         AcadosParameter(
-            "r_diag_sqrt", default=np.sqrt(np.array([2e-1]))
+            "r_diag_sqrt", default=np.sqrt(np.array([1e-1]))
         ),  # cost weights of control input residuals
         # Reference parameters
         AcadosParameter(
@@ -184,7 +186,7 @@ def export_parametric_ocp(
 
     ######## Constraints ########
     ocp.constraints.idxbx_0 = np.array([0, 1, 2, 3])
-    ocp.constraints.x0 = np.array([0.0, np.pi, 0.0, 0.0])
+    ocp.constraints.x0 = np.array([0.0, np.pi, 0.0, 0.0]) 
 
     ocp.constraints.lbu = np.array([-Fmax])
     ocp.constraints.ubu = np.array([+Fmax])
@@ -197,15 +199,20 @@ def export_parametric_ocp(
     ocp.constraints.ubx_e = -ocp.constraints.lbx_e
     ocp.constraints.idxbx_e = np.array([0])
 
-    # removed the slack variables
+    # Allow a slack variable for the x-position constraint so violations are
+    # permitted but penalized. Increase Z_* to make slack more expensive.
+    # idxsbx: indices of state components with stage slacks
     
-    # ocp.constraints.idxsbx = np.array([0])
-    # ocp.cost.Zu = ocp.cost.Zl = np.array([1e3])
-    # ocp.cost.zu = ocp.cost.zl = np.array([0.0])
+    ocp.constraints.idxsbx = np.array([0])
+    # Quadratic penalty on the slack variables (stage)
+    ocp.cost.Zl = ocp.cost.Zu = np.array([1e8])
+    ocp.cost.zl = ocp.cost.zu = np.array([0.0])
 
-    # ocp.constraints.idxsbx_e = np.array([0])
-    # ocp.cost.Zu_e = ocp.cost.Zl_e = np.array([1e3])
-    # ocp.cost.zu_e = ocp.cost.zl_e = np.array([0.0])
+    # Terminal slack (optional) — apply same settings for terminal constraint
+    ocp.constraints.idxsbx_e = np.array([0])
+    ocp.cost.Zl_e = ocp.cost.Zu_e = np.array([1e8])
+    ocp.cost.zl_e = ocp.cost.zu_e = np.array([0.0])
+
 
     ######## Solver configuration ########
     ocp.solver_options.integrator_type = "DISCRETE"

@@ -31,9 +31,9 @@ class CartPolePlannerConfig:
     """
 
     N_horizon: int = 20
-    T_horizon: float = 1.0
-    Fmax: float = 10.0 # for simulation -> 5.0
-    x_threshold: float = 0.39 # for simulation -> 0.4
+    T_horizon: float = 1
+    Fmax: float = 2.5 # for simulation -> 5.0, for realworld -> 10.0
+    x_threshold: float = 0.4 # for simulation -> 0.4, for realworld -> 0.4
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"
