@@ -29,6 +29,7 @@
 #
 import matplotlib.pyplot as plt
 import numpy as np
+import csv
 from acados_template import latexify_plot
 
 def plot_pendulum(t, u_max, U, X_true, latexify=False, plt_show=True, time_label='$t$', x_labels=None, u_labels=None):
@@ -112,3 +113,80 @@ def plot_sol_and_sens(x_values:np.ndarray, pis: list[np.ndarray], senss: list[np
 
     # Save the figure
     plt.show()
+    
+    
+
+def plot_cartpole_log(path: str, plt_show: bool = True):
+    """Plot a cartpole CSV log with columns: t,x_m,theta,v_m_s,thetadot,u_pwm.
+
+    - `path` can be absolute or relative to the script.
+    - If matplotlib is not available the function will print an informative message.
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except Exception as e:
+        print("matplotlib required for plotting cartpole log:", e)
+        return
+
+    times = []
+    x_m = []
+    theta = []
+    v_ms = []
+    thetadot = []
+    u_pwm = []
+
+    try:
+        with open(path, newline='') as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                try:
+                    times.append(float(row.get('t', '')))
+                except Exception:
+                    times.append(None)
+                def g(name):
+                    try:
+                        return float(row.get(name, '') or 0.0)
+                    except Exception:
+                        return 0.0
+                x_m.append(g('x_m'))
+                theta.append(g('theta'))
+                v_ms.append(g('v_m_s'))
+                thetadot.append(g('thetadot'))
+                u_pwm.append(g('u_pwm'))
+    except Exception as e:
+        print('Could not read cartpole log:', e)
+        return
+
+    if any(t is None for t in times):
+        times = list(range(len(x_m)))
+
+    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(10, 8))
+    axes[0].plot(times, x_m, '-b')
+    axes[0].set_ylabel('x (m)')
+    axes[0].grid(True)
+
+    axes[1].plot(times, theta, '-r')
+    axes[1].set_ylabel('theta (rad)')
+    axes[1].grid(True)
+
+    axes[2].plot(times, v_ms, '-g')
+    axes[2].set_ylabel('v (m/s)')
+    axes[2].grid(True)
+
+    axes[3].plot(times, thetadot, '-c')
+    axes[3].set_ylabel('thetadot (rad/s)')
+    axes[3].grid(True)
+
+    axes[4].plot(times, u_pwm, '-k')
+    axes[4].set_ylabel('u (PWM)')
+    axes[4].set_xlabel('time (s)')
+    axes[4].grid(True)
+
+    fig.suptitle('Cartpole states and control over time')
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    if plt_show:
+        plt.show()
+
+
+

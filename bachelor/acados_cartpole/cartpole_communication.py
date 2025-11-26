@@ -7,6 +7,7 @@ from my_helpers import (
     countpersecond_to_meterspersecond,
 )
 from my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
+from utils import plot_cartpole_log
 
 
 PORT = "/dev/ttyACM0"
@@ -113,9 +114,20 @@ def send_control(u: float):
     
 
 def main():
+    # plotting is provided by `plot_cartpole_log` in `utils.py`
+
     # ensures we reference the module-level variables
     global ctx  
     
+    # prepare CSV logging (minimal, append-only)
+    log_path = os.path.join(os.path.dirname(__file__), "pwm_log.csv")
+    log_exists = os.path.exists(log_path)
+    log_fh = open(log_path, "a", newline='')
+    log_writer = csv.writer(log_fh)
+    if not log_exists:
+        log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_pwm"])
+        log_fh.flush()
+
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
@@ -151,17 +163,53 @@ def main():
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, v, 30)
+            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 30)
 
             # send PWM control to arduino
-            send_control(0)
+            send_control(u)
+
+            # write a minimal log row (converted values) after sending control
+            try:
+                tnow = time.time()
+                x_m = counts_to_meters(x)
+                v_m_s = countpersecond_to_meterspersecond(v)
+                log_writer.writerow([tnow, x_m, theta, v_m_s, thetadot, u])
+                # ensure data is written to disk (helps when plotting after abrupt stops)
+                try:
+                    log_fh.flush()
+                    os.fsync(log_fh.fileno())
+                except Exception:
+                    # flushing is best-effort; if it fails, keep running but print debug
+                    print('Warning: failed to fsync log file')
+            except Exception:
+                # keep running even if logging fails; print exception to help debugging
+                import traceback
+                print('Error writing to log file:')
+                traceback.print_exc()
             
             
     except KeyboardInterrupt:
-        send_control(0.0)
-        pass
-    
+        # try to stop actuator and plot
+        try:
+            send_control(0.0)
+        except Exception:
+            pass
+        try:
+            log_fh.close()
+        except Exception:
+            pass
+        # plot the collected data
+        try:
+            plot_cartpole_log(log_path)
+        except Exception as e:
+            print('Plotting failed:', e)
+
     finally:
+        try:
+            if not log_fh.closed:
+                log_fh.close()
+        except Exception:
+            pass
         ser.close()
         pass
 
