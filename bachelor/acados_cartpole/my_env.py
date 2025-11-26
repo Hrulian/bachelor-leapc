@@ -18,7 +18,7 @@ class CartPoleEnvConfig:
     Fmax: float = 1.0  # maximum force that can be applied to the cart [N]
     dt: float = 0.05  # simulation time step [s]
     max_time: float = 10.0  # maximum simulation time until truncation [s]
-    x_threshold: float = 2.4  # maximum absolute position of the cart before termination [m]
+    x_threshold: float = 1.0  # maximum absolute position of the cart before termination [m]
 
 
 class CartPoleEnv(gym.Env):
