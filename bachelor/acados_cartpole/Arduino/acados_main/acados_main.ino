@@ -44,7 +44,7 @@ volatile float omega = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 30;
+constexpr unsigned long COMMUNICATION_TIME_MS = 20;
 constexpr uint32_t STATE_UPDATE_US = 1000;
 constexpr byte NUM_CHARS = 32;
 

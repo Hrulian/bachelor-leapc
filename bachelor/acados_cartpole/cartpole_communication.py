@@ -1,6 +1,11 @@
-import threading, queue, serial, time
+import threading, queue, serial, time, os, csv
 
-from my_helpers import force_to_pwm, state_tuple_to_tensor
+from my_helpers import (
+    force_to_pwm,
+    state_tuple_to_tensor,
+    counts_to_meters,
+    countpersecond_to_meterspersecond,
+)
 from my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
 
 
@@ -25,7 +30,6 @@ controller = CartPolePlanner(cfg, params)
 ctx = None
 
 
-
 def listen_to_arduino():
     """
     -reads frames in the background with threading
@@ -36,7 +40,6 @@ def listen_to_arduino():
     currently_receiving = False
     buffer = bytearray()
     t0 = None
-    global broken_frame_counter
     
     while True:
         b = ser.read(1)
@@ -46,7 +49,6 @@ def listen_to_arduino():
                 currently_receiving = False
                 buffer.clear()
                 t0 = None
-                broken_frame_counter += 1
             continue 
         
         c = b[0]
@@ -69,13 +71,17 @@ def listen_to_arduino():
                 else:
                     parts = payload.split(',')
                     if len(parts) == 4:
-                        x, v, theta, thetadot = map(float, parts)
-                        state_que.put((x, v, theta, thetadot))
+                        # payload format: <x,theta,v,thetadot>
+                        x, theta, v, thetadot = map(float, parts)
+                        # store in expected order for controller: x, theta, v, thetadot
+                        state_que.put((x, theta, v, thetadot))
                     else:
-                        broken_frame_counter += 1
+                        # malformed payload, discard
+                        pass
                         
             except Exception:
-                broken_frame_counter += 1
+                # decode/parsing error, discard
+                pass
                     
             currently_receiving = False
             buffer.clear()
@@ -95,7 +101,6 @@ def listen_to_arduino():
             currently_receiving = False
             buffer.clear()
             t0 = None
-            broken_frame_counter += 1
             
 
 def send_control(u: float):
@@ -115,7 +120,7 @@ def main():
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
     arduinoThread.start()
-        
+    
     
     try:
         while True:
@@ -146,13 +151,11 @@ def main():
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, v, 50)
+            u = force_to_pwm(u_force, v, 30)
 
             # send PWM control to arduino
-            send_control(u)
+            send_control(0)
             
-            # for debugging
-            print(f"{x},{theta:.3f},{v},{thetadot:.3f}, -> {u_force:.3f}N -> PWM {u}")
             
     except KeyboardInterrupt:
         send_control(0.0)
@@ -160,7 +163,7 @@ def main():
     
     finally:
         ser.close()
-
+        pass
 
 
 
