@@ -152,7 +152,7 @@ def main():
             send_control(u)
             
             # for debugging
-            print(f"{x},{v},{theta:.3f},{thetadot:.3f}, -> {u_force:.3f}N -> PWM {u}")
+            print(f"{x},{theta:.3f},{v},{thetadot:.3f}, -> {u_force:.3f}N -> PWM {u}")
             
     except KeyboardInterrupt:
         send_control(0.0)

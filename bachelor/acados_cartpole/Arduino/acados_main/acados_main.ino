@@ -272,9 +272,20 @@ void apply_u() {
   int u_cmd = (int)lroundf(u);
   u_cmd = constrain(u_cmd, -U_MAX, U_MAX);
 
-  int sign = (u_cmd >= 0) ? +1 : -1;
-  int mag  = abs(u_cmd);
+  // determine sign explicitly
+  int sign;
+  if (u_cmd > 0) {
+    sign = 1;
+  } else if (u_cmd < 0) {
+    sign = -1;
+  } else {
+    sign = 0;
+  }
 
+  // magnitude (absolute value)
+  int mag = abs(u_cmd);
+
+  // handle deadband: very small commands are ignored
   if (mag < PWM_DEADBAND) {
     analogWrite(PWM_PIN, 0);
     return;
@@ -291,7 +302,7 @@ void apply_u() {
     last_sign = sign;
   } else {
     // Richtung bleibt gleich
-    digitalWrite(DIR_PIN, (sign > 0) ? LOW : HIGH);
+    digitalWrite(DIR_PIN, (sign > 0) ? HIGH : LOW);
   }
 
   analogWrite(PWM_PIN, mag);

@@ -108,10 +108,10 @@ def export_parametric_ocp(
     param_manager: AcadosParameterManager,
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS",
     name: str = "cartpole",
-    Fmax: float = 80.0,
-    x_threshold: float = 2.4,
-    N_horizon: int = 50,
-    T_horizon: float = 2.0,
+    Fmax: float = 10.0,
+    x_threshold: float = 0.1,
+    N_horizon: int = 20,
+    T_horizon: float = 1.0,
 ) -> AcadosOcp:
     ocp = AcadosOcp()
 
@@ -197,13 +197,15 @@ def export_parametric_ocp(
     ocp.constraints.ubx_e = -ocp.constraints.lbx_e
     ocp.constraints.idxbx_e = np.array([0])
 
-    ocp.constraints.idxsbx = np.array([0])
-    ocp.cost.Zu = ocp.cost.Zl = np.array([1e3])
-    ocp.cost.zu = ocp.cost.zl = np.array([0.0])
+    # removed the slack variables
+    
+    # ocp.constraints.idxsbx = np.array([0])
+    # ocp.cost.Zu = ocp.cost.Zl = np.array([1e3])
+    # ocp.cost.zu = ocp.cost.zl = np.array([0.0])
 
-    ocp.constraints.idxsbx_e = np.array([0])
-    ocp.cost.Zu_e = ocp.cost.Zl_e = np.array([1e3])
-    ocp.cost.zu_e = ocp.cost.zl_e = np.array([0.0])
+    # ocp.constraints.idxsbx_e = np.array([0])
+    # ocp.cost.Zu_e = ocp.cost.Zl_e = np.array([1e3])
+    # ocp.cost.zu_e = ocp.cost.zl_e = np.array([0.0])
 
     ######## Solver configuration ########
     ocp.solver_options.integrator_type = "DISCRETE"
