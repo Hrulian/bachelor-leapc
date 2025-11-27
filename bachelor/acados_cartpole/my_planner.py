@@ -32,8 +32,8 @@ class CartPolePlannerConfig:
 
     N_horizon: int = 20
     T_horizon: float = 1
-    Fmax: float = 2.5 # for simulation -> 5.0, for realworld -> 10.0
-    x_threshold: float = 0.4 # for simulation -> 0.4, for realworld -> 0.4
+    Fmax: float = 2.0 # -> choose so that v is below 2 m/s. Faster is not possible for realworld cartpole
+    x_threshold: float = 0.4 # for realworld -> 0.45
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"

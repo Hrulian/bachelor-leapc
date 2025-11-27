@@ -1,3 +1,11 @@
+"""MPC simulation for cart-pole system using acados and a custom planner
+This script sets up a closed-loop simulation of a cart-pole system using an MPC controller.
+important note: Real system cant exceed certain limits on position and velocity
+x treshold must be ALWAYS < 0.45 better if 0.4 (way better)
+velocity should be below 2 m/s (otherwise real system fails) -> set Fmax accordingly in planner
+friction is not modeled in env nor the planner currently
+"""
+
 import os
 import time
 from pathlib import Path
