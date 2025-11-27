@@ -3,7 +3,11 @@ This script sets up a closed-loop simulation of a cart-pole system using an MPC 
 important note: Real system cant exceed certain limits on position and velocity
 x treshold must be ALWAYS < 0.45 better if 0.4 (way better)
 velocity should be below 2 m/s (otherwise real system fails) -> set Fmax accordingly in planner
-friction is not modeled in env nor the planner currently
+friction is not modeled in env nor the planner currently.
+Also the slack variables on the x_treshold constraints should be kept in the planner to avoid infeasible QPs
+-> but they are inside now anyway since otherwise one is getting lot of QP errors
+-> Sim works by either incresing the x treshhold or the Fmax in the planner
+-> but both lead to an unrealistic simulated scenario
 """
 
 import os
@@ -24,7 +28,7 @@ from utils import plot_pendulum
 
 def main():
     # environment (use rgb_array so RecordVideo can capture frames)
-    env_cfg = CartPoleEnvConfig(max_time=10.0)
+    env_cfg = CartPoleEnvConfig(max_time=20.0)
     env = CartPoleEnv(render_mode="rgb_array", cfg=env_cfg)
 
     # planner setup - align planner bounds with the env to avoid infeasible QPs
@@ -47,7 +51,7 @@ def main():
     X_traj.append(np.array(obs, dtype=np.float32))
 
     # main closed-loop
-    max_steps = 200
+    max_steps = 400
     for step in range(max_steps):
         # env observation -> planner state ordering: [x, theta, dx, dtheta]
         x_env, theta_env, dx_env, dtheta_env = obs

@@ -29,10 +29,11 @@ class CartPolePlannerConfig:
         cost_type: The type of cost to use, either "EXTERNAL" or "NONLINEAR_LS".
         param_interface: Determines the exposed parameter interface of the planner.
     """
-
-    N_horizon: int = 20
-    T_horizon: float = 1
-    Fmax: float = 2.0 # -> choose so that v is below 2 m/s. Faster is not possible for realworld cartpole
+    
+    
+    N_horizon: int = 20 # choosen so that the avg MPC call is less than 15ms
+    T_horizon: float = 1 # choosen so that the avg MPC call is less than 15ms
+    Fmax: float = 1.1 # -> choosen so that v is below 2 m/s. Faster is not possible for realworld cartpole
     x_threshold: float = 0.4 # for realworld -> 0.45
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
