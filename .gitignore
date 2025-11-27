@@ -193,3 +193,6 @@ c_generated_code
 **/trash
 
 !/bachelor/
+# allow PWM files inside bachelor/ (and subfolders)
+!/bachelor/*.pwm
+!/bachelor/**/*.pwm
