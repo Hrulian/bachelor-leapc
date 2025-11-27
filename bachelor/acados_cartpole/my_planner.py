@@ -31,9 +31,9 @@ class CartPolePlannerConfig:
     """
     
     
-    N_horizon: int = 20 # choosen so that the avg MPC call is less than 15ms
-    T_horizon: float = 1 # choosen so that the avg MPC call is less than 15ms
-    Fmax: float = 1.1 # -> choosen so that v is below 2 m/s. Faster is not possible for realworld cartpole
+    N_horizon: int = 40 # choosen so that the avg MPC call is less than 15ms
+    T_horizon: float = 0.8 # choosen so that the avg MPC call is less than 15ms
+    Fmax: float = 1.2 # -> choosen so that v is below 2 m/s. Faster is not possible for realworld cartpole
     x_threshold: float = 0.4 # for realworld -> 0.45
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
