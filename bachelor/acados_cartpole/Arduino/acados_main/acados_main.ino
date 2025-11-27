@@ -44,7 +44,7 @@ volatile float omega = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 30;
+constexpr unsigned long COMMUNICATION_TIME_MS = 10;
 constexpr uint32_t STATE_UPDATE_US = 1000;
 constexpr byte NUM_CHARS = 32;
 
@@ -77,7 +77,7 @@ void isrA() {
   }
 }
 
-
+g
 
 //COMMUNICATION-------------------------------------------------------------------------
 void receive_parse_data() {
@@ -359,8 +359,21 @@ void setup() {
   // ISR
   attachInterrupt(digitalPinToInterrupt(PIN_A), isrA, RISING);
 
+  // startup test move
+  digitalWrite(DIR_PIN, LOW); // first direction
+  analogWrite(PWM_PIN, 25);
+  delay(50);
+  analogWrite(PWM_PIN, 0);
+  delay(50);
+  digitalWrite(DIR_PIN, HIGH); // reverse direction
+  analogWrite(PWM_PIN, 25);
+  delay(50);
+  analogWrite(PWM_PIN, 0);
+  delay(50);
+
   // pause before start
   delay(5000);
+
 }
 
 

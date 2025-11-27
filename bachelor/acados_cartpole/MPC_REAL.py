@@ -124,7 +124,7 @@ def main():
     global ready_flag
     
     # prepare CSV logging: remove any old log file at start so each run is fresh
-    log_path = os.path.join(os.path.dirname(__file__), "pwm_log.csv")
+    log_path = os.path.join(os.path.dirname(__file__), "real_cartpole_log.csv")
     if os.path.exists(log_path):
         try:
             os.remove(log_path)
@@ -182,16 +182,16 @@ def main():
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v))
+            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v) )
 
             # send PWM control to arduino
-            send_control(0)
+            send_control(u)
             
             if ready_flag == False:
                 ready_flag = True
                 print("Controller is ready")            
             
-            # debug: print the state vector (converted) immediately after sending control
+            #debug: print the state vector (converted) immediately after sending control
     
             # try:
             #     tnow_dbg = time.time()
@@ -235,7 +235,11 @@ def main():
             pass
         # plot the collected data
         try:
-            plot_cartpole_log(log_path)
+            # save plot next to the CSV log with same base name
+            plot_path = os.path.splitext(log_path)[0] + '.png'
+            # save and show the plot so the user can inspect it interactively
+            plot_cartpole_log(log_path, plt_show=True, save_path=plot_path)
+            print(f'Saved and displayed plot at {plot_path}')
         except Exception as e:
             print('Plotting failed:', e)
         # print planner timing statistics

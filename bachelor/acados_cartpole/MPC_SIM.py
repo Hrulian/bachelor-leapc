@@ -22,14 +22,15 @@ from gymnasium.wrappers import RecordVideo
 from my_acados_ocp import create_custom_cartpole_params
 from my_helpers import u_converted
 from my_planner import CartPolePlannerConfig, CartPolePlanner
-from my_env import CartPoleEnv, CartPoleEnvConfig
+from my_env import CartPoleEnv, CartPoleEnvConfig, CartPoleBalanceEnv
 from utils import plot_pendulum
 
 
 def main():
     # environment (use rgb_array so RecordVideo can capture frames)
     env_cfg = CartPoleEnvConfig(max_time=20.0)
-    env = CartPoleEnv(render_mode="rgb_array", cfg=env_cfg)
+    # use the balance environment so the pole starts upright
+    env = CartPoleBalanceEnv(render_mode="rgb_array", cfg=env_cfg)
 
     # planner setup - align planner bounds with the env to avoid infeasible QPs
     cfg = CartPolePlannerConfig()
@@ -39,7 +40,7 @@ def main():
 
     # record video to the same folder as this script
     video_folder = Path(__file__).resolve().parent
-    env = RecordVideo(env, str(video_folder), name_prefix="cartpole_video", episode_trigger=lambda _: True)
+    env = RecordVideo(env, str(video_folder), name_prefix="simulation_video", episode_trigger=lambda _: True)
 
     obs, _ = env.reset()  # obs layout (env): [x, theta, dx, dtheta]
 
@@ -51,7 +52,7 @@ def main():
     X_traj.append(np.array(obs, dtype=np.float32))
 
     # main closed-loop
-    max_steps = 400
+    max_steps = 100
     for step in range(max_steps):
         # env observation -> planner state ordering: [x, theta, dx, dtheta]
         x_env, theta_env, dx_env, dtheta_env = obs
@@ -120,7 +121,7 @@ def main():
 
     # plot using provided utility and save figure next to the script
     plot_pendulum(t_vec, env.unwrapped.cfg.Fmax, U_arr, X_arr, latexify=False, plt_show=False)
-    fig_path = video_folder / "cartpole_trajectory.png"
+    fig_path = video_folder / "simulation_trajectory.png"
     plt.savefig(fig_path)
     print(f"Saved trajectory plot to {fig_path}")
 

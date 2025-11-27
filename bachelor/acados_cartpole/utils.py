@@ -30,6 +30,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
+import os
+from pathlib import Path
 from acados_template import latexify_plot
 
 def plot_pendulum(t, u_max, U, X_true, latexify=False, plt_show=True, time_label='$t$', x_labels=None, u_labels=None):
@@ -116,10 +118,11 @@ def plot_sol_and_sens(x_values:np.ndarray, pis: list[np.ndarray], senss: list[np
     
     
 
-def plot_cartpole_log(path: str, plt_show: bool = True):
+def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = None):
     """Plot a cartpole CSV log with columns: t,x_m,theta,v_m_s,thetadot,u_pwm.
 
     - `path` can be absolute or relative to the script.
+    - `save_path` if provided will be used to save the generated figure (PNG/PDF/etc).
     - If matplotlib is not available the function will print an informative message.
     """
     try:
@@ -184,6 +187,25 @@ def plot_cartpole_log(path: str, plt_show: bool = True):
 
     fig.suptitle('Cartpole states and control over time')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    # Determine save target: use explicit `save_path` if provided,
+    # otherwise save into the current working directory using the
+    # CSV filename stem (so the plot is always saved next to where
+    # you invoked the script).
+    try:
+        if save_path is None:
+            default_name = Path(path).stem + '.png'
+            save_target = os.path.join(os.getcwd(), default_name)
+        else:
+            save_target = save_path
+
+        try:
+            fig.savefig(save_target, bbox_inches='tight')
+            print('Saved plot to', save_target)
+        except Exception as e:
+            print('Failed to save plot to', save_target, ':', e)
+    except Exception as e:
+        print('Unexpected error while saving plot:', e)
 
     if plt_show:
         plt.show()

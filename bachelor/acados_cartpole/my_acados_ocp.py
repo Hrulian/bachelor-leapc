@@ -2,6 +2,7 @@
 #           -removed slack variables from ocp formulation
 #           -incre
 #           -adjusted weihts in cost function
+#           -added max iteration for the QP solver 
 
 from typing import Literal
 
@@ -10,6 +11,7 @@ import gymnasium as gym
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp
 
+from leap_c import ocp
 from leap_c.examples.utils.casadi import integrate_erk4
 from leap_c.ocp.acados.parameters import AcadosParameter, AcadosParameterManager
 
@@ -43,7 +45,7 @@ def create_custom_cartpole_params(
         AcadosParameter("l", default=np.array([0.38])),  # length of the rod [m]
         # Cost matrix factorization parameters
         AcadosParameter(
-            "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1e-2, 1e-2]))
+            "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1, 1]))
         ),  # cost weights of state residuals
         AcadosParameter(
             "r_diag_sqrt", default=np.sqrt(np.array([1e-1]))
@@ -186,7 +188,7 @@ def export_parametric_ocp(
 
     ######## Constraints ########
     ocp.constraints.idxbx_0 = np.array([0, 1, 2, 3])
-    ocp.constraints.x0 = np.array([0.0, np.pi, 0.0, 0.0]) 
+    ocp.constraints.x0 = np.array([0.0, 0, 0.0, 0.0]) # -> for now lets start in the upright position
 
     ocp.constraints.lbu = np.array([-Fmax])
     ocp.constraints.ubu = np.array([+Fmax])
@@ -203,15 +205,15 @@ def export_parametric_ocp(
     # permitted but penalized. Increase Z_* to make slack more expensive.
     # idxsbx: indices of state components with stage slacks
     
-    ocp.constraints.idxsbx = np.array([0])
-    # Quadratic penalty on the slack variables (stage)
-    ocp.cost.Zl = ocp.cost.Zu = np.array([1e8])
-    ocp.cost.zl = ocp.cost.zu = np.array([0.0])
+    # ocp.constraints.idxsbx = np.array([0])
+    # # Quadratic penalty on the slack variables (stage)
+    # ocp.cost.Zl = ocp.cost.Zu = np.array([1e3])
+    # ocp.cost.zl = ocp.cost.zu = np.array([0.0])
 
-    # Terminal slack (optional) — apply same settings for terminal constraint
-    ocp.constraints.idxsbx_e = np.array([0])
-    ocp.cost.Zl_e = ocp.cost.Zu_e = np.array([1e8])
-    ocp.cost.zl_e = ocp.cost.zu_e = np.array([0.0])
+    # # Terminal slack (optional) — apply same settings for terminal constraint
+    # ocp.constraints.idxsbx_e = np.array([0])
+    # ocp.cost.Zl_e = ocp.cost.Zu_e = np.array([1e3])
+    # ocp.cost.zl_e = ocp.cost.zu_e = np.array([0.0])
 
 
     ######## Solver configuration ########
@@ -220,5 +222,14 @@ def export_parametric_ocp(
 
     ocp.solver_options.qp_solver = "PARTIAL_CONDENSING_HPIPM"
     ocp.solver_options.qp_solver_ric_alg = 1
+    
+    #addded max iterations for the QP solver and NLP solver so if SQP fails we stop early
+    ocp.solver_options.qp_solver_iter_max = 20
+    ocp.solver_options.nlp_solver_max_iter = 10
+    
+    # those here i took from Katrin without really understanding them
+    ocp.solver_options.reg_epsilon = 5e-2
+    ocp.solver_options.levenberg_marquardt = 1e-6
+    
 
     return ocp
