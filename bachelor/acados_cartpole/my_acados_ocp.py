@@ -39,10 +39,10 @@ def create_custom_cartpole_params(
     """
     return [
         # Dynamics parameters
-        AcadosParameter("M", default=np.array([0.15])),  # mass of the cart [kg]
-        AcadosParameter("m", default=np.array([0.025])),  # mass of the ball [kg]
+        AcadosParameter("M", default=np.array([0.1518])),  # mass of the cart [kg]
+        AcadosParameter("m", default=np.array([0.0293])),  # mass of the ball [kg]
         AcadosParameter("g", default=np.array([9.81])),  # gravity constant [m/s^2]
-        AcadosParameter("l", default=np.array([0.38])),  # length of the rod [m]
+        AcadosParameter("l", default=np.array([0.276])),  # length of the rod [m]
         # Cost matrix factorization parameters
         AcadosParameter(
             "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1, 1]))

@@ -198,7 +198,7 @@ def main():
             #     x_m_dbg = counts_to_meters(x)
             #     v_m_s_dbg = countpersecond_to_meterspersecond(v)
             #     print(
-            #         f"DEBUG state @ {tnow_dbg:.3f}: x_m={x_m_dbg:.4f}, theta={theta:.4f}, v_m_s={v_m_s_dbg:.4f}, thetadot={thetadot:.4f}, u={u:.3f}"
+            #         f"{tnow_dbg:.3f}: x_m={x_m_dbg:.4f}, theta={theta:.4f}, v_m_s={v_m_s_dbg:.4f}, force={u_force:.4f}, u={u:.3f}"
             #     )
             # except Exception:
             #     print("DEBUG: failed to compute debug state")

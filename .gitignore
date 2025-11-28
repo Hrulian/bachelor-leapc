@@ -178,7 +178,6 @@ cule/
 
 test/cuda_devices_info.py
 test/mini_example.py
-*.png
 test.gin
 
 # Acados generated stuff (json files, c_generated_code)
@@ -186,8 +185,10 @@ test.gin
 c_generated_code
 
 # Logs and videos
+# keep CSV ignored, but allow image/video files to be committed
 *.csv
-*.mp4
+!*.png
+!*.mp4
 
 # Trash
 **/trash

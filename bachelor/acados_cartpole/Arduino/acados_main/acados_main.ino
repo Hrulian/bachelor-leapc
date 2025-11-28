@@ -1,7 +1,5 @@
 /*
 -nov 24: heavily simplified position control. Position only comes from AB counts potenzial drift now
-
-
 */
 
 
@@ -21,7 +19,7 @@ constexpr uint8_t PIN_B = 3;
 
 constexpr long cpr_ghh60 = 1024; 
 constexpr float TAU_V = 0.01f;  // 10 ms
-constexpr uint32_t position_limit = 11000;
+constexpr uint32_t position_limit = 10000;
 
 volatile bool tripped = false; // flag that indicates whether we exceeded the position limit
 volatile long x = 0; // cartpostion in coutns
@@ -36,11 +34,10 @@ constexpr float step_rad = (2.0f * PI) / cpr_as5600;
 constexpr float TAU_S = 0.02; 
 
 static float last_theta = 0.0f;
-volatile float theta_new = 0.0f;
 volatile uint16_t zero_raw_top = 0;
 volatile uint16_t last_raw = 0;
 volatile float angle_unwrapped = 0.0f;
-volatile float omega = 0.0f;
+volatile float thetadot = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
@@ -77,7 +74,7 @@ void isrA() {
   }
 }
 
-g
+
 
 //COMMUNICATION-------------------------------------------------------------------------
 void receive_parse_data() {
@@ -121,7 +118,7 @@ void receive_parse_data() {
 }
 
 
-void send_state(long x, float theta, long v,  float omega) {
+void send_state(long x, float theta, long v,  float thetadot) {
   /*
   -sends a state as a string in the form 
   */
@@ -135,7 +132,7 @@ void send_state(long x, float theta, long v,  float omega) {
   Serial.write(',');
   Serial.print(v);
   Serial.write(',');
-  Serial.print(omega, 3);
+  Serial.print(thetadot, 3);
   Serial.write('>'); // endmarker
   Serial.write('\n'); // only for debugging  
 }
@@ -154,19 +151,24 @@ inline void update_theta_omega(const float T) {
   const int16_t  dr  = delta_from_raw(raw, last_raw);
   last_raw           = raw;
 
-  // make angle continues by always sub/add
-  const float dtheta = (float)dr * step_rad;
+  // make angle continuous by always sub/add; negate incremental step to invert sign
+  const float dtheta = -((float)dr * step_rad);
   angle_unwrapped   += dtheta;
 
-  // raw omega taken
-  float omega_raw = dtheta / T; // rad/s
+  // raw theta-dot taken (no filtering)
+  float thetadot_raw = dtheta / T; // rad/s (negated accordingly)
 
- 
-  static float omega_hat = 0.0f;
+  // EMA smoothing for theta-dot (seed on first call)
+  static float thetadot_hat = 0.0f;
+  static bool thetadot_hat_initialized = false;
   const float alpha = T / (TAU_S + T);
-
-  omega_hat = (1.0f - alpha) * omega_hat + alpha * omega_raw;
-  omega = omega_hat;
+  if (!thetadot_hat_initialized) {
+    thetadot_hat = thetadot_raw;
+    thetadot_hat_initialized = true;
+  } else {
+    thetadot_hat = (1.0f - alpha) * thetadot_hat + alpha * thetadot_raw;
+  }
+  thetadot = thetadot_hat;
 }
 
 
@@ -259,7 +261,8 @@ float raw_to_rad(uint16_t raw) {
   */
 
   uint16_t diff = (raw + cpr_as5600- zero_raw_top) & 0x0FFF;
-  return diff * step_rad;
+  // invert theta sign so positive raw angles become negative in `angle_unwrapped`
+  return -diff * step_rad;
 }
 
 
@@ -417,8 +420,8 @@ void loop() {
 
   
     float theta = angle_unwrapped;
-    //send the state here 
-    send_state(x, theta, v, omega);
+    // send the state here: x, theta, v, thetadot (raw derivative)
+    send_state(x, theta, v, thetadot);
 
   }
 }

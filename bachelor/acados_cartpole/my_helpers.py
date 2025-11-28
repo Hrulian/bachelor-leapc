@@ -2,22 +2,23 @@ import numpy as np
 import torch
 
 
-def force_to_pwm(force: float, velocity: int, max_pwm_limit: int = 200) -> int:
+def force_to_pwm(force: float, velocity: int, max_pwm_limit: int = 255) -> int:
     """
     Map a desired force and current velocity to a PWM integer.
 
     Parameters
     - force: desired force in Newtons [N].
     - velocity: current cart velocity in meters per second [m/s].
-    - max_pwm_limit: application cap for absolute PWM (default 160).
+    - max_pwm_limit: application cap for absolute PWM (default 255).
 
     Returns
     - pwm: integer PWM command in range [-max_pwm_limit, max_pwm_limit].
     """
-    a = 40.24
-    b = 6.95
-    c = -0.21
-    mass = 0.15  # [kg] estimated: 0.54 g cart + 2 * 30g kuggellager + 24g * welle + 0.012 * unknown parts
+    # Estimated parameters: a=48.457122, b=5.280475, c=-7.571013
+    a = 48.45
+    b = 5.28
+    c = -7.57
+    mass = 0.1518  # [kg] estimated: 0.54 g cart + 2 * 30g kuggellager + 24g * welle + 0.012 * unknown parts
 
     # compute control-like quantity u 
     u = ((force / mass) + a * velocity - c * sgn(velocity)) / b

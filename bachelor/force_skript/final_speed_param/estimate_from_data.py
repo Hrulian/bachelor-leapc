@@ -252,7 +252,7 @@ def main():
         sys.exit(2)
 
     # initial guess
-    theta0 = [1.0, 1.0, 1.0]
+    theta0 = [0.0, 0.0, 0.0]
 
     result = least_squares(
         fun=residuals_all,

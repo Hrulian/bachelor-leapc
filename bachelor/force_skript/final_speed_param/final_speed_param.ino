@@ -12,7 +12,7 @@ constexpr uint8_t PIN_B = 3;
 
 constexpr long cpr_ghh60 = 1024; 
 constexpr float TAU_V = 0.01f;  // 10 ms
-constexpr uint32_t position_limit = 13000;
+constexpr uint32_t position_limit = 10000;
 
 volatile bool tripped = false; // flag that indicates whether we exceeded the position limit
 volatile long x = 0; // cartpostion in coutns
