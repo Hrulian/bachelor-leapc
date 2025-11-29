@@ -123,6 +123,7 @@ def main():
     global ctx  
     global ready_flag
     
+    
     # prepare CSV logging: remove any old log file at start so each run is fresh
     log_path = os.path.join(os.path.dirname(__file__), "real_cartpole_log.csv")
     if os.path.exists(log_path):
@@ -138,16 +139,18 @@ def main():
     log_fh.flush()
 
 
-
-
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
     arduinoThread.start()
     # collect planner timing statistics
     planner_times = []
+    # debug logging timer (lightweight)
+    last_dbg_time = 0.0
     
     
+    
+    # main control loop
     try:
         while True:
             # wait for a new state
@@ -194,21 +197,43 @@ def main():
             #debug: print the state vector (converted) immediately after sending control
     
             # try:
-            #     tnow_dbg = time.time()
             #     x_m_dbg = counts_to_meters(x)
             #     v_m_s_dbg = countpersecond_to_meterspersecond(v)
+            #     # original theta from the incoming state tuple
+            #     theta_orig = float(state[1])
+
+            #     # try to extract theta from the converted tensor/array
+            #     try:
+            #         # common case: torch tensor -> support .item()
+            #         theta_conv = float(state_converted[1].item())
+            #     except Exception:
+            #         try:
+            #             # fall back to numpy extraction if tensor has detach
+            #             theta_conv = float(state_converted.detach().cpu().numpy().flatten()[1])
+            #         except Exception:
+            #             # final fallback: use original theta
+            #             theta_conv = theta_orig
+
             #     print(
-            #         f"{tnow_dbg:.3f}: x_m={x_m_dbg:.4f}, theta={theta:.4f}, v_m_s={v_m_s_dbg:.4f}, force={u_force:.4f}, u={u:.3f}"
+            #         f"theta_conv={theta_conv:.4f}, theta_orig={theta_orig:.4f}: "
+            #         f"x_m={x_m_dbg:.4f}, v_m_s={v_m_s_dbg:.4f}, force={u_force:.4f}, u={u:.3f}"
             #     )
             # except Exception:
             #     print("DEBUG: failed to compute debug state")
 
-            # write a minimal log row. Needed for plotting later
+            #write a minimal log row. Needed for plotting later
             try:
                 tnow = time.time()
                 x_m = counts_to_meters(x)
                 v_m_s = countpersecond_to_meterspersecond(v)
                 log_writer.writerow([tnow, x_m, theta, v_m_s, thetadot, u])
+                # periodic lightweight debug print (once per 0.1s)
+                # try:
+                #     if tnow - last_dbg_time >= 0.1:
+                #         last_dbg_time = tnow
+                #         print(f"DBG t={tnow:.1f} x_m={x_m:.4f} theta={theta:.4f} v_m_s={v_m_s:.4f} u_force={u_force:.4f} pwm={u}")
+                # except Exception:
+                #     pass
                 # ensure data is written to disk (helps when plotting after abrupt stops)
                 try:
                     log_fh.flush()

@@ -15,7 +15,7 @@ class CartPoleEnvConfig:
     masscart: float = 0.1518  # mass of the cart [kg]
     masspole: float = 0.02932  # mass of the pole [kg]
     length: float = 0.276  # length of the pole [m]
-    Fmax: float = 15.0  # maximum force that can be applied to the cart [N]
+    Fmax: float = 5.0  # maximum force that can be applied to the cart [N]
     dt: float = 0.05  # simulation time step [s]
     max_time: float = 10.0  # maximum simulation time until truncation [s]
     x_threshold: float = 0.8  # maximum absolute position of the cart before termination [m]
@@ -421,12 +421,10 @@ class CartPoleBalanceEnv(CartPoleEnv):
         self.observation_space = spaces.Box(low, high, dtype=np.float32)
 
     def init_state(self, options: dict | None) -> np.ndarray:
-        low, high = gym_utils.maybe_parse_reset_bounds(
-            options,
-            -0.07,
-            0.07,  # default low
-        )  # default high
-        return self.np_random.uniform(low=low, high=high, size=(4,))
+        # For deterministic balance tests return a fixed start state:
+        # x = 0.0 (cart position), theta = 0.1 rad (small tilt),
+        # v = 0.0 (cart velocity), thetadot = 0.0 (angular velocity).
+        return np.array([0.1, 0.0, 0.0, 0.0], dtype=np.float32)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         s_prime, r, term, trunc, info = super().step(action)
@@ -439,3 +437,4 @@ class CartPoleBalanceEnv(CartPoleEnv):
             info["task"]["success"] = False
         r = 1.0 if not term else 0.0
         return s_prime, r, term, trunc, info
+

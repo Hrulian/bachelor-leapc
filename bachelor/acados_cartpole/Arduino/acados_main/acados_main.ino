@@ -11,15 +11,15 @@ AS5600 as5600(&Wire);
 
 //Motor
 const int PWM_PIN = 5;
-const int DIR_PIN = 6; // LOW is to the left currently
+const int DIR_PIN = 6; // LOW is to the right currently
 
 // GHH60
 constexpr uint8_t PIN_A = 2;
 constexpr uint8_t PIN_B = 3;
 
 constexpr long cpr_ghh60 = 1024; 
-constexpr float TAU_V = 0.01f;  // 10 ms
-constexpr uint32_t position_limit = 10000;
+constexpr float TAU_V = 0.005f;  // 10 ms
+constexpr uint32_t position_limit = 11000;
 
 volatile bool tripped = false; // flag that indicates whether we exceeded the position limit
 volatile long x = 0; // cartpostion in coutns
@@ -31,7 +31,7 @@ constexpr long cpr_as5600 = 4096;
 constexpr float two_pi = 2.0f * PI;
 constexpr float four_pi = 4.0f * PI;
 constexpr float step_rad = (2.0f * PI) / cpr_as5600;
-constexpr float TAU_S = 0.02; 
+constexpr float TAU_S = 0.005; 
 
 static float last_theta = 0.0f;
 volatile uint16_t zero_raw_top = 0;
@@ -42,7 +42,7 @@ volatile float thetadot = 0.0f;
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
 constexpr unsigned long COMMUNICATION_TIME_MS = 10;
-constexpr uint32_t STATE_UPDATE_US = 1000;
+constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 
 volatile bool new_data = false; // if u has been send to motor -> false
@@ -50,9 +50,9 @@ volatile char receivediff_cnthars[NUM_CHARS];
 volatile float u = 0.0f;
 
 //Motor tuning
-constexpr int U_MAX        = 150;  // max allowed PWM
+constexpr int U_MAX        = 255;  // max allowed PWM
 constexpr int PWM_DEADBAND = 3;    // pwm <= will be ignored
-constexpr int PWM_MIN_EFF  = 20;   // min pwm to overcome friction
+constexpr int PWM_MIN_EFF  = 4;   // min pwm to overcome friction
 
 // merkt sich die letzte Richtung, um Deadtime nur bei Richtungswechsel zu setzen
 static int last_sign = 0;
@@ -151,12 +151,12 @@ inline void update_theta_omega(const float T) {
   const int16_t  dr  = delta_from_raw(raw, last_raw);
   last_raw           = raw;
 
-  // make angle continuous by always sub/add; negate incremental step to invert sign
-  const float dtheta = -((float)dr * step_rad);
+  // make angle continuous by always sub/add; incremental step
+  const float dtheta = ((float)dr * step_rad);
   angle_unwrapped   += dtheta;
 
   // raw theta-dot taken (no filtering)
-  float thetadot_raw = dtheta / T; // rad/s (negated accordingly)
+  float thetadot_raw = dtheta / T; // rad/s
 
   // EMA smoothing for theta-dot (seed on first call)
   static float thetadot_hat = 0.0f;
@@ -261,8 +261,8 @@ float raw_to_rad(uint16_t raw) {
   */
 
   uint16_t diff = (raw + cpr_as5600- zero_raw_top) & 0x0FFF;
-  // invert theta sign so positive raw angles become negative in `angle_unwrapped`
-  return -diff * step_rad;
+  // convert raw encoder diff to radians (no sign inversion)
+  return diff * step_rad;
 }
 
 
@@ -296,21 +296,26 @@ void apply_u() {
   if (mag < PWM_MIN_EFF) {
     mag = PWM_MIN_EFF;
   }
-
+  // set the direction accordingly
+  // a short deadtime when the sign (direction) changes.
   if (sign != last_sign) {
+    // stop PWM before changing direction
     analogWrite(PWM_PIN, 0);
     delayMicroseconds(50);
-    digitalWrite(DIR_PIN, (sign > 0) ? LOW : HIGH);  // bei dir: LOW = rechts
-    delayMicroseconds(50);
-    last_sign = sign;
-  } else {
-    // Richtung bleibt gleich
-    digitalWrite(DIR_PIN, (sign > 0) ? HIGH : LOW);
   }
 
+  // Consistent direction mapping: positive -> LOW, negative -> HIGH
+  if (sign > 0) {
+    digitalWrite(DIR_PIN, LOW);
+  } else if (sign < 0) {
+    digitalWrite(DIR_PIN, HIGH);
+  }
+
+  // small settle delay after (possible) direction change
+  delayMicroseconds(50);
+  last_sign = sign;
   analogWrite(PWM_PIN, mag);
 }
-
 
 
 void motorstop() {
@@ -421,7 +426,8 @@ void loop() {
   
     float theta = angle_unwrapped;
     // send the state here: x, theta, v, thetadot (raw derivative)
-    send_state(x, theta, v, thetadot);
+    // flip sign of theta and thetadot to match external convention
+    send_state(x, -wrap_to_pi(theta), v, -thetadot);
 
   }
 }

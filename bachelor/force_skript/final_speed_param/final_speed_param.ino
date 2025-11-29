@@ -23,7 +23,7 @@ volatile long encoder_pos = 0;
 constexpr uint32_t BAUDRATE = 115200;
 constexpr uint32_t STATE_UPDATE_US = 1000;
 // --- User-configurable test params ---
-constexpr int APPLY_PWM_CMD = -138; // signed PWM command applied when streaming starts
+constexpr int APPLY_PWM_CMD = -50; // signed PWM command applied when streaming starts
 // request 2 ms telemetry interval
 constexpr unsigned long TELEMETRY_MS = 2; // telemetry interval in ms
 

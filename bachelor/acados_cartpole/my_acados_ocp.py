@@ -188,7 +188,7 @@ def export_parametric_ocp(
 
     ######## Constraints ########
     ocp.constraints.idxbx_0 = np.array([0, 1, 2, 3])
-    ocp.constraints.x0 = np.array([0.0, 0, 0.0, 0.0]) # -> for now lets start in the upright position
+    ocp.constraints.x0 = np.array([0.0, 0.0, 0.0, 0.0]) # -> for now lets start in the upright position
 
     ocp.constraints.lbu = np.array([-Fmax])
     ocp.constraints.ubu = np.array([+Fmax])
