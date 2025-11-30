@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def force_to_pwm(force: float, velocity: int, max_pwm_limit: int = 255) -> int:
+def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 255) -> int:
     """
     Map a desired force and current velocity to a PWM integer.
 
