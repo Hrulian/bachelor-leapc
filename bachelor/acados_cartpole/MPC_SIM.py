@@ -52,7 +52,7 @@ def main():
     X_traj.append(np.array(obs, dtype=np.float32))
 
     # main closed-loop
-    max_steps = 100
+    max_steps = 200
     for step in range(max_steps):
         # env observation -> planner state ordering: [x, theta, dx, dtheta]
         x_env, theta_env, dx_env, dtheta_env = obs

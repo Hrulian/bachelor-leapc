@@ -92,6 +92,17 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     dtheta = model.x[3]
 
     F = model.u[0]
+    
+    # modelling of friction parameters found experimentally
+    a = 48.45
+    c = 7.57
+
+    d_v = M * a      # viskose Reibung [N s/m]
+    d_c = M * c     # Coulomb-Reibung [N]
+
+   
+    v_sign = ca.sign(v)
+    F_fric = 0#d_v * v + d_c * v_sign
 
     # dynamics
     cos_theta = ca.cos(theta)
@@ -100,7 +111,7 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     f_expl = ca.vertcat(
         v,
         dtheta,
-        (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F) / denominator,
+        (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F - F_fric) / denominator,
         (-m * l * cos_theta * sin_theta * dtheta * dtheta + F * cos_theta + (M + m) * g * sin_theta)
         / (l * denominator),
     )

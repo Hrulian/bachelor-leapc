@@ -15,10 +15,10 @@ class CartPoleEnvConfig:
     masscart: float = 0.1518  # mass of the cart [kg]
     masspole: float = 0.02932  # mass of the pole [kg]
     length: float = 0.276  # length of the pole [m]
-    Fmax: float = 5.0  # maximum force that can be applied to the cart [N]
+    Fmax: float = 20.0  # maximum force that can be applied to the cart [N]
     dt: float = 0.05  # simulation time step [s]
     max_time: float = 10.0  # maximum simulation time until truncation [s]
-    x_threshold: float = 0.8  # maximum absolute position of the cart before termination [m]
+    x_threshold: float = 2.0  # maximum absolute position of the cart before termination [m]
 
 
 class CartPoleEnv(gym.Env):
@@ -138,6 +138,18 @@ class CartPoleEnv(gym.Env):
         ):
             _, theta, dx, dtheta = x
             F = u.item()
+
+            # friction parameters (match my_acados_ocp.py)
+            a = 48.45
+            c = 7.57
+
+            d_v = M * a      # viscous friction coefficient [N s/m]
+            d_c = M * c      # Coulomb friction [N]
+
+            v = dx
+            v_sign = np.sign(v)
+            F_fric = d_v * v + d_c * v_sign
+
             cos_theta = np.cos(theta)
             sin_theta = np.sin(theta)
             denominator = M + m - m * cos_theta * cos_theta
@@ -145,7 +157,7 @@ class CartPoleEnv(gym.Env):
                 [
                     dx,
                     dtheta,
-                    (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F)
+                    (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F - F_fric)
                     / denominator,
                     (
                         -m * l * cos_theta * sin_theta * dtheta * dtheta
@@ -399,6 +411,8 @@ class CartPoleEnv(gym.Env):
             pygame.quit()
 
 
+
+
 class CartPoleBalanceEnv(CartPoleEnv):
     """The same as the CartPoleEnv, but instead of swinging up, the pole starts in an upwards,
     slightly disbalanced, position and the agent should learn to balance the pole.
@@ -424,7 +438,7 @@ class CartPoleBalanceEnv(CartPoleEnv):
         # For deterministic balance tests return a fixed start state:
         # x = 0.0 (cart position), theta = 0.1 rad (small tilt),
         # v = 0.0 (cart velocity), thetadot = 0.0 (angular velocity).
-        return np.array([0.1, 0.0, 0.0, 0.0], dtype=np.float32)
+        return np.array([0.0, 0.2, 0.0, 0.0], dtype=np.float32)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         s_prime, r, term, trunc, info = super().step(action)
