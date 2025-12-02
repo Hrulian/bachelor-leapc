@@ -29,7 +29,8 @@ Main Loop Pseudocode:
     -from new state s', get new parameter p' and action a' from MpcSacActor
     -periodically call the sac_zop update (prob put in a function) 
     -if done = true ask arduino for physical reset, reset ctx and start new episode
-    
+        -done: cart to far, pole to tilted(if onyl balancing), max steps reached
+        
 ----------------------------------------------------------------
 
 
@@ -47,7 +48,7 @@ SAC-ZOP update step
     - Soft-update target critic with tau
 - Implement this as a standalone function:
     sac_zop_update_step()
-    that uses global (or passed-in) actor, critic, target_critic, log_alpha,
+    that uses global -,actor, -,critic -,target_critic -,log_alpha,
     optimizers, and replay buffer
 """
 import torch 
