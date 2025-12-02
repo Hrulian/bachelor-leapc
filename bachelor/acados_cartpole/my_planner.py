@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from my_acados_ocp import (
+from bachelor.acados_cartpole.my_acados_ocp import (
     CartPoleAcadosCostType,
     CartPoleAcadosParamInterface,
     create_custom_cartpole_params,

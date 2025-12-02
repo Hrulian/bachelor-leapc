@@ -1,13 +1,13 @@
 import threading, queue, serial, time, os, csv
 
-from my_helpers import (
+from bachelor.acados_cartpole.my_helpers import (
     force_to_pwm,
     state_tuple_to_tensor,
     counts_to_meters,
     countpersecond_to_meterspersecond,
 )
-from my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
-from utils import plot_cartpole_log
+from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
+from bachelor.acados_cartpole.my_utils_plot import plot_cartpole_log
 
 
 PORT = "/dev/ttyACM0"

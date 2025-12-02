@@ -19,11 +19,11 @@ import torch
 import matplotlib.pyplot as plt
 from gymnasium.wrappers import RecordVideo
 
-from my_acados_ocp import create_custom_cartpole_params
-from my_helpers import u_converted
-from my_planner import CartPolePlannerConfig, CartPolePlanner
-from my_env import CartPoleEnv, CartPoleEnvConfig, CartPoleBalanceEnv
-from utils import plot_pendulum
+from bachelor.acados_cartpole.my_acados_ocp import create_custom_cartpole_params
+from bachelor.acados_cartpole.my_helpers import u_converted
+from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner
+from bachelor.acados_cartpole.my_env import CartPoleEnv, CartPoleEnvConfig, CartPoleBalanceEnv
+from bachelor.acados_cartpole.my_utils_plot import plot_pendulum
 
 
 def main():
