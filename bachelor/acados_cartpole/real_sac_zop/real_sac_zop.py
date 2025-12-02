@@ -52,7 +52,8 @@ SAC-ZOP update step
     optimizers, and replay buffer
 """
 import torch 
-
+import numpy as np
+import gymnasium as gym
 from bachelor.acados_cartpole.real_sac_zop.my_sac import SacTrainerConfig, SacCritic
 from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import  MpcSacActor
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
@@ -68,38 +69,95 @@ from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.mlp import MlpConfig
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
 
+#initialize global variables for sac_zop update step
+global step_count
+step_count = 0
+
+
+#LEARNING INIT###############################################################################
+# device setup
+device = "cpu"
+
+
 # MPC Layer Setup
 cfg_planner = CartPolePlannerConfig()
 params = create_custom_cartpole_params("stagewise", cfg_planner.N_horizon)
 planner = CartPolePlanner(cfg_planner, params)
 controller_wrapped = ControllerFromPlanner(planner)
+ctx = None
 
+
+# observation and action spaces
+# state is (x, theta, xdot, thetadot)
+# use planner config for reasonable x-bounds and clamp angle to [-pi, pi]
+_x_thr = getattr(cfg_planner, "x_threshold", None)
+_x_low = -float(_x_thr)
+_x_high = float(_x_thr)
+
+#TODO: double check if these spaces are correct 
+obs_low = np.array([_x_low, -np.pi, -np.inf, -np.inf], dtype=np.float32)
+obs_high = np.array([_x_high, np.pi, np.inf, np.inf], dtype=np.float32)
+obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+
+action_space = controller_wrapped.param_space
 
 # SacZop config
-# TODO: Define Hyperparameters as in sac_zop_run.py (just copy them over:D)
-# i also think that in the config file is everything set and in the inits below you can refer to it
 cfg_saczop = SacTrainerConfig()
 
 
 # Replay Buffer init
-replay_buffer = ReplayBuffer()
+replay_buffer = ReplayBuffer(buffer_limit=cfg_saczop.buffer_size, device=device)
 
 
 # critic init
-critic = SacCritic()
-target_critic = SacCritic()
+extractor_cls = get_extractor_cls("identity")
+
+critic = SacCritic(
+    extractor_cls=extractor_cls,
+    observation_space=obs_space,
+    action_space=action_space,
+    mlp_cfg=cfg_saczop.critic_mlp,
+    num_critics=cfg_saczop.num_critics,
+)
+
+target_critic = SacCritic(
+    extractor_cls=extractor_cls,
+    observation_space=obs_space,
+    action_space=action_space,
+    mlp_cfg=cfg_saczop.critic_mlp,
+    num_critics=cfg_saczop.num_critics,
+)
+target_critic.load_state_dict(critic.state_dict())
 
 
 # actor init
-actor = MpcSacActor()
+actor = MpcSacActor(
+    extractor_cls=extractor_cls,
+    observation_space=obs_space,
+    controller=controller_wrapped,
+    distribution_name=cfg_saczop.distribution_name,
+    mlp_cfg=cfg_saczop.actor_mlp,
+    init_param_with_default=cfg_saczop.init_param_with_default,
+)
 
 
 # entropy temperature ALpha init
-log_alpha = torch.nn.Parameter()
+log_alpha = torch.nn.Parameter(
+    torch.tensor(cfg_saczop.init_alpha, dtype=torch.float32).log()
+)
+
+alpha_optimizer = (
+    torch.optim.Adam([log_alpha], lr=cfg_saczop.lr_alpha)
+    if cfg_saczop.lr_alpha is not None
+    else None
+)
+
+param_dim = int(np.prod(action_space.shape))
+action_dim = 1
+entropy_norm = param_dim / action_dim
+target_entropy = -action_dim if cfg_saczop.target_entropy is None else cfg_saczop.target_entropy
 
 
-# optimizers (stochastic gradient descent algorithm to opt my critics and actor networks)
-critic_optimizer = torch.optim.Adam()
-actor_optimizer = torch.optim.Adam()
-
-
+# initializing optimizers
+critic_optimizer = torch.optim.Adam(critic.parameters(), lr=cfg_saczop.lr_q)
+actor_optimizer  = torch.optim.Adam(actor.parameters(),  lr=cfg_saczop.lr_pi)
