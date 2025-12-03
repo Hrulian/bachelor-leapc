@@ -1,0 +1,53 @@
+"""
+Plan structure for real_sac_zop.py_
+
+-MPC layer
+    - as before: ocp->planner->controllerfromplanner
+    
+-policy in parameter space
+    -use MpcSacActor from sac_zop.py
+    -input: state + context file 
+    -output: param vector for MPC + actual control(force) + updated context for next run
+    
+-parameter critic + target copy
+    - use two SacCritic from sac.py
+    - create target critic which is periodically updated from utils.py soft_target_update
+    
+-ReplayBuffer
+    - use existing ReplayBuffer from buffer.py
+    -store (state, param, reward, next_state, done)
+    - is filled constantly from real environment interaction in my main loop
+    
+
+---------------------------------------------------------------
+
+
+Main Loop Pseudocode:
+    -we have previous state s, paramter p used to gnerate action a
+    -apply action a to real system, get next state s', compute rewards, done(?)
+    -put in buffer
+    -from new state s', get new parameter p' and action a' from MpcSacActor
+    -periodically call the sac_zop update (prob put in a function) 
+    -if done = true ask arduino for physical reset, reset ctx and start new episode
+        -done: cart to far, pole to tilted(if onyl balancing), max steps reached
+        
+----------------------------------------------------------------
+
+
+SAC-ZOP update step
+- Reuse the idea from SacZopTrainer.train_loop (sac_zop.py):
+    - Sample batch from ReplayBuffer: (o, a, r, o_prime, te)
+    where a = param (the parameters used to generate the last action)
+    - Policy on o, o_prime in parameter space (only_param=True)
+    - Temperature alpha update (optional)
+    - Critic update:
+    - target = r + gamma * (1 - done) * [min Q_target(o_prime, param') - alpha * log pi(param'|o_prime)]
+    - critic loss = MSE(Q(o,a), target)
+    - Actor update:
+    - actor loss = mean(alpha * log pi(param|o) - min Q(o, param))
+    - Soft-update target critic with tau
+- Implement this as a standalone function:
+    sac_zop_update_step()
+    that uses global -,actor, -,critic -,target_critic -,log_alpha,
+    optimizers, and replay buffer
+"""

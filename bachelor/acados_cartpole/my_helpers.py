@@ -145,3 +145,95 @@ def u_converted(t) -> float:
     return float(t.detach().cpu().numpy().squeeze().item())
 
 
+# SACZOP specific helpers below
+def compute_reward(state) -> float:
+    """
+    Computes the reward for the given state based on the specified mode.
+    Args:
+        state: A tuple containing the current state (x, theta, v, thetadot, tripped).
+        cfg_planner: Configuration object for the planner.
+        mode: The mode of operation, either "swingup" or "balance".
+        done: A boolean indicating whether the episode has terminated.
+    Returns:
+        A float representing the computed reward.
+    """
+    
+    x, theta, v, thetadot, tripped = state
+
+    # wie im Env: theta auf sinnvollen Bereich zurückholen
+    theta_wrapped = theta
+    if theta_wrapped > 2 * np.pi:
+        theta_wrapped = theta_wrapped % (2 * np.pi)
+    elif theta_wrapped < -2 * np.pi:
+        theta_wrapped = -(-theta_wrapped % (2 * np.pi))  # "symmetrisches" Modulo
+
+    # Swingup-Reward wie in CartPoleEnv.step
+    reward = abs(np.pi - abs(theta_wrapped)) / (10.0 * np.pi)
+
+    return float(reward)
+
+
+
+def done_eval(state: tuple, current_step: int, max_ep_steps: int, x_threshold: float) -> bool:
+    """
+    Evaluates whether the episode should terminate based on the current state.
+    Args:
+        state: A tuple containing the current state (x, theta, v, thetadot, tripped).
+        current_step: The current step count in the episode.
+        max_ep_steps: The maximum allowed steps per episode.
+        x_threshold: The position threshold for termination.
+    Returns:
+        A boolean indicating whether the episode is done.
+    """
+    
+    x, theta, v, thetadot, tripped = state
+
+    if tripped:               # Hardware-Safety
+        return True
+    if abs(counts_to_meters(x)) > x_threshold:  # Wagen zu weit
+        return True
+    if current_step > max_ep_steps:  # Max Steps erreicht
+        return True
+
+    return False
+
+
+
+def sac_state_to_tensor(state: tuple, batch=True, dtype=torch.float32, device=None):
+    """
+    Convert a state tuple/array into a torch tensor suitable for the controller.
+    Input state format (expected):
+      (x_counts, theta_rad, v_counts_per_s, omega_rad_per_s, tripped)
+    Output tensor format (float32):
+      [x_m, theta_rad, v_m_s, omega_rad_s]
+    """
+    
+    # state: tuple or array-like of shape (4,) returns torch tensor of shape (4,)
+    arr = np.asarray(state)
+
+    def convert_one(s):
+        # s expected length >=4: x_counts, theta, v_counts, omega
+        # If a fifth element `tripped` is present it will be ignored.
+        if len(s) < 4:
+            raise ValueError("state must have at least 4 elements")
+
+        x_counts = int(s[0])
+        theta = float(s[1])
+        v_counts = int(s[2])
+        omega = float(s[3])
+
+        x_m = counts_to_meters(x_counts)
+        v_m_s = countpersecond_to_meterspersecond(v_counts)
+
+        # final order expected by controller: x, theta, v, omega
+        return np.array([x_m, theta, v_m_s, omega], dtype=np.float32)
+
+    
+    conv = convert_one(arr)
+    t = torch.as_tensor(conv, dtype=dtype, device=device)
+    if batch:
+        t = t.unsqueeze(0)
+    return t
+
+
+
