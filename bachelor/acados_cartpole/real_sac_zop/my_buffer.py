@@ -1,3 +1,9 @@
+"""
+-extended the functionality so it works in concurrent setting with real_sac_zop.py
+"""
+
+
+import threading
 import collections
 import random
 from typing import Any, Callable, Union
@@ -65,6 +71,7 @@ class ReplayBuffer(torch.nn.Module):
             self.collate_fn_map = default_collate_fn_map
         else:
             self.collate_fn_map = {**default_collate_fn_map, **collate_fn_map}
+        self._lock = threading.Lock() #
 
     def put(self, data: Any) -> None:
         """Put the data into the replay buffer. If the buffer is full, the oldest data is discarded.
@@ -73,7 +80,8 @@ class ReplayBuffer(torch.nn.Module):
             data: The data to put into the buffer.
                 It should be collatable according to the `collate` function.
         """
-        self.buffer.append(data)
+        with self._lock:
+            self.buffer.append(data)
 
     def sample(self, n: int) -> Any:
         """Sample a mini-batch from the replay buffer, and collate it according to the `collate`
@@ -82,7 +90,15 @@ class ReplayBuffer(torch.nn.Module):
         Args:
             n: The number of samples to draw.
         """
-        mini_batch = random.sample(self.buffer, n)
+        # take a tiny snapshot: choose indices while holding lock, copy only the selected items
+        with self._lock:
+            buf_len = len(self.buffer)
+            if n > buf_len:
+                raise ValueError(f"Requested sample size {n} > buffer size {buf_len}")
+            indices = random.sample(range(buf_len), n)
+            mini_batch = [self.buffer[i] for i in indices]  # only k element reads while locked
+
+        # collate and move to device outside the lock (potentially slow)
         return self.collate(mini_batch)
 
     def collate(self, batch: Any) -> Any:
@@ -102,7 +118,8 @@ class ReplayBuffer(torch.nn.Module):
         )
 
     def __len__(self) -> int:
-        return len(self.buffer)
+        with self._lock:
+            return len(self.buffer)
 
     def get_extra_state(self) -> dict:
         """State of the replay buffer.

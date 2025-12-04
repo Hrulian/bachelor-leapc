@@ -13,6 +13,7 @@ from bachelor.acados_cartpole.my_planner import (
 from bachelor.acados_cartpole.my_helpers import (
     force_to_pwm,
     countpersecond_to_meterspersecond,
+    counts_to_meters,
     compute_reward,
     done_eval,
     sac_state_to_tensor,
@@ -35,6 +36,7 @@ time.sleep(2)
 ser.reset_input_buffer()  
 
 state_que = queue.Queue() # init que that stores states
+prev_sent_mode = None  # remembers last mode sent to Arduino for logging
 
 
 def listen_to_arduino():
@@ -113,6 +115,16 @@ def talk_to_arduino(u: int, mode: int) -> None :
     -sends <±u,mode> + \n 
     -newline only for debugging
     """
+    
+    global prev_sent_mode
+    # print mode change only when it differs from last sent mode
+    try:
+        if prev_sent_mode is None or prev_sent_mode != mode:
+            print(f"[HOST MODE] mode -> {mode}")
+            prev_sent_mode = mode
+    except Exception:
+        # be conservative: don't let logging break serial comms
+        pass
 
     ser.write(f"<{u},{mode}>\n".encode('ascii'))
 
@@ -232,6 +244,10 @@ def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
         try:
             # wait until new data is available or timeout passes
             learning_event.wait(timeout=timeout_s)
+            if not learning_event.is_set():
+                continue
+            learning_event.clear()
+            # now attempt update...
 
             # if woken up, attempt an update if conditions are met
             if step_count >= train_start and len(replay_buffer) >= batch_size and (step_count % update_freq == 0):
@@ -293,7 +309,55 @@ def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
             # clear the event so we wait for the next notification
             learning_event.clear()
 
+def reset_env():
+    """
+    - sends reset command to arduino
+    - waits until physical env is reset (cart near center, low velocity, not tripped)
+    - drains state queue to freshest state
+    - returns nothing
+    """
+    # send reset command to arduino: mode 2 = reset
+    talk_to_arduino(0, mode=2)
+    print("resetting env...")
 
+    # get rid of old states in a threadsafe way
+    try:
+        while True:
+            state_que.get_nowait()
+    except queue.Empty:
+        pass
+
+    while True:
+        # block for next available state
+        state = state_que.get()
+
+        # drain to the most recent state
+        while True:
+            try:
+                state = state_que.get_nowait()
+            except queue.Empty:
+                break
+
+        # expect state = (x, theta, v, thetadot, tripped_flag)
+        if len(state) < 5:
+            continue
+
+        x, theta, v, thetadot, tripped_flag = state
+
+        # check reset condition:
+        # - not tripped
+        # - cart close to center (x in meters smaller than threshold)
+        # - small angular velocity and cart velocity
+        #print("checkinf reset condition...")
+        if (not bool(tripped_flag)
+            and abs(counts_to_meters(x)) <= 100
+            and abs(thetadot) <= 0.0001
+            and abs(countpersecond_to_meterspersecond(v)) <= 0.0):
+            break
+        # else: keep waiting
+
+        print(f'env reset. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+    return
 
 
 #MAIN LOOP###############################################################################
@@ -337,11 +401,23 @@ def main():
     
     
     #Main RL Loop#################################################################
+    """
+    potential issues:
+        - depending on how long the learning function takes leaning steps could be skipped
+        more concretely if training takes longer than the time between four env steps
+        -currently the controller is initialized with x0 = (0,-pi,0,0) all the time
+        this is not the real state so the first MPC call might not the best but yolo
+        - so the buffer is locked now and i think mostly safe in terms of threading
+        - i think the actor should be thread safe aswell prob train a copy of the actor
+        in the background thread and update actormain -> copyactor periodically?
+        """
     try:
         while True:
-            # restart episode
-            # TODO: implement that we wait here until arduino is ready
-            talk_to_arduino(0, mode=0)  # tell arduino to reset
+            # restart episode. Wait until env is reseted
+            reset_env()
+            
+            # env is reseted so set new mode
+            talk_to_arduino(0, mode=0)  # -> arduino is ready for normal operation
             
             # reset ctx
             ctx = None
@@ -360,7 +436,7 @@ def main():
             state = state_que.get() # blocks until the thread adds a first state
             x, theta, v, thetadot, tripped = state 
             
-            # check if for some reason ep is alreday done
+            # check if for some reason ep is alredy done
             done = done_eval(state, step_count, max_ep_steps, x_threshold=_x_thr)
             
             
@@ -386,10 +462,10 @@ def main():
 
                 # convert first from N to PWM
                 # TODO: fix that function currently friction still included
-                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v))
+                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 50)
 
                 # send PWM control to arduino
-                talk_to_arduino(u_pwm, mode=1)
+                talk_to_arduino(u_pwm, mode=0)
                 
                 # wait for next state and drain que to freshest
                 state = state_que.get() # blocks untill the thread adds an item

@@ -41,7 +41,7 @@ volatile float thetadot = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 10;
+constexpr unsigned long COMMUNICATION_TIME_MS = 20;
 constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 constexpr long X_CENTER_COUNTS = 0;      // ceter position in counts
@@ -359,7 +359,6 @@ void reset_control() {
   - error < 0 -> need to go left
   */
 
-  
   long x_local = x;
   long error   = X_CENTER_COUNTS - x_local;
 
@@ -381,10 +380,10 @@ void reset_control() {
     // cart not in the middle
     if (error >= 0) {
       // need to go right
-      u = 40;
+      u = 30;
     } else {
       // need to go left
-      u = -40;
+      u = -30;
     }
     apply_u();
   }
