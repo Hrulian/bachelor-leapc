@@ -350,13 +350,13 @@ def reset_env():
         # - small angular velocity and cart velocity
         #print("checkinf reset condition...")
         if (not bool(tripped_flag)
-            and abs(counts_to_meters(x)) <= 100
+            and abs(x) <= 100
             and abs(thetadot) <= 0.0001
             and abs(countpersecond_to_meterspersecond(v)) <= 0.0):
             break
         # else: keep waiting
 
-        print(f'env reset. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+    print(f'env reset. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
