@@ -45,7 +45,7 @@ constexpr unsigned long COMMUNICATION_TIME_MS = 20;
 constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 constexpr long X_CENTER_COUNTS = 0;      // ceter position in counts
-constexpr long X_CENTER_TOL    = 500;    // tolerance around center position
+constexpr long X_CENTER_TOL    = 100;    // tolerance around center position
 
 
 
@@ -362,7 +362,9 @@ void reset_control() {
   long x_local = x;
   long error   = X_CENTER_COUNTS - x_local;
 
-  if (labs(error) < X_CENTER_TOL && labs(thetadot) < 0.1f) {
+  if (labs(error) < X_CENTER_TOL && 
+      fabs(thetadot) < 0.1f && 
+      fabs(abs(wrap_to_pi(angle_unwrapped))) >= 3.13) {
     // we are ready to go. Cart in the middle end Pendulum not moving
     u = 0.0f;     
     tripped = false;  
@@ -380,10 +382,10 @@ void reset_control() {
     // cart not in the middle
     if (error >= 0) {
       // need to go right
-      u = 30;
+      u = 35;
     } else {
       // need to go left
-      u = -30;
+      u = -35;
     }
     apply_u();
   }

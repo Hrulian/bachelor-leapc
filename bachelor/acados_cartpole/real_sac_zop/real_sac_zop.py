@@ -18,7 +18,7 @@ from bachelor.acados_cartpole.my_helpers import (
     done_eval,
     sac_state_to_tensor,
 )
-from bachelor.acados_cartpole.my_utils_plot import plot_cartpole_log
+ 
 from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
 
@@ -136,6 +136,7 @@ learning_event = threading.Event()
 
 # initialize step count. Used for learning updates and episode management
 step_count = 0
+learning_step = 0
 
 # device setup
 device = "cpu"
@@ -152,8 +153,8 @@ ctx = None
 # state is (x, theta, xdot, thetadot)
 # use planner config for reasonable x-bounds and clamp angle to [-pi, pi]
 _x_thr = getattr(cfg_planner, "x_threshold", None)
-_x_low = -float(_x_thr)
-_x_high = float(_x_thr)
+_x_low = -float(_x_thr) # in meters
+_x_high = float(_x_thr) # in meters
 
 #TODO: double check if these spaces are correct 
 obs_low = np.array([_x_low, -np.pi, -np.inf, -np.inf], dtype=np.float32)
@@ -236,6 +237,7 @@ def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
     background while the main loop communicates with the real hardware.
     """
     global step_count
+    global learning_step
     # wait for new data via an Event to avoid busy-waiting
     # use a timeout so the thread can still periodically check for fatal conditions
     timeout_s = 1.0
@@ -251,6 +253,7 @@ def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
 
             # if woken up, attempt an update if conditions are met
             if step_count >= train_start and len(replay_buffer) >= batch_size and (step_count % update_freq == 0):
+                learning_step += 1
                 # sample batch
                 o, a, r, o_prime, te = replay_buffer.sample(batch_size)
 
@@ -345,22 +348,20 @@ def reset_env():
         x, theta, v, thetadot, tripped_flag = state
 
         # check reset condition:
-        # - not tripped
-        # - cart close to center (x in meters smaller than threshold)
-        # - small angular velocity and cart velocity
-        #print("checkinf reset condition...")
-        if (not bool(tripped_flag)
-            and abs(x) <= 100
-            and abs(thetadot) <= 0.0001
-            and abs(countpersecond_to_meterspersecond(v)) <= 0.0):
+        if (not bool(tripped_flag)                                  # not tripped
+            and abs(x) <= 100                                       # be in the middle
+            and abs(thetadot) <= 0.0001                             # pole not moving
+            and abs(countpersecond_to_meterspersecond(v)) <= 0.0    # cart not moving
+            and abs(theta) >= 3.13):                                # pole down
+                
             break
-        # else: keep waiting
+        # else: stay in mode 2/reset until conditions are met
 
-    print(f'env reset. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+    print(f'env reseted. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
-#MAIN LOOP###############################################################################
+
 def main():
     # ensures we reference the module-level variables
     global ctx, step_count
@@ -371,20 +372,6 @@ def main():
     # init episode variables
     episode_count = 0
     
-    # prepare CSV logging: remove any old log file at start so each run is fresh
-    log_path = os.path.join(os.path.dirname(__file__), "real_cartpole_log.csv")
-    if os.path.exists(log_path):
-        try:
-            os.remove(log_path)
-        except Exception as e:
-            print("Warning: failed to remove old log file:", e)
-
-    log_fh = open(log_path, "a", newline="")
-    log_writer = csv.writer(log_fh)
-    # write header for a fresh run
-    log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_pwm"])
-    log_fh.flush()
-
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
@@ -404,7 +391,7 @@ def main():
     """
     potential issues:
         - depending on how long the learning function takes leaning steps could be skipped
-        more concretely if training takes longer than the time between four env steps
+        more concretely: if training takes longer than the time between four env steps
         -currently the controller is initialized with x0 = (0,-pi,0,0) all the time
         this is not the real state so the first MPC call might not the best but yolo
         - so the buffer is locked now and i think mostly safe in terms of threading
@@ -493,46 +480,19 @@ def main():
                     learning_event.set()
                 except Exception:
                     pass
-
-                # # write log row
-                # try:
-                #     tnow = time.time()
-                #     x_m = counts_to_meters(x)
-                #     v_m_s = countpersecond_to_meterspersecond(v)
-                #     log_writer.writerow([tnow, x_m, theta, v_m_s, thetadot, u_pwm])
-                #     log_fh.flush()
-                #     try:
-                #         os.fsync(log_fh.fileno())
-                #     except Exception:
-                #         pass
-                # except Exception:
-                #     pass
-
+                
+                # print debug info every 2000 steps ~ 2000 * 10ms = 20s
+                if step_count %2000 == 0:
+                    print(f"Episode {episode_count}, Step {step_count}, Learning Step: {learning_step}")
 
     except KeyboardInterrupt:
         # try to stop actuator and plot
         try:
             talk_to_arduino(0, mode=1)  # tell arduino to stop
+            print(f'serial closed final state: ({x, theta, v, thetadot, tripped})')
         except Exception:
             pass
-        try:
-            log_fh.close()
-        except Exception:
-            pass
-        try:
-            # save plot next to the CSV log with same base name
-            plot_path = os.path.splitext(log_path)[0] + '.png'
-            # save and show the plot so the user can inspect it interactively
-            plot_cartpole_log(log_path, plt_show=True, save_path=plot_path)
-            print(f'Saved and displayed plot at {plot_path}')
-        except Exception as e:
-            print('Plotting failed:', e)
     finally:
-        try:
-            if not log_fh.closed:
-                log_fh.close()
-        except Exception:
-            pass
         ser.close()
         pass
 
