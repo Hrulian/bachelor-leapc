@@ -37,6 +37,8 @@ ser.reset_input_buffer()
 
 state_que = queue.Queue() # init que that stores states
 prev_sent_mode = None  # remembers last mode sent to Arduino for logging
+# checkpoint directory for models
+CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), "checkpoints")
 
 
 def listen_to_arduino():
@@ -137,6 +139,9 @@ learning_event = threading.Event()
 # initialize step count. Used for learning updates and episode management
 step_count = 0
 learning_step = 0
+
+# episode counter persisted across runs
+episode_count = 0
 
 # device setup
 device = "cpu"
@@ -360,17 +365,93 @@ def reset_env():
     print(f'env reseted. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
+def load_checkpoints():
+    """Load model checkpoints if a complete set exists.
+
+    Only loads when the full set of checkpoint files (models + meta) is present
+    to avoid mixing partial state. Restores `episode_count` and
+    `learning_step` from the meta file if available.
+    """
+    global episode_count, learning_step
+    paths = _checkpoint_paths()
+    required = [paths['critic'], paths['target_critic'], paths['actor'], paths['log_alpha'], paths['meta']]
+
+    if not os.path.isdir(CHECKPOINT_DIR):
+        print('No checkpoint directory found, starting from scratch')
+        return
+
+    if not all(os.path.exists(p) for p in required):
+        print('Incomplete checkpoint set in', CHECKPOINT_DIR, '- skipping load')
+        return
+
+    try:
+        critic.load_state_dict(torch.load(paths['critic'], map_location=device))
+        target_critic.load_state_dict(torch.load(paths['target_critic'], map_location=device))
+        actor.load_state_dict(torch.load(paths['actor'], map_location=device))
+        v = torch.load(paths['log_alpha'], map_location=device)
+        try:
+            with torch.no_grad():
+                log_alpha.copy_(v)
+        except Exception:
+            try:
+                log_alpha.data.copy_(v)
+            except Exception:
+                pass
+        print('Loaded checkpoints from', CHECKPOINT_DIR)
+    except Exception as e:
+        print('Failed to load checkpoints:', e)
+        return
+
+    # load meta info (episode_count, learning_step)
+    try:
+        meta = torch.load(paths['meta'], map_location=device)
+        episode_count = int(meta.get('episode_count', episode_count))
+        learning_step = int(meta.get('learning_step', learning_step))
+        print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}")
+    except Exception:
+        pass
+
+def save_checkpoints():
+    """Save model checkpoints to disk."""
+    paths = _checkpoint_paths()
+    try:
+        # ensure directory exists only when saving
+        os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+        torch.save(critic.state_dict(), paths['critic'])
+        torch.save(target_critic.state_dict(), paths['target_critic'])
+        torch.save(actor.state_dict(), paths['actor'])
+        torch.save(log_alpha.detach().cpu(), paths['log_alpha'])
+        # save meta info (episode_count, learning_step)
+        meta = {'episode_count': episode_count, 'learning_step': learning_step}
+        torch.save(meta, paths['meta'])
+        print('Saved checkpoints to', CHECKPOINT_DIR)
+    except Exception as e:
+        print('Failed to save checkpoints:', e)
+
+def _checkpoint_paths():
+    return {
+        'critic': os.path.join(CHECKPOINT_DIR, 'critic.pth'),
+        'target_critic': os.path.join(CHECKPOINT_DIR, 'target_critic.pth'),
+        'actor': os.path.join(CHECKPOINT_DIR, 'actor.pth'),
+        'log_alpha': os.path.join(CHECKPOINT_DIR, 'log_alpha.pth'),
+        'meta': os.path.join(CHECKPOINT_DIR, 'meta.pth'),
+    }
+
 
 
 def main():
+    # load checkpoints/trained models if available
+    # this means training progress persists across restarts
+    # it consists of actor, critic, target_critic and log_alpha
+    load_checkpoints() # 
+    
     # ensures we reference the module-level variables
-    global ctx, step_count
+    global ctx, step_count, episode_count
     
     # max steps per episode
     max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
 
-    # init episode variables
-    episode_count = 0
+    # init episode variables (restored from checkpoints if available)
     
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
@@ -429,6 +510,8 @@ def main():
             
             # episode loop
             print("Starting new episode")
+            print(f"Episode {episode_count}, Learning Step: {learning_step}")
+
             while not done:            
                 # step counting
                 step_count += 1
@@ -449,7 +532,7 @@ def main():
 
                 # convert first from N to PWM
                 # TODO: fix that function currently friction still included
-                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 50)
+                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 255)
 
                 # send PWM control to arduino
                 talk_to_arduino(u_pwm, mode=0)
@@ -481,15 +564,17 @@ def main():
                 except Exception:
                     pass
                 
-                # print debug info every 2000 steps ~ 2000 * 10ms = 20s
-                if step_count %2000 == 0:
-                    print(f"Episode {episode_count}, Step {step_count}, Learning Step: {learning_step}")
 
     except KeyboardInterrupt:
         # try to stop actuator and plot
         try:
             talk_to_arduino(0, mode=1)  # tell arduino to stop
             print(f'serial closed final state: ({x, theta, v, thetadot, tripped})')
+        except Exception:
+            pass
+        # save model checkpoints on exit so training progress persists
+        try:
+            save_checkpoints()
         except Exception:
             pass
     finally:

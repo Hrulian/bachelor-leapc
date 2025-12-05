@@ -40,9 +40,10 @@ def create_custom_cartpole_params(
     return [
         # Dynamics parameters
         AcadosParameter("M", default=np.array([0.1518])),  # mass of the cart [kg]
-        AcadosParameter("m", default=np.array([0.0293])),  # mass of the ball [kg]
+        AcadosParameter("m", default=np.array([0.016])),  # mass of the rod [kg]
         AcadosParameter("g", default=np.array([9.81])),  # gravity constant [m/s^2]
-        AcadosParameter("l", default=np.array([0.276])),  # length of the rod [m]
+        AcadosParameter("l", default=np.array([0.36])),  # length of the rod [m]
+        AcadosParameter("Ip", default=np.array([0.0006912])),  # moment of inertia 
         # Cost matrix factorization parameters
         AcadosParameter(
             "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1, 1]))
@@ -91,6 +92,7 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     m = param_manager.get("m")
     g = param_manager.get("g")
     l = param_manager.get("l")
+    Ip = param_manager.get("Ip") # New: moment of inertia of the pendulum
 
     theta = model.x[1]
     v = model.x[2]
@@ -108,20 +110,32 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
    
     v_sign = ca.sign(v)
     F_fric = 0#d_v * v + d_c * v_sign
+    
+    F_eff = F - F_fric
 
     # dynamics
     cos_theta = ca.cos(theta)
     sin_theta = ca.sin(theta)
-    denominator = M + m - m * cos_theta * cos_theta
+    denominator = (M + m) * (Ip + m * l**2) - (m * l * cos_theta)**2
+
+    v_dot = (
+        (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
+        - m**2 * l**2 * g * sin_theta * cos_theta
+    ) / denominator
+
+    theta_dot_dot = (
+        (M + m) * m * g * l * sin_theta
+        - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
+    ) / denominator
+
     f_expl = ca.vertcat(
         v,
         dtheta,
-        (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F - F_fric) / denominator,
-        (-m * l * cos_theta * sin_theta * dtheta * dtheta + F * cos_theta + (M + m) * g * sin_theta)
-        / (l * denominator),
+        v_dot,
+        theta_dot_dot,
     )
 
-    return f_expl  # type:ignore
+    return f_expl  # type: ignore
 
 
 def export_parametric_ocp(
