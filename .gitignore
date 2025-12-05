@@ -198,3 +198,4 @@ c_generated_code
 !/bachelor/*.pwm
 !/bachelor/**/*.pwm
 !/bachelor/***/*.pwm
+!/bachelor/****/*.pwm
