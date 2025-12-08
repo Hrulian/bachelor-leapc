@@ -554,7 +554,11 @@ def main():
                 reward = compute_reward(state)
                 
                 # check done 
-                done = done_eval(state, step_count, max_ep_steps, x_threshold=_x_thr)   
+                done = done_eval(state, step_count, max_ep_steps, x_threshold=_x_thr)
+                
+                # double check  for safety
+                if done:
+                    talk_to_arduino(0, mode=1)
 
                 # store transition in replay buffer (obs, param, reward, obs_next, done)
                 replay_buffer.put((obs, param_t, float(reward), obs_next, int(done)))
