@@ -136,12 +136,14 @@ def talk_to_arduino(u: int, mode: int) -> None :
 # event to notify learner thread of new data
 learning_event = threading.Event()  
 
-# initialize step count. Used for learning updates and episode management
-step_count = 0
-learning_step = 0
+# initialize counters
+episode_step_count = 0 # steps in current episode
+learning_step = 0   # total learning updates performed
+episode_count = 0   # total episodes completed
+abs_step_count = 0  # total steps across all episodes
 
-# episode counter persisted across runs
-episode_count = 0
+# max steps per episode
+max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
 
 # device setup
 device = "cpu"
@@ -234,17 +236,12 @@ actor_optimizer  = torch.optim.Adam(actor.parameters(),  lr=cfg_saczop.lr_pi)
 
 
 
-def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
-    """Background learning loop: continuously checks whether an update should run
-    and performs updates when enough data / steps are available.
-
-    This function is intended to be started in a daemon thread so it runs in the
-    background while the main loop communicates with the real hardware.
+def sac_zop_update_step(batch_size, update_freq, train_start):
     """
-    global step_count
-    global learning_step
-    # wait for new data via an Event to avoid busy-waiting
-    # use a timeout so the thread can still periodically check for fatal conditions
+    Background thread function to perform SAC-ZOP updates at specified intervals.
+    """
+    
+    global abs_step_count
     timeout_s = 1.0
 
     while True:
@@ -254,68 +251,103 @@ def sac_zop_update_step(batch_size, update_freq, soft_update_freq, train_start):
             if not learning_event.is_set():
                 continue
             learning_event.clear()
-            # now attempt update...
 
-            # if woken up, attempt an update if conditions are met
-            if step_count >= train_start and len(replay_buffer) >= batch_size and (step_count % update_freq == 0):
-                learning_step += 1
-                # sample batch
-                o, a, r, o_prime, te = replay_buffer.sample(batch_size)
-
-                # policy params for o and o_prime
-                with torch.no_grad():
-                    pi_o_prime = actor(o_prime, None, only_param=True)
-                    q_target = torch.cat(target_critic(o_prime, pi_o_prime.param), dim=1)
-                    q_target = torch.min(q_target, dim=1, keepdim=True).values
-
-                    factor = cfg_saczop.entropy_reward_bonus / entropy_norm
-                    q_target = q_target - (log_alpha.exp().item()) * pi_o_prime.log_prob * factor
-
-                    target = r[:, None].to(device) + cfg_saczop.gamma * (1 - te[:, None].to(device)) * q_target
-
-                q = torch.cat(critic(o, a), dim=1)
-                q_loss = torch.mean((q - target).pow(2))
-
-                critic_optimizer.zero_grad()
-                q_loss.backward()
-                critic_optimizer.step()
-
-                # actor update
-                pi_o = actor(o, None, only_param=True)
-                a_pi = pi_o.param
-                log_p = pi_o.log_prob / entropy_norm
-
-                # temperature update
-                if alpha_optimizer is not None:
-                    alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
-                    alpha_optimizer.zero_grad()
-                    alpha_loss.backward()
-                    alpha_optimizer.step()
-
-                q_pi = torch.cat(critic(o, a_pi), dim=1)
-                min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-                pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
-
-                actor_optimizer.zero_grad()
-                pi_loss.backward()
-                actor_optimizer.step()
-
-                # soft update
-                if step_count % soft_update_freq == 0:
-                    soft_target_update(critic, target_critic, cfg_saczop.tau)
+            
+            if (abs_step_count >= train_start and
+                abs_step_count % update_freq == 0):
+                
+                saczop_single_step_update(batch_size)
 
         except Exception as e:
-            # keep the background thread alive on unexpected errors
-            import traceback
-
             print("Exception in sac_zop_update_step:", e)
-            traceback.print_exc()
-            # clear event to avoid immediate busy-loop on error
-            learning_event.clear()
-            time.sleep(0.1)
+        
         finally:
-            # clear the event so we wait for the next notification
             learning_event.clear()
+              
+              
+def saczop_single_step_update(batch_size):
+    """
+    -Performs a single SAC-ZOP update step using a batch sampled from the replay buffer.
+    -Only updates when enough samples are available in the buffer.
+    -also performs soft target updates at specified intervals.
+    
+    Args:
+        batch_size: The number of samples to use for the update.
+    Returns:
+        A boolean indicating whether the update was performed.
+    """
+    
+    global learning_step
+    
+    # if woken up, attempt an update if conditions are met
+    if len(replay_buffer) < batch_size:
+        return False
+    
+    # sample batch
+    o, a, r, o_prime, te = replay_buffer.sample(batch_size)
+
+    # policy params for o and o_prime
+    with torch.no_grad():
+        pi_o_prime = actor(o_prime, None, only_param=True)
+        q_target = torch.cat(target_critic(o_prime, pi_o_prime.param), dim=1)
+        q_target = torch.min(q_target, dim=1, keepdim=True).values
+
+        factor = cfg_saczop.entropy_reward_bonus / entropy_norm
+        q_target = q_target - (log_alpha.exp().item()) * pi_o_prime.log_prob * factor
+
+        target = r[:, None].to(device) + cfg_saczop.gamma * (1 - te[:, None].to(device)) * q_target
+
+    # critic update
+    q = torch.cat(critic(o, a), dim=1)
+    q_loss = torch.mean((q - target).pow(2))
+
+    critic_optimizer.zero_grad()
+    q_loss.backward()
+    critic_optimizer.step()
+
+    # actor update
+    pi_o = actor(o, None, only_param=True)
+    a_pi = pi_o.param
+    log_p = pi_o.log_prob / entropy_norm
+
+    # temperature update
+    if alpha_optimizer is not None:
+        alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
+        alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        alpha_optimizer.step()
+
+    q_pi = torch.cat(critic(o, a_pi), dim=1)
+    min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
+    pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
+
+    actor_optimizer.zero_grad()
+    pi_loss.backward()
+    actor_optimizer.step()
+    
+    # soft update targets
+    if learning_step % cfg_saczop.soft_update_freq == 0:
+        soft_target_update(critic, target_critic, cfg_saczop.tau)
+
+    # increment learning step count
+    learning_step += 1
+    
+    return True
+
+
+def inbetween_training(num_updates: int):
+    """
+    Perform additional training updates between episodes.
+    Args:
+        num_updates: Number of update steps to perform.
+    """
+    
+    for _ in range(num_updates):
+        ok = saczop_single_step_update(cfg_saczop.batch_size)
+        if not ok:
+            # not enough data in buffer yet
+            break  
+
 
 def reset_env():
     """
@@ -365,6 +397,7 @@ def reset_env():
     print(f'env reseted. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
+
 def load_checkpoints():
     """Load model checkpoints if a complete set exists.
 
@@ -411,6 +444,7 @@ def load_checkpoints():
     except Exception:
         pass
 
+
 def save_checkpoints():
     """Save model checkpoints to disk."""
     paths = _checkpoint_paths()
@@ -428,6 +462,7 @@ def save_checkpoints():
     except Exception as e:
         print('Failed to save checkpoints:', e)
 
+
 def _checkpoint_paths():
     return {
         'critic': os.path.join(CHECKPOINT_DIR, 'critic.pth'),
@@ -442,16 +477,11 @@ def _checkpoint_paths():
 def main():
     # load checkpoints/trained models if available
     # this means training progress persists across restarts
-    # it consists of actor, critic, target_critic and log_alpha
-    load_checkpoints() # 
+    # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer
+    load_checkpoints()  
     
     # ensures we reference the module-level variables
-    global ctx, step_count, episode_count
-    
-    # max steps per episode
-    max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
-
-    # init episode variables (restored from checkpoints if available)
+    global ctx, episode_step_count, episode_count, abs_step_count, learning_step
     
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
@@ -461,8 +491,11 @@ def main():
     # start the background learning task (use proper args)
     learningThread = threading.Thread(
         target=sac_zop_update_step,
-        args=(cfg_saczop.batch_size, cfg_saczop.update_freq, cfg_saczop.soft_update_freq, cfg_saczop.train_start),
-    )
+        args=(
+            cfg_saczop.batch_size, 
+            cfg_saczop.update_freq, 
+            cfg_saczop.train_start),
+        )
     learningThread.daemon = True
     learningThread.start()
     
@@ -487,11 +520,14 @@ def main():
             # env is reseted so set new mode
             talk_to_arduino(0, mode=0)  # -> arduino is ready for normal operation
             
+            # in between episode training. Train for 20 steps
+            inbetween_training(20)
+            
             # reset ctx
             ctx = None
             
-            #reset step count
-            step_count = 0
+            # reset step count
+            episode_step_count = 0
             
             # per-episode bookkeeping
             episode_count += 1
@@ -505,16 +541,17 @@ def main():
             x, theta, v, thetadot, tripped = state 
             
             # check if for some reason ep is alredy done
-            done = done_eval(state, step_count, max_ep_steps, x_threshold=_x_thr)
+            done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
             
             # episode loop
             print("Starting new episode")
-            print(f"Episode {episode_count}, Learning Step: {learning_step}")
+            print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
 
             while not done:            
                 # step counting
-                step_count += 1
+                episode_step_count += 1
+                abs_step_count += 1
                 
                 # make state ready for buffer and actor
                 obs = sac_state_to_tensor(state, batch=False).to(device)
@@ -554,7 +591,7 @@ def main():
                 reward = compute_reward(state)
                 
                 # check done 
-                done = done_eval(state, step_count, max_ep_steps, x_threshold=_x_thr)
+                done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
                 
                 # double check  for safety
                 if done:
