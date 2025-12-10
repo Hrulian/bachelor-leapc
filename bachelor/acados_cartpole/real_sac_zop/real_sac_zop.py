@@ -1,6 +1,7 @@
 import torch, threading, queue, serial, time, os, csv
 import numpy as np
 import gymnasium as gym
+import wandb
 from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
 from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import  MpcSacActor, SacZopTrainerConfig
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
@@ -25,6 +26,10 @@ from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
 
 
 #COMMUNICATION#####################################################################
+# wandb communication parameters
+os.environ['WANDB_API_KEY'] = 'fd053eb0471b83f999819cd4c4e4930ea28de0ea'
+
+# serial communication parameters
 PORT = "/dev/ttyACM0"
 BAUD = 115200
 FRAME_TIMEOUT_S = 0.05   #if for 50 ms nothing arrived discard this frame
@@ -337,6 +342,20 @@ def saczop_single_step_update(batch_size):
     # increment learning step count
     learning_step += 1
     
+    # log learning statistics to wandb
+    try:
+        wandb.log({
+            'learning/q_loss': q_loss.item(),
+            'learning/pi_loss': pi_loss.item(),
+            'learning/alpha': log_alpha.exp().item(),
+            'learning/q': q.mean().item(),
+            'learning/q_target': target.mean().item(),
+            'learning/entropy': -log_p.mean().item(),
+            'learning/learning_step': learning_step,
+        }, step=abs_step_count)
+    except Exception:
+        pass
+    
     return True
 
 
@@ -490,6 +509,22 @@ def main():
     # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer
     load_checkpoints()  
     
+    # initialize wandb
+    wandb.init(
+        project="cartpole-sac-zop",
+        name=f"real_hardware_run_{int(time.time())}",
+        config={
+            "buffer_size": cfg_saczop.buffer_size,
+            "batch_size": cfg_saczop.batch_size,
+            "lr_q": cfg_saczop.lr_q,
+            "lr_pi": cfg_saczop.lr_pi,
+            "lr_alpha": cfg_saczop.lr_alpha,
+            "gamma": cfg_saczop.gamma,
+            "tau": cfg_saczop.tau,
+            "max_ep_steps": max_ep_steps,
+        }
+    )
+    
     # ensures we reference the module-level variables
     global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_episode_pwm
     
@@ -592,6 +627,26 @@ def main():
                 
                 # track maximum absolute PWM
                 max_force_perep = max(u_force, abs(u_force))
+                
+                # log per-step statistics to wandb
+                try:
+                    step_stats = {
+                        'step/u_force': u_force,
+                        'step/u_pwm': u_pwm,
+                        'step/param': param_t.cpu().numpy().tolist() if param_t.dim() > 0 else param_t.item(),
+                        'step/x': x,
+                        'step/theta': theta,
+                        'step/v': v,
+                        'step/thetadot': thetadot,
+                        'step/episode_step': episode_step_count,
+                    }
+                    # add pi_output stats if available
+                    if hasattr(pi_out, 'stats') and pi_out.stats:
+                        for key, val in pi_out.stats.items():
+                            step_stats[f'step/pi_{key}'] = val
+                    wandb.log(step_stats, step=abs_step_count)
+                except Exception:
+                    pass
 
                 # send PWM control to arduino
                 talk_to_arduino(u_pwm, mode=0)
@@ -615,6 +670,12 @@ def main():
                 # accumulate episode reward
                 current_episode_reward += reward
                 
+                # log reward to wandb
+                try:
+                    wandb.log({'step/reward': reward}, step=abs_step_count)
+                except Exception:
+                    pass
+                
                 # check done 
                 done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
                 
@@ -628,6 +689,17 @@ def main():
                         'steps': episode_step_count
                     })
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}")
+                    
+                    # log episode statistics to wandb
+                    try:
+                        wandb.log({
+                            'episode/episode_number': episode_count,
+                            'episode/cumulative_reward': current_episode_reward,
+                            'episode/steps': episode_step_count,
+                            'episode/max_force': max_force_perep,
+                        }, step=abs_step_count)
+                    except Exception:
+                        pass
 
                 # store transition in replay buffer (obs, param, reward, obs_next, done)
                 replay_buffer.put((obs, param_t, float(reward), obs_next, int(done)))
@@ -648,6 +720,11 @@ def main():
         # save model checkpoints on exit so training progress persists
         try:
             save_checkpoints()
+        except Exception:
+            pass
+        # finish wandb run
+        try:
+            wandb.finish()
         except Exception:
             pass
     finally:
