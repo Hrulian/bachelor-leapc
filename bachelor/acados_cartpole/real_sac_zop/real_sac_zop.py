@@ -142,6 +142,11 @@ learning_step = 0   # total learning updates performed
 episode_count = 0   # total episodes completed
 abs_step_count = 0  # total steps across all episodes
 
+# episode reward tracking
+episode_rewards = []  # list of cumulative rewards per episode
+current_episode_reward = 0.0  # accumulated reward in current episode
+max_force_perep = 0  # track max force per episode
+
 # max steps per episode
 max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
 
@@ -389,12 +394,12 @@ def reset_env():
             and abs(x) <= 100                                       # be in the middle
             and abs(thetadot) <= 0.1                             # pole not moving
             and abs(countpersecond_to_meterspersecond(v)) <= 0.0    # cart not moving
-            and abs(theta) >= 3.1):                                # pole down
+            and abs(theta) >= 3.0):                                # pole down
                 
             break
         # else: stay in mode 2/reset until conditions are met
 
-        print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+    print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
@@ -405,7 +410,7 @@ def load_checkpoints():
     to avoid mixing partial state. Restores `episode_count` and
     `learning_step` from the meta file if available.
     """
-    global episode_count, learning_step
+    global episode_count, learning_step, episode_rewards
     paths = _checkpoint_paths()
     required = [paths['critic'], paths['target_critic'], paths['actor'], paths['log_alpha'], paths['meta']]
 
@@ -435,12 +440,13 @@ def load_checkpoints():
         print('Failed to load checkpoints:', e)
         return
 
-    # load meta info (episode_count, learning_step)
+    # load meta info (episode_count, learning_step, episode_rewards)
     try:
         meta = torch.load(paths['meta'], map_location=device)
         episode_count = int(meta.get('episode_count', episode_count))
         learning_step = int(meta.get('learning_step', learning_step))
-        print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}")
+        episode_rewards = meta.get('episode_rewards', [])
+        print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}, episodes_logged={len(episode_rewards)}")
     except Exception:
         pass
 
@@ -455,8 +461,12 @@ def save_checkpoints():
         torch.save(target_critic.state_dict(), paths['target_critic'])
         torch.save(actor.state_dict(), paths['actor'])
         torch.save(log_alpha.detach().cpu(), paths['log_alpha'])
-        # save meta info (episode_count, learning_step)
-        meta = {'episode_count': episode_count, 'learning_step': learning_step}
+        # save meta info (episode_count, learning_step, episode_rewards)
+        meta = {
+            'episode_count': episode_count, 
+            'learning_step': learning_step,
+            'episode_rewards': episode_rewards
+        }
         torch.save(meta, paths['meta'])
         print('Saved checkpoints to', CHECKPOINT_DIR)
     except Exception as e:
@@ -481,7 +491,7 @@ def main():
     load_checkpoints()  
     
     # ensures we reference the module-level variables
-    global ctx, episode_step_count, episode_count, abs_step_count, learning_step
+    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_episode_pwm
     
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
@@ -530,6 +540,12 @@ def main():
             # reset step count
             episode_step_count = 0
             
+            # reset episode reward
+            current_episode_reward = 0.0
+            
+            # reset max PWM tracker
+            max_force_per_ep = 0
+            
             # per-episode bookkeeping
             episode_count += 1
 
@@ -546,7 +562,8 @@ def main():
             
             
             # episode loop
-            print(f"start state: x={x}, theta={theta}, v={v}, thetadot={thetadot}, tripped={tripped}")
+            print("================================")
+            # print(f"start state: x={x}, theta={theta}, v={v}, thetadot={thetadot}, tripped={tripped}")
             print("Starting new episode")
             print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
 
@@ -572,6 +589,9 @@ def main():
                 # convert first from N to PWM
                 # TODO: fix that function currently friction still included
                 u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 255)
+                
+                # track maximum absolute PWM
+                max_force_perep = max(u_force, abs(u_force))
 
                 # send PWM control to arduino
                 talk_to_arduino(u_pwm, mode=0)
@@ -592,12 +612,22 @@ def main():
                 # compute reward
                 reward = compute_reward(state)
                 
+                # accumulate episode reward
+                current_episode_reward += reward
+                
                 # check done 
                 done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
                 
                 # double check  for safety
                 if done:
                     talk_to_arduino(0, mode=1)
+                    # save episode reward when episode ends
+                    episode_rewards.append({
+                        'episode': episode_count,
+                        'cumulative_reward': current_episode_reward,
+                        'steps': episode_step_count
+                    })
+                    print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}")
 
                 # store transition in replay buffer (obs, param, reward, obs_next, done)
                 replay_buffer.put((obs, param_t, float(reward), obs_next, int(done)))

@@ -364,7 +364,7 @@ void reset_control() {
 
   if (labs(error) < X_CENTER_TOL && 
       fabs(thetadot) < 0.1f && 
-      fabsf(abs(wrap_to_pi(angle_unwrapped))) >= 3.1f) {
+      fabsf(abs(wrap_to_pi(angle_unwrapped))) >= 3.0f) {
     // we are ready to go. Cart in the middle end Pendulum not moving
     u = 0.0f;     
     tripped = false;  
