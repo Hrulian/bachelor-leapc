@@ -151,6 +151,7 @@ abs_step_count = 0  # total steps across all episodes
 episode_rewards = []  # list of cumulative rewards per episode
 current_episode_reward = 0.0  # accumulated reward in current episode
 max_force_perep = 0  # track max force per episode
+wandb_run_id = None  # wandb run ID for resuming runs
 
 # max steps per episode
 max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
@@ -429,7 +430,7 @@ def load_checkpoints():
     to avoid mixing partial state. Restores `episode_count` and
     `learning_step` from the meta file if available.
     """
-    global episode_count, learning_step, episode_rewards
+    global episode_count, learning_step, episode_rewards, wandb_run_id, abs_step_count
     paths = _checkpoint_paths()
     required = [paths['critic'], paths['target_critic'], paths['actor'], paths['log_alpha'], paths['meta']]
 
@@ -459,13 +460,15 @@ def load_checkpoints():
         print('Failed to load checkpoints:', e)
         return
 
-    # load meta info (episode_count, learning_step, episode_rewards)
+    # load meta info (episode_count, learning_step, episode_rewards, wandb_run_id, abs_step_count)
     try:
         meta = torch.load(paths['meta'], map_location=device)
         episode_count = int(meta.get('episode_count', episode_count))
         learning_step = int(meta.get('learning_step', learning_step))
+        abs_step_count = int(meta.get('abs_step_count', abs_step_count))
         episode_rewards = meta.get('episode_rewards', [])
-        print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}, episodes_logged={len(episode_rewards)}")
+        wandb_run_id = meta.get('wandb_run_id', None)
+        print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}, abs_step_count={abs_step_count}, episodes_logged={len(episode_rewards)}, wandb_run_id={wandb_run_id}")
     except Exception:
         pass
 
@@ -480,11 +483,13 @@ def save_checkpoints():
         torch.save(target_critic.state_dict(), paths['target_critic'])
         torch.save(actor.state_dict(), paths['actor'])
         torch.save(log_alpha.detach().cpu(), paths['log_alpha'])
-        # save meta info (episode_count, learning_step, episode_rewards)
+        # save meta info (episode_count, learning_step, episode_rewards, wandb_run_id, abs_step_count)
         meta = {
             'episode_count': episode_count, 
             'learning_step': learning_step,
-            'episode_rewards': episode_rewards
+            'abs_step_count': abs_step_count,
+            'episode_rewards': episode_rewards,
+            'wandb_run_id': wandb_run_id
         }
         torch.save(meta, paths['meta'])
         print('Saved checkpoints to', CHECKPOINT_DIR)
@@ -509,21 +514,43 @@ def main():
     # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer
     load_checkpoints()  
     
-    # initialize wandb
-    wandb.init(
-        project="cartpole-sac-zop",
-        name=f"real_hardware_run_{int(time.time())}",
-        config={
-            "buffer_size": cfg_saczop.buffer_size,
-            "batch_size": cfg_saczop.batch_size,
-            "lr_q": cfg_saczop.lr_q,
-            "lr_pi": cfg_saczop.lr_pi,
-            "lr_alpha": cfg_saczop.lr_alpha,
-            "gamma": cfg_saczop.gamma,
-            "tau": cfg_saczop.tau,
-            "max_ep_steps": max_ep_steps,
-        }
-    )
+    # initialize wandb (resume if we have a run_id, else create new)
+    global wandb_run_id
+    if wandb_run_id:
+        print(f"Resuming wandb run: {wandb_run_id}")
+        wandb.init(
+            project="cartpole-sac-zop",
+            id=wandb_run_id,
+            resume="must",
+            config={
+                "buffer_size": cfg_saczop.buffer_size,
+                "batch_size": cfg_saczop.batch_size,
+                "lr_q": cfg_saczop.lr_q,
+                "lr_pi": cfg_saczop.lr_pi,
+                "lr_alpha": cfg_saczop.lr_alpha,
+                "gamma": cfg_saczop.gamma,
+                "tau": cfg_saczop.tau,
+                "max_ep_steps": max_ep_steps,
+            }
+        )
+    else:
+        print("Starting new wandb run")
+        run = wandb.init(
+            project="cartpole-sac-zop",
+            name=f"real_hardware_run_{int(time.time())}",
+            config={
+                "buffer_size": cfg_saczop.buffer_size,
+                "batch_size": cfg_saczop.batch_size,
+                "lr_q": cfg_saczop.lr_q,
+                "lr_pi": cfg_saczop.lr_pi,
+                "lr_alpha": cfg_saczop.lr_alpha,
+                "gamma": cfg_saczop.gamma,
+                "tau": cfg_saczop.tau,
+                "max_ep_steps": max_ep_steps,
+            }
+        )
+        wandb_run_id = run.id
+        print(f"New wandb run ID: {wandb_run_id}")
     
     # ensures we reference the module-level variables
     global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_episode_pwm
