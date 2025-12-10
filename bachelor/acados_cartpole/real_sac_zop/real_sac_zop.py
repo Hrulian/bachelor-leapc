@@ -387,14 +387,14 @@ def reset_env():
         # check reset condition:
         if (not bool(tripped_flag)                                  # not tripped
             and abs(x) <= 100                                       # be in the middle
-            and abs(thetadot) <= 0.0001                             # pole not moving
+            and abs(thetadot) <= 0.1                             # pole not moving
             and abs(countpersecond_to_meterspersecond(v)) <= 0.0    # cart not moving
-            and abs(theta) >= 3.13):                                # pole down
+            and abs(theta) >= 3.1):                                # pole down
                 
             break
         # else: stay in mode 2/reset until conditions are met
 
-    print(f'env reseted. State: x={x}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+        print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
@@ -520,8 +520,9 @@ def main():
             # env is reseted so set new mode
             talk_to_arduino(0, mode=0)  # -> arduino is ready for normal operation
             
-            # in between episode training. Train for 20 steps
-            inbetween_training(20)
+            # in between episode training. Train for 50 steps
+            print("Training inbetween episodes...")
+            inbetween_training(50)
             
             # reset ctx
             ctx = None
@@ -545,6 +546,7 @@ def main():
             
             
             # episode loop
+            print(f"start state: x={x}, theta={theta}, v={v}, thetadot={thetadot}, tripped={tripped}")
             print("Starting new episode")
             print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
 
@@ -610,7 +612,7 @@ def main():
         # try to stop actuator and plot
         try:
             talk_to_arduino(0, mode=1)  # tell arduino to stop
-            print(f'serial closed final state: ({x, theta, v, thetadot, tripped})')
+            print(f'serial closed')
         except Exception:
             pass
         # save model checkpoints on exit so training progress persists

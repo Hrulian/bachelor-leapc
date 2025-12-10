@@ -10,10 +10,10 @@ import casadi as ca
 import gymnasium as gym
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp
-
 from leap_c import ocp
 from leap_c.examples.utils.casadi import integrate_erk4
 from leap_c.ocp.acados.parameters import AcadosParameter, AcadosParameterManager
+from bachelor.acados_cartpole.my_helpers import differentiable_signum 
 
 CartPoleAcadosParamInterface = Literal["global", "stagewise"]
 """Determines the exposed parameter interface of the controller.
@@ -39,7 +39,7 @@ def create_custom_cartpole_params(
     """
     return [
         # Dynamics parameters
-        AcadosParameter("M", default=np.array([0.1518])),  # mass of the cart [kg]
+        AcadosParameter("M", default=np.array([0.17444])),  # mass of the cart [kg]
         AcadosParameter("m", default=np.array([0.016])),  # mass of the rod [kg]
         AcadosParameter("g", default=np.array([9.81])),  # gravity constant [m/s^2]
         AcadosParameter("l", default=np.array([0.36])),  # length of the rod [m]
@@ -108,11 +108,17 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     d_c = M * c     # Coulomb-Reibung [N]
 
    
-    v_sign = ca.sign(v)
+    #v_sign = differentiable_signum(v) # this version is differentiable
+    v_sign = ca.sign(v)  # this version is not differentiable at 0
     F_fric = 0#d_v * v + d_c * v_sign
     
     F_eff = F - F_fric
-
+    
+    # pole friction (only viscous for now)
+    d = 0.000081  
+    
+    tau = 0#-d * dtheta  
+    #tau = 0
     # dynamics
     cos_theta = ca.cos(theta)
     sin_theta = ca.sin(theta)
@@ -121,10 +127,12 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     v_dot = (
         (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
         - m**2 * l**2 * g * sin_theta * cos_theta
+        - m * l * cos_theta * tau
     ) / denominator
 
     theta_dot_dot = (
         (M + m) * m * g * l * sin_theta
+        + (M + m) * tau
         - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
     ) / denominator
 
@@ -218,7 +226,7 @@ def export_parametric_ocp(
 
     ######## Constraints ########
     ocp.constraints.idxbx_0 = np.array([0, 1, 2, 3])
-    ocp.constraints.x0 = np.array([0.0, 0.0, 0.0, 0.0]) # -> for now lets start in the upright position
+    ocp.constraints.x0 = np.array([0.0, np.pi, 0.0, 0.0]) # -> for now lets start in the upright position
 
     ocp.constraints.lbu = np.array([-Fmax])
     ocp.constraints.ubu = np.array([+Fmax])

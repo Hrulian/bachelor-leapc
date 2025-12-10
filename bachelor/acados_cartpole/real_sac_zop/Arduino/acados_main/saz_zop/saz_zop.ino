@@ -41,7 +41,7 @@ volatile float thetadot = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 20;
+constexpr unsigned long COMMUNICATION_TIME_MS = 15;
 constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 constexpr long X_CENTER_COUNTS = 0;      // ceter position in counts
@@ -291,7 +291,7 @@ float raw_to_rad(uint16_t raw) {
 
 void apply_u() {
   // dobble check tripped condition
-  if (tripped && mode != 2) {
+  if (tripped) {
   analogWrite(PWM_PIN, 0);
   return;
   }
@@ -364,7 +364,7 @@ void reset_control() {
 
   if (labs(error) < X_CENTER_TOL && 
       fabs(thetadot) < 0.1f && 
-      fabs(abs(wrap_to_pi(angle_unwrapped))) >= 3.13) {
+      fabsf(abs(wrap_to_pi(angle_unwrapped))) >= 3.1f) {
     // we are ready to go. Cart in the middle end Pendulum not moving
     u = 0.0f;     
     tripped = false;  
@@ -373,8 +373,7 @@ void reset_control() {
 
   else if (labs(error) < X_CENTER_TOL) {
     // we are in the middle but pendulum is moving
-    u = 0.0f;
-    apply_u();
+    motorstop();
     return;
   }
 
@@ -382,12 +381,14 @@ void reset_control() {
     // cart not in the middle
     if (error >= 0) {
       // need to go right
-      u = 35;
+      analogWrite(PWM_PIN, 25); // stop motor before changing direction
+      digitalWrite(DIR_PIN, LOW);
     } else {
       // need to go left
-      u = -35;
+      analogWrite(PWM_PIN, 25); // stop motor before changing direction
+      digitalWrite(DIR_PIN, HIGH);
     }
-    apply_u();
+    
   }
 }
 
@@ -411,6 +412,9 @@ void setup() {
     Serial.println("AS5600 not found");
     while (1) { delay(1000); }
   }
+  
+  // wait for pendel osilations to drop
+  delay(5000);
 
   // Magnetic Encoder init
   uint16_t zero_raw_bottom = readRaw();   
@@ -445,7 +449,7 @@ void setup() {
   delay(50);
 
   // pause before start
-  delay(5000);
+  delay(4000);
 
 }
 

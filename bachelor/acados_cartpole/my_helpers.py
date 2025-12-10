@@ -18,7 +18,7 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 255) -> int
     a = 48.45
     b = 5.28
     c = -7.57
-    mass = 0.1518  # [kg] estimated: 0.54 g cart + 2 * 30g kuggellager + 24g * welle + 0.012 * unknown parts
+    mass = 0.1744  
 
     # compute control-like quantity u 
     u = ((force / mass) + a * velocity - c * sgn(velocity)) / b
@@ -35,6 +35,28 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 255) -> int
     pwm = max(-max_pwm_limit, min(max_pwm_limit, pwm))
     return pwm
 
+
+def f_to_u_to_pwm(force: float, max_pwm_limit: int = 255) -> int:
+    mass = 0.1744
+    b = 5.28
+    
+    u = force / (mass * b)
+    
+    
+    # map u in [-max_u, max_u] to PWM in [-255, 255]
+    max_u = 24.0
+    pwm_full = (u / max_u) * 255.0
+
+    # saturate to hardware full-scale first (safe)
+    pwm_full = max(-255.0, min(255.0, pwm_full))
+
+    # round and then apply application cap
+    pwm = int(round(pwm_full))
+    pwm = max(-max_pwm_limit, min(max_pwm_limit, pwm))
+    
+    return pwm
+
+    
 
 def sgn(x: float) -> int:
     """
@@ -144,6 +166,13 @@ def u_converted(t) -> float:
     # takes tensor or array-like, returns single float
     return float(t.detach().cpu().numpy().squeeze().item())
 
+def differentiable_signum(x) -> float:
+    """
+    Smooth approximation of the signum function.
+    """
+    if x == 0:
+        return 0.0
+    return (2 / (1 + np.exp(-10000 * x))) - 1
 
 # SACZOP specific helpers below
 def compute_reward(state) -> float:
