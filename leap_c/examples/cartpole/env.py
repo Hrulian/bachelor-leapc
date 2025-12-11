@@ -1,4 +1,4 @@
-gfrom dataclasses import dataclass
+from dataclasses import dataclass
 from typing import Any, Callable
 
 import gymnasium as gym

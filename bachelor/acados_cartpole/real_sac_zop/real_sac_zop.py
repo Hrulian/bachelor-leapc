@@ -620,6 +620,10 @@ def main():
             state = state_que.get() # blocks until the thread adds a first state
             x, theta, v, thetadot, tripped = state 
             
+            # clip thetadot to reasonable bounds before initialization
+            thetadot = np.clip(thetadot, -20.0, 20.0)
+            state = (x, theta, v, thetadot, tripped)
+            
             # initialize MPC solver with the first real state instead of fixed x0
             obs_init = sac_state_to_tensor(state, batch=False).to(device)
             obs_init_batch = obs_init.unsqueeze(0)
