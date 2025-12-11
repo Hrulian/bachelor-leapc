@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 255) -> int:
+def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
     """
     Map a desired force and current velocity to a PWM integer.
 
@@ -36,11 +36,12 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit: int = 255) -> int
     return pwm
 
 
-def f_to_u_to_pwm(force: float, max_pwm_limit: int = 255) -> int:
-    mass = 0.1744
-    b = 5.28
+def f_to_u_to_pwm(force: float, max_pwm_limit: int, max_force=20.0) -> int:
+    #mass = 0.1744
+    #K_U = 0.920915
+    gain = 1.3
     
-    u = force / (mass * b)
+    u = force * gain#(force / K_U) * exp_gain
     
     
     # map u in [-max_u, max_u] to PWM in [-255, 255]
@@ -55,6 +56,18 @@ def f_to_u_to_pwm(force: float, max_pwm_limit: int = 255) -> int:
     pwm = max(-max_pwm_limit, min(max_pwm_limit, pwm))
     
     return pwm
+
+def weird_force_to_pwm(F: float, F_max: float) -> int:
+    # should not be used since mpc cosntraints the Force already but here for safety
+    F_clipped = max(-F_max, min(F_max, F))
+
+    k = 255.0 / F_max          
+    pwm_float = k * F_clipped  
+
+    # saturieren (theoretisch unnötig, weil F_clipped in [-F_max,F_max])
+    pwm_float = max(-255.0, min(255.0, pwm_float))
+
+    return int(round(pwm_float))
 
     
 
@@ -73,6 +86,15 @@ def sgn(x: float) -> int:
     if x < 0:
         return -1
     return 0
+
+
+def differentiable_signum(x) -> float:
+    """
+    Smooth approximation of the signum function.
+    """
+
+    return (2 / (1 + np.exp(-10 * x))) - 1
+
 
 
 def counts_to_meters(counts: int) -> float:
@@ -166,13 +188,7 @@ def u_converted(t) -> float:
     # takes tensor or array-like, returns single float
     return float(t.detach().cpu().numpy().squeeze().item())
 
-def differentiable_signum(x) -> float:
-    """
-    Smooth approximation of the signum function.
-    """
-    if x == 0:
-        return 0.0
-    return (2 / (1 + np.exp(-10000 * x))) - 1
+
 
 # SACZOP specific helpers below
 def compute_reward(state) -> float:

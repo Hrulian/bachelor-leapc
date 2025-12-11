@@ -30,7 +30,7 @@ def main():
     # environment (use rgb_array so RecordVideo can capture frames)
     env_cfg = CartPoleEnvConfig(max_time=20.0)
     # use the balance environment so the pole starts upright
-    env = CartPoleEnv(render_mode="rgb_array", cfg=env_cfg)
+    env = CartPoleBalanceEnv(render_mode="rgb_array", cfg=env_cfg)
 
     # planner setup - align planner bounds with the env to avoid infeasible QPs
     cfg = CartPolePlannerConfig()

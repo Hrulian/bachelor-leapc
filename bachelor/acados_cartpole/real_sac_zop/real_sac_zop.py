@@ -18,6 +18,7 @@ from bachelor.acados_cartpole.my_helpers import (
     compute_reward,
     done_eval,
     sac_state_to_tensor,
+    f_to_u_to_pwm
 )
  
 from leap_c.planner import ControllerFromPlanner
@@ -619,6 +620,22 @@ def main():
             state = state_que.get() # blocks until the thread adds a first state
             x, theta, v, thetadot, tripped = state 
             
+            # initialize MPC solver with the first real state instead of fixed x0
+            obs_init = sac_state_to_tensor(state, batch=False).to(device)
+            obs_init_batch = obs_init.unsqueeze(0)
+            
+            # first initialize the planner/controller with the real state
+            state_converted_init = obs_init_batch
+            with torch.no_grad():
+                ctx_planner, _, _, _, _ = planner(state_converted_init, ctx=None)
+            
+            # then initialize the actor with the planner context
+            with torch.no_grad():
+                pi_out_init = actor(obs_init_batch, ctx_planner, deterministic=False)
+                ctx = pi_out_init.ctx  # save the initialized context
+            
+            print(f"Initialized MPC solver with real state: x={counts_to_meters(x):.3f}m, theta={theta:.3f}rad")
+            
             # check if for some reason ep is alredy done
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
@@ -649,8 +666,7 @@ def main():
                 u_force = float(pi_out.action[0].cpu().numpy().squeeze())
 
                 # convert first from N to PWM
-                # TODO: fix that function currently friction still included
-                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), 255)
+                u_pwm = f_to_u_to_pwm(u_force, 255)
                 
                 # track maximum absolute PWM
                 max_force_perep = max(u_force, abs(u_force))

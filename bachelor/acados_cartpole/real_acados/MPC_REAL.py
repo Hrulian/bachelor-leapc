@@ -5,6 +5,8 @@ from bachelor.acados_cartpole.my_helpers import (
     state_tuple_to_tensor,
     counts_to_meters,
     countpersecond_to_meterspersecond,
+    f_to_u_to_pwm,
+    weird_force_to_pwm
 )
 from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
 from bachelor.acados_cartpole.my_utils_plot import plot_cartpole_log
@@ -147,24 +149,52 @@ def main():
     planner_times = []
     # debug logging timer (lightweight)
     last_dbg_time = 0.0
+    # counter for periodic debug output
+    loop_counter = 0
     
     
     
     # main control loop
     try:
+        # wait for first valid state to initialize the MPC solver
+        first_state = None
+        while first_state is None:
+            state = state_que.get()
+            # drain queue to get the freshest state
+            while True:
+                try: 
+                    newest_state = state_que.get_nowait()
+                    state = newest_state
+                except queue.Empty:
+                    break
+            # validate state is a tuple with 4 elements
+            if isinstance(state, tuple) and len(state) == 4:
+                first_state = state
+            else:
+                print(f"DEBUG: Skipping invalid state during init: {state}")
+        
+        # initialize MPC solver with the first real state
+        state_converted_init = state_tuple_to_tensor(first_state)
+        ctx, _, _, _, _ = controller(state_converted_init, ctx=ctx)
+        x_init, theta_init, v_init, thetadot_init = first_state
+        print(f"Initialized MPC solver with real state: x={counts_to_meters(x_init):.3f}m, theta={theta_init:.3f}rad")
+        
         while True:
             # wait for a new state
             state = state_que.get() # blocks untill the thread adds an item
             
+            # drain queue to get the freshest state
             while True:
                 try: 
-                    state = state_que.get_nowait()
-                
+                    newest_state = state_que.get_nowait()
+                    state = newest_state
                 except queue.Empty:
                     break
             
-            # just in case something else is in the que
+            # validate state is a tuple with 4 elements
             if not (isinstance(state, tuple) and len(state) == 4):
+                # skip invalid states (e.g., "ready" handshake message)
+                print(f"DEBUG: Skipping invalid state: {state} (type: {type(state)})")
                 continue
             
             # we finally got the newest state and extract it now
@@ -185,8 +215,18 @@ def main():
             u_force = float(u0.detach().cpu().numpy().squeeze().item())
 
             # convert first from N to PWM
-            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v) )
-
+            #u = force_to_pwm(-u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=100)
+            u = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
+            #u = weird_force_to_pwm(-u_force, F_max=20.0)
+                
+            # periodic debug output every 10 iterations
+            loop_counter += 1
+            if loop_counter % 10 == 0:
+                x_m = counts_to_meters(x)
+                v_m = countpersecond_to_meterspersecond(v)
+                print(f"F={u_force:6.2f}N PWM={u:4d} | x={x_m:6.3f}m θ={theta:6.3f}rad v={v_m:6.3f}m/s ω={thetadot:6.3f}rad/s")
+                print(f"{x_traj.detach().cpu().numpy()}")
+            
             # send PWM control to arduino
             send_control(u)
             

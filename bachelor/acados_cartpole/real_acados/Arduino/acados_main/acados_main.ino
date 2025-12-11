@@ -186,18 +186,24 @@ inline void update_x_v(const float T) {
   if (abs(x) > position_limit) {
     tripped = true;
   }
+  
   // calculate the raw velocity
-  static long last_cnt = cnt;      
+  static long last_cnt = 0;
   const long diff_cnt = cnt - last_cnt;
   last_cnt = cnt;
-
   
   const float v_raw = (float)diff_cnt / T;   // counts/s
 
-  // apply EMA filter to it
+  // EMA smoothing for v (seed on first call)
   static float v_hat = 0.0f;
+  static bool v_hat_initialized = false;
   const float alpha = T / (TAU_V + T);
-  v_hat = v_hat + alpha * (v_raw - v_hat);
+  if (!v_hat_initialized) {
+    v_hat = v_raw;
+    v_hat_initialized = true;
+  } else {
+    v_hat = v_hat + alpha * (v_raw - v_hat);
+  }
 
   // assign it to v
   v = (long)lroundf(v_hat);

@@ -43,7 +43,7 @@ def create_custom_cartpole_params(
         AcadosParameter("m", default=np.array([0.016])),  # mass of the rod [kg]
         AcadosParameter("g", default=np.array([9.81])),  # gravity constant [m/s^2]
         AcadosParameter("l", default=np.array([0.36])),  # length of the rod [m]
-        AcadosParameter("Ip", default=np.array([0.0006912])),  # moment of inertia 
+        AcadosParameter("Ip", default=np.array([0.0001728])),  # moment of inertia 
         # Cost matrix factorization parameters
         AcadosParameter(
             "q_diag_sqrt", default=np.sqrt(np.array([1e3, 1e3, 1, 1]))
@@ -101,46 +101,53 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     F = model.u[0]
     
     # modelling of friction parameters found experimentally
-    a = 48.45
-    c = 7.57
+    B_V = 8.450926
+    F_C = 1.32038
 
-    d_v = M * a      # viskose Reibung [N s/m]
-    d_c = M * c     # Coulomb-Reibung [N]
+    
 
    
     #v_sign = differentiable_signum(v) # this version is differentiable
-    v_sign = ca.sign(v)  # this version is not differentiable at 0
-    F_fric = 0#d_v * v + d_c * v_sign
+    #v_sign = differentiable_signum(v)
+    F_fric = 0#B_V * v + F_C * v_sign
     
     F_eff = F - F_fric
     
     # pole friction (only viscous for now)
     d = 0.000081  
     
-    tau = 0#-d * dtheta  
-    #tau = 0
+    tau = -d * dtheta  
+    
     # dynamics
     cos_theta = ca.cos(theta)
     sin_theta = ca.sin(theta)
-    denominator = (M + m) * (Ip + m * l**2) - (m * l * cos_theta)**2
+    denominator = M + m - m * cos_theta * cos_theta#(M + m) * (Ip + m * l**2) - (m * l * cos_theta)**2
 
-    v_dot = (
-        (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
-        - m**2 * l**2 * g * sin_theta * cos_theta
-        - m * l * cos_theta * tau
-    ) / denominator
+    # v_dot = (
+    #     (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
+    #     - m**2 * l**2 * g * sin_theta * cos_theta
+    #     - m * l * cos_theta * tau
+    # ) / denominator
 
-    theta_dot_dot = (
-        (M + m) * m * g * l * sin_theta
-        + (M + m) * tau
-        - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
-    ) / denominator
+    # theta_dot = (
+    #     (M + m) * m * g * l * sin_theta
+    #     + (M + m) * tau
+    #     - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
+    # ) / denominator
+    
 
+    # f_expl = ca.vertcat(
+    #     v,
+    #     dtheta,
+    #     v_dot,
+    #     theta_dot,
+    # )
     f_expl = ca.vertcat(
-        v,
-        dtheta,
-        v_dot,
-        theta_dot_dot,
+    v,
+    dtheta,
+    (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F) / denominator,
+    (-m * l * cos_theta * sin_theta * dtheta * dtheta + F * cos_theta + (M + m) * g * sin_theta)
+    / (l * denominator),
     )
 
     return f_expl  # type: ignore
@@ -226,7 +233,7 @@ def export_parametric_ocp(
 
     ######## Constraints ########
     ocp.constraints.idxbx_0 = np.array([0, 1, 2, 3])
-    ocp.constraints.x0 = np.array([0.0, np.pi, 0.0, 0.0]) # -> for now lets start in the upright position
+    ocp.constraints.x0 = np.array([0.0, 0, 0.0, 0.0]) # -> for now lets start in the upright position
 
     ocp.constraints.lbu = np.array([-Fmax])
     ocp.constraints.ubu = np.array([+Fmax])

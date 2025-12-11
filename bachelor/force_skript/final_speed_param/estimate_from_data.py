@@ -52,15 +52,25 @@ def parse_pwm_filename(path, supply_voltage: float = 24.0):
     u = sign * supply_voltage * pwm_val / 255.0
     return u, pwm_val, sign
 
-def v_closed_form(t, u, a, b, c, s, v0, t0):
+def v_closed_form_phys(t, u, K_U, F_c, b_v, s, v0, t0, M):
+    """
+    Lösung der DGL:
+        M * v_dot = K_U * u - F_c * s - b_v * v
+    mit konstantem u und s (s = sign(v)).
+    """
     tau = t - t0
-    d = b * u + c * s
-    # avoid division by zero
+
+    # Parameter der normierten DGL v_dot = -a v + d
+    a = b_v / M
+    d = (K_U / M) * u - (F_c / M) * s
+
     if np.isclose(a, 0.0):
-        # linear growth approx
+        # Grenzfall: quasi keine viskose Dämpfung -> lineares Wachstum
         return v0 + d * tau
+
     v_inf = d / a
     return v_inf + (v0 - v_inf) * np.exp(-a * tau)
+
 
 
 # Conversion utilities (same as used earlier)
@@ -201,8 +211,8 @@ def build_experiments(files: List[str], supply_voltage: float = 24.0, alpha: flo
     return experiments
 
 
-def residuals_all(theta, experiments):
-    a, b, c = theta
+def residuals_all_phys(theta, experiments, M):
+    K_U, F_c, b_v = theta
     res_list = []
     for exp in experiments:
         t = exp['t']
@@ -210,16 +220,21 @@ def residuals_all(theta, experiments):
         u = exp['u']
         t0 = t[0]
         v0 = v_meas[0]
+        # Bewegungsrichtung (für s = sign(v)), 0 -> 1.0 als Fallback
         s = float(np.sign(np.mean(v_meas))) if np.any(v_meas) else 1.0
-        v_model = v_closed_form(t, u, a, b, c, s, v0, t0)
+
+        v_model = v_closed_form_phys(t, u, K_U, F_c, b_v, s, v0, t0, M)
         res_v = v_model - v_meas
         res_list.append(res_v)
+
     if len(res_list) == 0:
         return np.array([])
     return np.concatenate(res_list)
 
 
 def main():
+    # mass
+    M = 0.1744  # kg
     # defaults
     base_dir = os.path.dirname(__file__)
     data_dir = os.path.normpath(os.path.join(base_dir, '..', 'final_speed_param', 'data'))
@@ -251,14 +266,18 @@ def main():
         print('No valid experiments. Exiting.', file=sys.stderr)
         sys.exit(2)
 
-    # initial guess
-    theta0 = [0.0, 0.0, 0.0]
+    # initial guess: [K_U, F_c, b_v]
+    theta0 = [10.0, 1.0, 1.0]  # grobe Startwerte, kannst du anpassen
+
+    # Schranken: alle Parameter physikalisch >= 0
+    lower_bounds = [0.0, 0.0, 0.0]
+    upper_bounds = [np.inf, np.inf, np.inf]
 
     result = least_squares(
-        fun=residuals_all,
+        fun=residuals_all_phys,
         x0=theta0,
-        args=(experiments,),
-        bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+        args=(experiments, M),
+        bounds=(lower_bounds, upper_bounds),
         method='trf',
         max_nfev=5000,
     )
@@ -266,8 +285,12 @@ def main():
     print('\nOptimization finished')
     print('Success:', result.success)
     print('Message:', result.message)
-    a_hat, b_hat, c_hat = result.x
-    print(f'Estimated parameters: a={a_hat:.6f}, b={b_hat:.6f}, c={c_hat:.6f}')
+    K_U_hat, F_c_hat, b_v_hat = result.x
+    print(f'Estimated parameters:')
+    print(f'  K_U = {K_U_hat:.6f}  [N / V oder N / PWM-Einheit]')
+    print(f'  F_c = {F_c_hat:.6f}  [N]')
+    print(f'  b_v = {b_v_hat:.6f}  [N·s/m]')
+
 
     # Plot measured vs model
     plt.figure(figsize=(10, 6))
@@ -278,7 +301,8 @@ def main():
         t0 = t[0]
         v0 = v_meas[0]
         s = float(np.sign(np.mean(v_meas))) if np.any(v_meas) else 1.0
-        v_model = v_closed_form(t, u, a_hat, b_hat, c_hat, s, v0, t0)
+        v_model = v_closed_form_phys(t, u, K_U_hat, F_c_hat, b_v_hat, s, v0, t0, M)
+
         plt.plot(t, v_meas, '-', linewidth=1.2, label=f"meas u={u:.2f}V")
         plt.plot(t, v_model, '--', linewidth=1.5, label=f"model u={u:.2f}V")
 
@@ -288,6 +312,11 @@ def main():
     plt.legend(ncol=2)
     plt.grid(True)
     plt.tight_layout()
+    
+    # Save plot to file and show it
+    output_path = os.path.join(data_dir, 'velocity_fit.png')
+    plt.savefig(output_path, dpi=150)
+    print(f'\nPlot saved to: {output_path}')
     plt.show()
 
 

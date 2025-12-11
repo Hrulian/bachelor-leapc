@@ -15,8 +15,8 @@ class CartPoleEnvConfig:
     gravity: float = 9.81  # gravity [m/s^2]
     masscart: float = 0.17444  # mass of the cart [kg]
     masspole: float = 0.016  # mass of the pole [kg]
-    length: float = 0.36  # length of the pole [m]
-    Ip: float = 0.0006912  # moment of inertia of the pole [kg m^2]
+    length: float = 0.18  # length of the pole [m]
+    Ip: float = 0.0001728  # moment of inertia of the pole [kg m^2]
     Fmax: float = 20.0  # maximum force that can be applied to the cart [N]
     dt: float = 0.05  # simulation time step [s]
     max_time: float = 10.0  # maximum simulation time until truncation [s]
@@ -130,57 +130,85 @@ class CartPoleEnv(gym.Env):
         """
         self.cfg = CartPoleEnvConfig() if cfg is None else cfg
 
+        # def f_explicit(
+        #     x,
+        #     u,
+        #     g=self.cfg.gravity,
+        #     M=self.cfg.masscart,
+        #     m=self.cfg.masspole,
+        #     l=self.cfg.length,
+        #     Ip=self.cfg.Ip,  # noqa E741
+        # ):
+        #     _, theta, dx, dtheta = x
+        #     F = u.item()
+
+        #     # modelling of friction parameters found experimentally
+        #     a = 48.45
+        #     c = 7.57
+
+        #     d_v = M * a      # viskose Reibung [N s/m]
+        #     d_c = M * c     # Coulomb-Reibung [N]
+
+        
+        #     v_sign = np.sign(dx)  # this version is not differentiable at 0
+        #     F_fric = 0#d_v * dx   + d_c * v_sign
+            
+        #     F_eff = F - F_fric
+            
+        #     # pole friction (only viscous for now)
+        #     d = 0.000081  # dummy value
+            
+        #     tau = 0#-d * dtheta  
+
+        #     # dynamics 
+        #     cos_theta = np.cos(theta)
+        #     sin_theta = np.sin(theta)
+        #     denominator = (M + m) * (Ip + m * l**2) - (m * l * cos_theta)**2
+        #     return np.array(
+        #         [
+        #             dx,
+        #             dtheta,
+        #             (
+        #             (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
+        #             - m**2 * l**2 * g * sin_theta * cos_theta
+        #             - m * l * cos_theta * tau
+        #         ) / denominator,
+        #             (
+        #             (M + m) * m * g * l * sin_theta
+        #             + (M + m) * tau
+        #             - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
+        #         ) / denominator,
+        #         ]
+        #     )
         def f_explicit(
             x,
             u,
             g=self.cfg.gravity,
             M=self.cfg.masscart,
             m=self.cfg.masspole,
-            l=self.cfg.length,
-            Ip=self.cfg.Ip,  # noqa E741
+            l=self.cfg.length,  # noqa E741
         ):
             _, theta, dx, dtheta = x
             F = u.item()
-
-            # modelling of friction parameters found experimentally
-            a = 48.45
-            c = 7.57
-
-            d_v = M * a      # viskose Reibung [N s/m]
-            d_c = M * c     # Coulomb-Reibung [N]
-
-        
-            v_sign = np.sign(dx)  # this version is not differentiable at 0
-            F_fric = d_v * dx   + d_c * v_sign
-            
-            F_eff = F - F_fric
-            
-            # pole friction (only viscous for now)
-            d = 0.000081  # dummy value
-            
-            tau = -d * dtheta  
-
-            # dynamics 
             cos_theta = np.cos(theta)
             sin_theta = np.sin(theta)
-            denominator = (M + m) * (Ip + m * l**2) - (m * l * cos_theta)**2
+            denominator = M + m - m * cos_theta * cos_theta
             return np.array(
                 [
                     dx,
                     dtheta,
+                    (-m * l * sin_theta * dtheta * dtheta + m * g * cos_theta * sin_theta + F)
+                    / denominator,
                     (
-                    (Ip + m * l**2) * (F_eff + m * l * sin_theta * dtheta**2)
-                    - m**2 * l**2 * g * sin_theta * cos_theta
-                    - m * l * cos_theta * tau
-                ) / denominator,
-                    (
-                    (M + m) * m * g * l * sin_theta
-                    + (M + m) * tau
-                    - m * l * cos_theta * (F_eff + m * l * sin_theta * dtheta**2)
-                ) / denominator,
+                        -m * l * cos_theta * sin_theta * dtheta * dtheta
+                        + F * cos_theta
+                        + (M + m) * g * sin_theta
+                    )
+                    / (l * denominator),
                 ]
             )
 
+            
         def rk4_step(f, x, u, h):
             k1 = f(x, u)
             k2 = f(x + 0.5 * h * k1, u)
