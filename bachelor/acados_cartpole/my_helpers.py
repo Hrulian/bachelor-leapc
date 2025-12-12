@@ -22,7 +22,7 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
 
     # compute control-like quantity u 
     u = ((force / mass) + a * velocity - c * sgn(velocity)) / b
-
+    print(u)
     # map u in [-max_u, max_u] to PWM in [-255, 255]
     max_u = 24.0
     pwm_full = (u / max_u) * 255.0
@@ -36,38 +36,6 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
     return pwm
 
 
-def f_to_u_to_pwm(force: float, max_pwm_limit: int, max_force=20.0) -> int:
-    #mass = 0.1744
-    #K_U = 0.920915
-    gain = 1.3
-    
-    u = force * gain#(force / K_U) * exp_gain
-    
-    
-    # map u in [-max_u, max_u] to PWM in [-255, 255]
-    max_u = 24.0
-    pwm_full = (u / max_u) * 255.0
-
-    # saturate to hardware full-scale first (safe)
-    pwm_full = max(-255.0, min(255.0, pwm_full))
-
-    # round and then apply application cap
-    pwm = int(round(pwm_full))
-    pwm = max(-max_pwm_limit, min(max_pwm_limit, pwm))
-    
-    return pwm
-
-def weird_force_to_pwm(F: float, F_max: float) -> int:
-    # should not be used since mpc cosntraints the Force already but here for safety
-    F_clipped = max(-F_max, min(F_max, F))
-
-    k = 255.0 / F_max          
-    pwm_float = k * F_clipped  
-
-    # saturieren (theoretisch unnötig, weil F_clipped in [-F_max,F_max])
-    pwm_float = max(-255.0, min(255.0, pwm_float))
-
-    return int(round(pwm_float))
 
     
 

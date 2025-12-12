@@ -116,7 +116,7 @@ def define_f_expl_expr(model: AcadosModel, param_manager: AcadosParameterManager
     # pole friction (only viscous for now)
     d = 0.000081  
     
-    tau = -d * dtheta  
+    tau = 0#-d * dtheta  
     
     # dynamics
     cos_theta = ca.cos(theta)

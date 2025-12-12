@@ -5,8 +5,7 @@ from bachelor.acados_cartpole.my_helpers import (
     state_tuple_to_tensor,
     counts_to_meters,
     countpersecond_to_meterspersecond,
-    f_to_u_to_pwm,
-    weird_force_to_pwm
+
 )
 from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
 from bachelor.acados_cartpole.my_utils_plot import plot_cartpole_log
@@ -137,7 +136,7 @@ def main():
     log_fh = open(log_path, "a", newline='')
     log_writer = csv.writer(log_fh)
     # write header for a fresh run
-    log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_pwm"])
+    log_writer.writerow(["t", "x_m", "theta", "v_m_s", "thetadot", "u_force", "u_pwm"])
     log_fh.flush()
 
 
@@ -224,8 +223,8 @@ def main():
             if loop_counter % 10 == 0:
                 x_m = counts_to_meters(x)
                 v_m = countpersecond_to_meterspersecond(v)
-                print(f"F={u_force:6.2f}N PWM={u:4d} | x={x_m:6.3f}m θ={theta:6.3f}rad v={v_m:6.3f}m/s ω={thetadot:6.3f}rad/s")
-                print(f"{x_traj.detach().cpu().numpy()}")
+                #print(f"F={u_force:6.2f}N PWM={u:4d} | x={x_m:6.3f}m θ={theta:6.3f}rad v={v_m:6.3f}m/s ω={thetadot:6.3f}rad/s")
+                #print(f"{x_traj.detach().cpu().numpy()}")
             
             # send PWM control to arduino
             send_control(u)
@@ -266,7 +265,7 @@ def main():
                 tnow = time.time()
                 x_m = counts_to_meters(x)
                 v_m_s = countpersecond_to_meterspersecond(v)
-                log_writer.writerow([tnow, x_m, theta, v_m_s, thetadot, u])
+                log_writer.writerow([tnow, x_m, theta, v_m_s, thetadot, u_force, u])
                 # periodic lightweight debug print (once per 0.1s)
                 # try:
                 #     if tnow - last_dbg_time >= 0.1:

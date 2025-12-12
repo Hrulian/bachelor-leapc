@@ -92,7 +92,7 @@ def plot_sol_and_sens(x_values:np.ndarray, pis: list[np.ndarray], senss: list[np
     
 
 def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = None):
-    """Plot a cartpole CSV log with columns: t,x_m,theta,v_m_s,thetadot,u_pwm.
+    """Plot a cartpole CSV log with columns: t,x_m,theta,v_m_s,thetadot,u_force,u_pwm.
 
     - `path` can be absolute or relative to the script.
     - `save_path` if provided will be used to save the generated figure (PNG/PDF/etc).
@@ -109,6 +109,7 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
     theta = []
     v_ms = []
     thetadot = []
+    u_force = []
     u_pwm = []
 
     try:
@@ -128,6 +129,7 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
                 theta.append(g('theta'))
                 v_ms.append(g('v_m_s'))
                 thetadot.append(g('thetadot'))
+                u_force.append(g('u_force'))
                 u_pwm.append(g('u_pwm'))
     except Exception as e:
         print('Could not read cartpole log:', e)
@@ -136,7 +138,7 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
     if any(t is None for t in times):
         times = list(range(len(x_m)))
 
-    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(10, 8))
+    fig, axes = plt.subplots(6, 1, sharex=True, figsize=(10, 10))
     axes[0].plot(times, x_m, '-b')
     axes[0].set_ylabel('x (m)')
     axes[0].grid(True)
@@ -153,10 +155,14 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
     axes[3].set_ylabel('thetadot (rad/s)')
     axes[3].grid(True)
 
-    axes[4].plot(times, u_pwm, '-k')
-    axes[4].set_ylabel('u (PWM)')
-    axes[4].set_xlabel('time (s)')
+    axes[4].plot(times, u_force, '-m')
+    axes[4].set_ylabel('u_force (N)')
     axes[4].grid(True)
+
+    axes[5].plot(times, u_pwm, '-k')
+    axes[5].set_ylabel('u (PWM)')
+    axes[5].set_xlabel('time (s)')
+    axes[5].grid(True)
 
     fig.suptitle('Cartpole states and control over time')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
