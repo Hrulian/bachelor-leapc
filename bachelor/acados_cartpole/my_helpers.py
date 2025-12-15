@@ -178,7 +178,7 @@ def compute_reward(state, force) -> float:
     
     # targeting high angular velocities near upright
     if abs(thetadot) > 13.0:
-        reward = -1.0  # negative reward instead of 0
+        reward = 0  # negative reward instead of 0
 
     return float(reward)
 
