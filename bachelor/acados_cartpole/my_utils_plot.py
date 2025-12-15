@@ -222,7 +222,7 @@ def plot_policy_heatmap(
     
     # Import required modules for loading the actor
     try:
-        from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import MpcSacActor
+        from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import MpcSacActor, SacZopTrainerConfig
         from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
         from leap_c.planner import ControllerFromPlanner
         from leap_c.torch.nn.extractor import get_extractor_cls
@@ -245,15 +245,18 @@ def plot_policy_heatmap(
     obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
     action_space = controller_wrapped.param_space
     
-    # Initialize actor
+    # SacZop config
+    cfg_saczop = SacZopTrainerConfig()
+    
+    # Initialize actor (same as in real_sac_zop.py)
     extractor_cls = get_extractor_cls("identity")
     actor = MpcSacActor(
         extractor_cls=extractor_cls,
         observation_space=obs_space,
         controller=controller_wrapped,
-        distribution_name="squashed_normal",
-        mlp_cfg=None,  # Will use default
-        init_param_with_default=True,
+        distribution_name=cfg_saczop.distribution_name,
+        mlp_cfg=cfg_saczop.actor_mlp,
+        init_param_with_default=cfg_saczop.init_param_with_default,
     ).to(device)
     
     # Load actor weights
@@ -270,8 +273,9 @@ def plot_policy_heatmap(
     theta_vals = np.linspace(theta_range[0], theta_range[1], resolution)
     X, Theta = np.meshgrid(x_vals, theta_vals)
     
-    # Initialize output array for theta_ref values
+    # Initialize output arrays for theta_ref and action values
     theta_ref_grid = np.zeros_like(X)
+    action_grid = np.zeros_like(X)
     
     # Evaluate policy for each (x, theta) combination
     print("Evaluating policy on grid...")
@@ -282,48 +286,103 @@ def plot_policy_heatmap(
                 state = np.array([X[i, j], Theta[i, j], v_fixed, thetadot_fixed], dtype=np.float32)
                 obs = torch.from_numpy(state).float().unsqueeze(0).to(device)
                 
-                # Get policy output
-                pi_out = actor(obs, ctx=None, deterministic=True, only_param=True)
+                # Get policy output with action (full forward pass)
+                pi_out = actor(obs, ctx=None, deterministic=True, only_param=False)
                 param = pi_out.param[0].cpu().numpy()
+                action = pi_out.action[0].cpu().numpy()
                 
-                # Extract theta_ref (index 1 in param for global interface)
-                if param.size > 1:
-                    theta_ref_grid[i, j] = param[1]
+                # Debug: print first param to see structure
+                if i == 0 and j == 0:
+                    print(f"First param shape: {param.shape}, size: {param.size}")
+                    print(f"First param values: {param}")
+                    print(f"First action shape: {action.shape}, values: {action}")
+                
+                # Extract theta_ref (param[0] is theta_ref for global interface)
+                # The policy outputs only learnable parameters (just theta_ref in this case)
+                if param.size > 0:
+                    theta_ref_grid[i, j] = param[0]
                 else:
                     theta_ref_grid[i, j] = 0.0
+                
+                # Extract action (force)
+                action_grid[i, j] = action[0]
     
-    # Create the heatmap
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Debug output
+    print(f"theta_ref_grid min: {theta_ref_grid.min():.4f}, max: {theta_ref_grid.max():.4f}, mean: {theta_ref_grid.mean():.4f}")
+    print(f"Number of unique values: {len(np.unique(theta_ref_grid))}")
+    print(f"action_grid min: {action_grid.min():.4f}, max: {action_grid.max():.4f}, mean: {action_grid.mean():.4f}")
     
-    # Use diverging colormap with center at 0
-    norm = TwoSlopeNorm(vmin=theta_ref_grid.min(), vcenter=0.0, vmax=theta_ref_grid.max())
-    im = ax.contourf(X, Theta, theta_ref_grid, levels=30, cmap='RdBu_r', norm=norm)
+    # ========== First figure: theta_ref ==========
+    fig1, ax1 = plt.subplots(figsize=(10, 8))
     
-    # Add colorbar
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label(r'$\theta_{\mathrm{ref}}$ (rad)', rotation=270, labelpad=20)
+    vmin_theta = theta_ref_grid.min()
+    vmax_theta = theta_ref_grid.max()
+
+    if vmin_theta < 0.0 < vmax_theta:
+        norm_theta = TwoSlopeNorm(vmin=vmin_theta, vcenter=0.0, vmax=vmax_theta)
+        cmap_theta = 'RdYlBu_r'
+    else:
+        norm_theta = None
+        cmap_theta = 'viridis'
+
+    im1 = ax1.contourf(X, Theta, theta_ref_grid, levels=30, cmap=cmap_theta, norm=norm_theta)
     
-    # Labels and title
-    ax.set_xlabel('Cart Position x (m)')
-    ax.set_ylabel('Pole Angle θ (rad)')
-    ax.set_title(f'Policy θ_ref Output (v={v_fixed:.2f} m/s, θ̇={thetadot_fixed:.2f} rad/s)')
+    cbar1 = plt.colorbar(im1, ax=ax1)
+    cbar1.set_label(r'$\theta_{\mathrm{ref}}$ (rad)', rotation=270, labelpad=20)
     
-    # Add gridlines
-    ax.grid(True, alpha=0.3, linestyle='--')
+    ax1.set_xlabel('Cart Position x (m)')
+    ax1.set_ylabel('Pole Angle θ (rad)')
+    ax1.set_title(f'Policy θ_ref Output (v={v_fixed:.2f} m/s, θ̇={thetadot_fixed:.2f} rad/s)')
+    ax1.grid(True, alpha=0.3, linestyle='--')
+    ax1.plot(0, 0, 'k*', markersize=10, label='Origin')
+    ax1.legend()
     
-    # Mark origin
-    ax.plot(0, 0, 'k*', markersize=10, label='Origin')
-    ax.legend()
+    plt.tight_layout()
+    
+    # ========== Second figure: action (force) ==========
+    fig2, ax2 = plt.subplots(figsize=(10, 8))
+    
+    vmin_action = action_grid.min()
+    vmax_action = action_grid.max()
+
+    if vmin_action < 0.0 < vmax_action:
+        norm_action = TwoSlopeNorm(vmin=vmin_action, vcenter=0.0, vmax=vmax_action)
+        cmap_action = 'RdYlBu_r'
+    else:
+        norm_action = None
+        cmap_action = 'viridis'
+
+    im2 = ax2.contourf(X, Theta, action_grid, levels=30, cmap=cmap_action, norm=norm_action)
+    
+    cbar2 = plt.colorbar(im2, ax=ax2)
+    cbar2.set_label(r'$F$ (N)', rotation=270, labelpad=20)
+    
+    ax2.set_xlabel('Cart Position x (m)')
+    ax2.set_ylabel('Pole Angle θ (rad)')
+    ax2.set_title(f'Policy Force Output (v={v_fixed:.2f} m/s, θ̇={thetadot_fixed:.2f} rad/s)')
+    ax2.grid(True, alpha=0.3, linestyle='--')
+    ax2.plot(0, 0, 'k*', markersize=10, label='Origin')
+    ax2.legend()
     
     plt.tight_layout()
     
     # Save if requested
     if save_path:
         try:
-            fig.savefig(save_path, bbox_inches='tight', dpi=150)
-            print(f'Saved heatmap to {save_path}')
+            # Save both figures with different names
+            save_path_base = Path(save_path).stem
+            save_path_ext = Path(save_path).suffix
+            save_path_dir = Path(save_path).parent
+            
+            save_path_theta = save_path_dir / f"{save_path_base}_theta_ref{save_path_ext}"
+            save_path_force = save_path_dir / f"{save_path_base}_force{save_path_ext}"
+            
+            fig1.savefig(save_path_theta, bbox_inches='tight', dpi=150)
+            fig2.savefig(save_path_force, bbox_inches='tight', dpi=150)
+            print(f'Saved theta_ref heatmap to {save_path_theta}')
+            print(f'Saved force heatmap to {save_path_force}')
         except Exception as e:
-            print(f'Failed to save heatmap: {e}')
+            print(f'Failed to save heatmaps: {e}')
     
     if plt_show:
         plt.show()

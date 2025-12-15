@@ -20,6 +20,7 @@ from bachelor.acados_cartpole.my_helpers import (
     sac_state_to_tensor,
     
 )
+from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
  
 from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
@@ -155,7 +156,7 @@ max_force_perep = 0  # track max force per episode
 wandb_run_id = None  # wandb run ID for resuming runs
 
 # max steps per episode
-max_ep_steps = 1000 # so with communication time set 10 ms -> max episode time 10s
+max_ep_steps = 1000  # Good balance between learning and hardware wear
 
 # device setup
 device = "cpu"
@@ -572,6 +573,9 @@ def main():
     learningThread.daemon = True
     learningThread.start()
     
+    # save initial checkpoints at start of training
+    print("Saving initial checkpoints...")
+    save_checkpoints()
     
     
     #Main RL Loop#################################################################
@@ -611,6 +615,30 @@ def main():
             
             # per-episode bookkeeping
             episode_count += 1
+            
+            # save checkpoints at episode 0 and then every 50 episodes
+            if episode_count == 0 or episode_count % 50 == 0:
+                print(f"Saving checkpoints at episode {episode_count}...")
+                save_checkpoints()
+                
+                # generate and save policy heatmaps
+                print(f"Generating policy heatmaps at episode {episode_count}...")
+                try:
+                    actor_path = os.path.join(CHECKPOINT_DIR, 'actor.pth')
+                    plot_save_path = os.path.join(CHECKPOINT_DIR, f'policy_heatmap_ep{episode_count}.png')
+                    plot_policy_heatmap(
+                        actor_path=actor_path,
+                        v_fixed=0.0,
+                        thetadot_fixed=0.0,
+                        x_range=(-0.35, 0.35),
+                        theta_range=(-np.pi, np.pi),
+                        resolution=50,
+                        plt_show=False,
+                        save_path=plot_save_path
+                    )
+                    print(f"Saved policy heatmaps to {CHECKPOINT_DIR}")
+                except Exception as e:
+                    print(f"Failed to generate policy heatmaps: {e}")
 
             # reset state_que
             state_que.queue.clear()
