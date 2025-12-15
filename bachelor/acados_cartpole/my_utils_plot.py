@@ -190,4 +190,143 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
         plt.show()
 
 
+def plot_policy_heatmap(
+    actor_path: str,
+    v_fixed: float = 0.0,
+    thetadot_fixed: float = 0.0,
+    x_range: tuple[float, float] = (-0.3, 0.3),
+    theta_range: tuple[float, float] = (-np.pi, np.pi),
+    resolution: int = 50,
+    plt_show: bool = True,
+    save_path: str | None = None
+):
+    """Create a heatmap showing theta_ref output from policy for different (x, theta) states.
+    
+    Args:
+        actor_path: Path to actor.pth checkpoint file
+        v_fixed: Fixed cart velocity value (m/s)
+        thetadot_fixed: Fixed pole angular velocity (rad/s)
+        x_range: Range of cart positions to plot (min, max) in meters
+        theta_range: Range of pole angles to plot (min, max) in radians
+        resolution: Number of grid points along each axis
+        plt_show: Whether to display the plot
+        save_path: Optional path to save the figure
+    """
+    try:
+        import torch
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import TwoSlopeNorm
+    except ImportError as e:
+        print(f"Required libraries not available: {e}")
+        return
+    
+    # Import required modules for loading the actor
+    try:
+        from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import MpcSacActor
+        from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
+        from leap_c.planner import ControllerFromPlanner
+        from leap_c.torch.nn.extractor import get_extractor_cls
+        import gymnasium as gym
+    except ImportError as e:
+        print(f"Failed to import cartpole modules: {e}")
+        return
+    
+    # Setup planner and actor
+    device = "cpu"
+    cfg_planner = CartPolePlannerConfig()
+    params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
+    planner = CartPolePlanner(cfg_planner, params)
+    controller_wrapped = ControllerFromPlanner(planner)
+    
+    # Define observation space
+    _x_thr = getattr(cfg_planner, "x_threshold", 0.39)
+    obs_low = np.array([-_x_thr, -np.pi, -5, -21], dtype=np.float32)
+    obs_high = np.array([_x_thr, np.pi, 5, 21], dtype=np.float32)
+    obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+    action_space = controller_wrapped.param_space
+    
+    # Initialize actor
+    extractor_cls = get_extractor_cls("identity")
+    actor = MpcSacActor(
+        extractor_cls=extractor_cls,
+        observation_space=obs_space,
+        controller=controller_wrapped,
+        distribution_name="squashed_normal",
+        mlp_cfg=None,  # Will use default
+        init_param_with_default=True,
+    ).to(device)
+    
+    # Load actor weights
+    try:
+        actor.load_state_dict(torch.load(actor_path, map_location=device))
+        actor.eval()
+        print(f"Loaded actor from {actor_path}")
+    except Exception as e:
+        print(f"Failed to load actor: {e}")
+        return
+    
+    # Create meshgrid
+    x_vals = np.linspace(x_range[0], x_range[1], resolution)
+    theta_vals = np.linspace(theta_range[0], theta_range[1], resolution)
+    X, Theta = np.meshgrid(x_vals, theta_vals)
+    
+    # Initialize output array for theta_ref values
+    theta_ref_grid = np.zeros_like(X)
+    
+    # Evaluate policy for each (x, theta) combination
+    print("Evaluating policy on grid...")
+    with torch.no_grad():
+        for i in range(resolution):
+            for j in range(resolution):
+                # Create state: [x, theta, v, thetadot]
+                state = np.array([X[i, j], Theta[i, j], v_fixed, thetadot_fixed], dtype=np.float32)
+                obs = torch.from_numpy(state).float().unsqueeze(0).to(device)
+                
+                # Get policy output
+                pi_out = actor(obs, ctx=None, deterministic=True, only_param=True)
+                param = pi_out.param[0].cpu().numpy()
+                
+                # Extract theta_ref (index 1 in param for global interface)
+                if param.size > 1:
+                    theta_ref_grid[i, j] = param[1]
+                else:
+                    theta_ref_grid[i, j] = 0.0
+    
+    # Create the heatmap
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    # Use diverging colormap with center at 0
+    norm = TwoSlopeNorm(vmin=theta_ref_grid.min(), vcenter=0.0, vmax=theta_ref_grid.max())
+    im = ax.contourf(X, Theta, theta_ref_grid, levels=30, cmap='RdBu_r', norm=norm)
+    
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label(r'$\theta_{\mathrm{ref}}$ (rad)', rotation=270, labelpad=20)
+    
+    # Labels and title
+    ax.set_xlabel('Cart Position x (m)')
+    ax.set_ylabel('Pole Angle θ (rad)')
+    ax.set_title(f'Policy θ_ref Output (v={v_fixed:.2f} m/s, θ̇={thetadot_fixed:.2f} rad/s)')
+    
+    # Add gridlines
+    ax.grid(True, alpha=0.3, linestyle='--')
+    
+    # Mark origin
+    ax.plot(0, 0, 'k*', markersize=10, label='Origin')
+    ax.legend()
+    
+    plt.tight_layout()
+    
+    # Save if requested
+    if save_path:
+        try:
+            fig.savefig(save_path, bbox_inches='tight', dpi=150)
+            print(f'Saved heatmap to {save_path}')
+        except Exception as e:
+            print(f'Failed to save heatmap: {e}')
+    
+    if plt_show:
+        plt.show()
+
+
 

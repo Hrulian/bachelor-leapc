@@ -61,8 +61,8 @@ def create_custom_cartpole_params(
             "xref1",
             default=np.array([0.0]),
             space=gym.spaces.Box(
-                low=np.array([-2.0 * np.pi]),
-                high=np.array([2.0 * np.pi]),
+                low=np.array([-np.pi]),
+                high=np.array([np.pi]),
                 dtype=np.float64,
             ),
             interface="learnable",

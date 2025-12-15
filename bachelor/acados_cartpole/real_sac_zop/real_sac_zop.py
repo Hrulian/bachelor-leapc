@@ -18,7 +18,7 @@ from bachelor.acados_cartpole.my_helpers import (
     compute_reward,
     done_eval,
     sac_state_to_tensor,
-    f_to_u_to_pwm
+    
 )
  
 from leap_c.planner import ControllerFromPlanner
@@ -162,7 +162,7 @@ device = "cpu"
 
 # MPC Layer Setup
 cfg_planner = CartPolePlannerConfig()
-params = create_custom_cartpole_params("stagewise", cfg_planner.N_horizon)
+params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
 planner = CartPolePlanner(cfg_planner, params)
 controller_wrapped = ControllerFromPlanner(planner)
 ctx = None
@@ -176,8 +176,8 @@ _x_low = -float(_x_thr) # in meters
 _x_high = float(_x_thr) # in meters
 
 #TODO: double check if these spaces are correct 
-obs_low = np.array([_x_low, -np.pi, -np.inf, -np.inf], dtype=np.float32)
-obs_high = np.array([_x_high, np.pi, np.inf, np.inf], dtype=np.float32)
+obs_low = np.array([_x_low, -np.pi, -5, -21], dtype=np.float32)
+obs_high = np.array([_x_high, np.pi, 5, 21], dtype=np.float32)
 obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
 
 action_space = controller_wrapped.param_space
@@ -414,13 +414,13 @@ def reset_env():
         if (not bool(tripped_flag)                                  # not tripped
             and abs(x) <= 100                                       # be in the middle
             and abs(thetadot) <= 0.1                             # pole not moving
-            and abs(countpersecond_to_meterspersecond(v)) <= 0.0    # cart not moving
-            and abs(theta) >= 3.0):                                # pole down
+            and abs(countpersecond_to_meterspersecond(v)) <= 0.1    # cart not moving
+            and abs(theta) >= 3.1):                                # pole down
                 
             break
         # else: stay in mode 2/reset until conditions are met
 
-    print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+        print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
@@ -520,9 +520,9 @@ def main():
     if wandb_run_id:
         print(f"Resuming wandb run: {wandb_run_id}")
         wandb.init(
-            project="cartpole-sac-zop",
+            project="cartpole-sac-zop-1",
             id=wandb_run_id,
-            resume="must",
+            resume="allow",
             config={
                 "buffer_size": cfg_saczop.buffer_size,
                 "batch_size": cfg_saczop.batch_size,
@@ -537,7 +537,7 @@ def main():
     else:
         print("Starting new wandb run")
         run = wandb.init(
-            project="cartpole-sac-zop",
+            project="cartpole-sac-zop-1",
             name=f"real_hardware_run_{int(time.time())}",
             config={
                 "buffer_size": cfg_saczop.buffer_size,
@@ -593,7 +593,7 @@ def main():
             # env is reseted so set new mode
             talk_to_arduino(0, mode=0)  # -> arduino is ready for normal operation
             
-            # in between episode training. Train for 50 steps
+            # in between episode training. Train for 200 steps
             print("Training inbetween episodes...")
             inbetween_training(50)
             
@@ -668,9 +668,22 @@ def main():
                 # keep param as a tensor (move to replay buffer device) so collate works
                 param_t = pi_out.param[0].detach().to(replay_buffer.device).float()
                 u_force = float(pi_out.action[0].cpu().numpy().squeeze())
+                
+                # extract theta reference from param (if available)
+                # param typically contains MPC reference trajectory weights/targets
+                # for cartpole, param layout depends on param_interface config
+                # param_np = param_t.cpu().numpy()
+                # print(f"DEBUG: param_np shape={param_np.shape}, size={param_np.size}, values={param_np}")
+                
+                # # print each element separately
+                # for i in range(param_np.size):
+                #     print(f"  param[{i}] = {param_np.flat[i]}")
+
+
+
 
                 # convert first from N to PWM
-                u_pwm = f_to_u_to_pwm(u_force, 255)
+                u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
                 
                 # track maximum absolute PWM
                 max_force_perep = max(u_force, abs(u_force))
@@ -687,6 +700,7 @@ def main():
                         'step/thetadot': thetadot,
                         'step/episode_step': episode_step_count,
                     }
+                    
                     # add pi_output stats if available
                     if hasattr(pi_out, 'stats') and pi_out.stats:
                         for key, val in pi_out.stats.items():
@@ -707,12 +721,16 @@ def main():
                     except queue.Empty:
                         break
                 
+                # clip thetadot since i was witnessing spikes 
+                x, theta, v, thetadot, tripped = state
+                thetadot = np.clip(thetadot, -20.0, 20.0)
+                state = (x, theta, v, thetadot, tripped)
+                
                 # make the state ready for buffer (unbatched tensor on device)
                 obs_next = sac_state_to_tensor(state, batch=False).to(device)
-                x, theta, v, thetadot, tripped = state # all the quantities are not converted yet
                 
                 # compute reward
-                reward = compute_reward(state)
+                reward = compute_reward(state, u_force)
                 
                 # accumulate episode reward
                 current_episode_reward += reward
@@ -770,10 +788,10 @@ def main():
         except Exception:
             pass
         # finish wandb run
-        try:
-            wandb.finish()
-        except Exception:
-            pass
+        # try:
+        #     wandb.finish()
+        # except Exception:
+        #     pass
     finally:
         ser.close()
         pass

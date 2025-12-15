@@ -365,6 +365,9 @@ void reset_control() {
   - error < 0 -> need to go left
   */
 
+  // reset tripped flag when entering reset mode
+  tripped = false;
+
   long x_local = x;
   long error   = X_CENTER_COUNTS - x_local;
 
@@ -373,7 +376,6 @@ void reset_control() {
       fabsf(abs(wrap_to_pi(angle_unwrapped))) >= 3.0f) {
     // we are ready to go. Cart in the middle end Pendulum not moving
     u = 0.0f;     
-    tripped = false;  
     return;
   }
 

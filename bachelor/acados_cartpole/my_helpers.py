@@ -22,7 +22,7 @@ def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
 
     # compute control-like quantity u 
     u = ((force / mass) + a * velocity - c * sgn(velocity)) / b
-    print(u)
+    #print(u)
     # map u in [-max_u, max_u] to PWM in [-255, 255]
     max_u = 24.0
     pwm_full = (u / max_u) * 255.0
@@ -159,7 +159,7 @@ def u_converted(t) -> float:
 
 
 # SACZOP specific helpers below
-def compute_reward(state) -> float:
+def compute_reward(state, force) -> float:
     """
     Computes the reward for the given state based on the specified mode.
     Args:
@@ -173,15 +173,12 @@ def compute_reward(state) -> float:
     
     x, theta, v, thetadot, tripped = state
 
-    # wie im Env: theta auf sinnvollen Bereich zurückholen
-    theta_wrapped = theta
-    if theta_wrapped > 2 * np.pi:
-        theta_wrapped = theta_wrapped % (2 * np.pi)
-    elif theta_wrapped < -2 * np.pi:
-        theta_wrapped = -(-theta_wrapped % (2 * np.pi))  # "symmetrisches" Modulo
-
     # Swingup-Reward wie in CartPoleEnv.step
-    reward = abs(np.pi - abs(theta_wrapped)) / (10.0 * np.pi)
+    reward = abs(np.pi - abs(theta)) / (10.0 * np.pi) - (abs(force) / 100.0) ** 2
+    
+    # targeting high angular velocities near upright
+    if abs(thetadot) > 13.0:
+        reward = 0
 
     return float(reward)
 
