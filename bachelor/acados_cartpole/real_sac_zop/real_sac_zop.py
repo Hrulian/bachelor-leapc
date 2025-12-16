@@ -20,7 +20,8 @@ from bachelor.acados_cartpole.my_helpers import (
     sac_state_to_tensor,
     
 )
-from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
+from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmapsollok
+
  
 from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
@@ -46,6 +47,9 @@ state_que = queue.Queue() # init que that stores states
 prev_sent_mode = None  # remembers last mode sent to Arduino for logging
 # checkpoint directory for models
 CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), "checkpoints")
+
+# timing tracking for training step
+training_step_times = []  # list to store duration of each training call
 
 
 def listen_to_arduino():
@@ -290,7 +294,10 @@ def saczop_single_step_update(batch_size):
         A boolean indicating whether the update was performed.
     """
     
-    global learning_step
+    global learning_step, training_step_times
+    
+    # start timing
+    start_time = time.perf_counter()
     
     # if woken up, attempt an update if conditions are met
     if len(replay_buffer) < batch_size:
@@ -345,6 +352,10 @@ def saczop_single_step_update(batch_size):
     # increment learning step count
     learning_step += 1
     
+    # record timing
+    elapsed_time = time.perf_counter() - start_time
+    training_step_times.append(elapsed_time)
+    
     # log learning statistics to wandb
     try:
         wandb.log({
@@ -355,6 +366,7 @@ def saczop_single_step_update(batch_size):
             'learning/q_target': target.mean().item(),
             'learning/entropy': -log_p.mean().item(),
             'learning/learning_step': learning_step,
+            'learning/step_time_ms': elapsed_time * 1000,  # convert to ms
         }, step=abs_step_count)
     except Exception:
         pass
@@ -616,8 +628,8 @@ def main():
             # per-episode bookkeeping
             episode_count += 1
             
-            # save checkpoints at episode 0 and then every 50 episodes
-            if episode_count == 0 or episode_count % 50 == 0:
+            # save checkpoints at episode 1 and then every 50 episodes
+            if episode_count == 1 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
                 
@@ -625,7 +637,7 @@ def main():
                 print(f"Generating policy heatmaps at episode {episode_count}...")
                 try:
                     actor_path = os.path.join(CHECKPOINT_DIR, 'actor.pth')
-                    plot_save_path = os.path.join(CHECKPOINT_DIR, f'policy_heatmap_ep{episode_count}.png')
+                    # plot_policy_heatmap now saves PDFs automatically to checkpoint dir
                     plot_policy_heatmap(
                         actor_path=actor_path,
                         v_fixed=0.0,
@@ -634,9 +646,36 @@ def main():
                         theta_range=(-np.pi, np.pi),
                         resolution=50,
                         plt_show=False,
-                        save_path=plot_save_path
+                        save_path=None  # not used anymore, PDFs saved to checkpoint dir
                     )
-                    print(f"Saved policy heatmaps to {CHECKPOINT_DIR}")
+                    print(f"Saved policy heatmap PDFs to {CHECKPOINT_DIR}")
+                    
+                    # log PDFs to wandb as artifacts
+                    try:
+                        artifact = wandb.Artifact(
+                            name=f'policy_heatmaps_ep{episode_count}',
+                            type='plots',
+                            description=f'Policy heatmap visualizations at episode {episode_count}'
+                        )
+                        
+                        pdf_files = [
+                            'policy_heatmap_theta_ref_grid.pdf',
+                            'policy_heatmap_force_grid.pdf',
+                            'policy_heatmap_critic_grid.pdf',
+                            'policy_heatmap_mpc_force_grid.pdf',
+                        ]
+                        
+                        # add each PDF file to the artifact
+                        for pdf_name in pdf_files:
+                            pdf_path = os.path.join(CHECKPOINT_DIR, pdf_name)
+                            if os.path.exists(pdf_path):
+                                artifact.add_file(pdf_path, name=pdf_name)
+                        
+                        # log the artifact
+                        wandb.log_artifact(artifact)
+                        print(f"Logged policy heatmap PDFs to wandb as artifact")
+                    except Exception as e:
+                        print(f"Failed to log PDFs to wandb: {e}")
                 except Exception as e:
                     print(f"Failed to generate policy heatmaps: {e}")
 
@@ -810,6 +849,14 @@ def main():
             print(f'serial closed')
         except Exception:
             pass
+        # print training step timing statistics
+        if training_step_times:
+            avg_time = np.mean(training_step_times)
+            max_time = np.max(training_step_times)
+            print(f"\nTraining step timing statistics:")
+            print(f"  Total training steps: {len(training_step_times)}")
+            print(f"  Average time per step: {avg_time*1000:.2f} ms")
+            print(f"  Maximum time per step: {max_time*1000:.2f} ms")
         # save model checkpoints on exit so training progress persists
         try:
             save_checkpoints()

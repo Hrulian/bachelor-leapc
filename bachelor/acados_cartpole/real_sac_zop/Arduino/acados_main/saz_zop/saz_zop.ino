@@ -421,8 +421,7 @@ void setup() {
     while (1) { delay(1000); }
   }
   
-  // wait for pendel osilations to drop
-  delay(5000);
+
 
   // Magnetic Encoder init
   uint16_t zero_raw_bottom = readRaw();   
