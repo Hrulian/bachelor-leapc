@@ -732,19 +732,18 @@ def main():
             # check if for some reason ep is alredy done
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
-            
-            # episode loop
-            print("================================")
-            print("Starting new episode")
-            print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
-
             # variables for N-step buffering
-            N = 20  # call actor every N steps
+            N = 5  # call actor every N steps
             step_in_cycle = 0  # tracks position within N-step cycle
             accumulated_reward = 0.0  # accumulates reward over N steps
             obs_start_cycle = None  # observation at start of N-step cycle
             param_current = None  # current parameter to use for MPC
             ctx_current = ctx  # current context for MPC
+            
+            # episode loop
+            print("================================")
+            print("Starting new episode")
+            print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
 
             while not done:            
                 # step counting
