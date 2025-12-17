@@ -169,9 +169,6 @@ stabilized_this_episode = False  # flag: was pole stabilized this episode
 # max steps per episode
 max_ep_steps = 1000  # Good balance between learning and hardware wear
 
-# RL running frequency
-N = 4  # call actor every N steps
-
 # device setup
 device = "cpu"
 
@@ -268,6 +265,7 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
     Background thread function to perform SAC-ZOP updates at specified intervals.
     With N-step buffering, this is called every N steps when a new sample is added.
     update_freq controls how many samples to collect before training once.
+    Performs 20 training steps per update.
     """
     
     global abs_step_count
@@ -289,7 +287,9 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
                 
                 # train every update_freq buffer drops (= every update_freq*N steps)
                 if buffer_drops_since_update >= update_freq:
-                    saczop_single_step_update(batch_size)
+                    # perform 20 training steps
+                    for _ in range(20):
+                        saczop_single_step_update(batch_size)
                     buffer_drops_since_update = 0
 
         except Exception as e:
