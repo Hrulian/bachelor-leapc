@@ -2,7 +2,6 @@ import torch, threading, queue, serial, time, os, csv
 import numpy as np
 import gymnasium as gym
 import wandb
-from collections import deque
 from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
 from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import  MpcSacActor, SacZopTrainerConfig
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
@@ -21,7 +20,7 @@ from bachelor.acados_cartpole.my_helpers import (
     sac_state_to_tensor,
     
 )
-from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
+from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmapsollok
 
  
 from leap_c.planner import ControllerFromPlanner
@@ -160,17 +159,8 @@ current_episode_reward = 0.0  # accumulated reward in current episode
 max_force_perep = 0  # track max force per episode
 wandb_run_id = None  # wandb run ID for resuming runs
 
-# stabilization tracking
-STABILIZATION_BUFFER_SIZE = 200  # ~1 second at 10ms sample time
-STABILIZATION_THRESHOLD = 0.15  # rad, ±0.15 rad around upright
-theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta values
-stabilized_this_episode = False  # flag: was pole stabilized this episode
-
 # max steps per episode
 max_ep_steps = 1000  # Good balance between learning and hardware wear
-
-# RL running frequency
-N = 4  # call actor every N steps
 
 # device setup
 device = "cpu"
@@ -266,13 +256,10 @@ actor_optimizer  = torch.optim.Adam(actor.parameters(),  lr=cfg_saczop.lr_pi)
 def sac_zop_update_step(batch_size, update_freq, train_start):
     """
     Background thread function to perform SAC-ZOP updates at specified intervals.
-    With N-step buffering, this is called every N steps when a new sample is added.
-    update_freq controls how many samples to collect before training once.
     """
     
     global abs_step_count
     timeout_s = 1.0
-    buffer_drops_since_update = 0  # count buffer drops since last training
 
     while True:
         try:
@@ -283,14 +270,10 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
             learning_event.clear()
 
             
-            # train only if we have enough samples
-            if abs_step_count >= train_start:
-                buffer_drops_since_update += 1
+            if (abs_step_count >= train_start and
+                abs_step_count % update_freq == 0):
                 
-                # train every update_freq buffer drops (= every update_freq*N steps)
-                if buffer_drops_since_update >= update_freq:
-                    saczop_single_step_update(batch_size)
-                    buffer_drops_since_update = 0
+                saczop_single_step_update(batch_size)
 
         except Exception as e:
             print("Exception in sac_zop_update_step:", e)
@@ -584,7 +567,7 @@ def main():
         print(f"New wandb run ID: {wandb_run_id}")
     
     # ensures we reference the module-level variables
-    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode
+    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_episode_pwm
     
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
@@ -628,7 +611,7 @@ def main():
             
             # in between episode training. Train for 200 steps
             print("Training inbetween episodes...")
-            inbetween_training(20)
+            inbetween_training(50)
             
             # reset ctx
             ctx = None
@@ -639,12 +622,8 @@ def main():
             # reset episode reward
             current_episode_reward = 0.0
             
-            # reset max force tracker
-            max_force_perep = 0  # Fixed variable name
-            
-            # reset stabilization tracking
-            theta_buffer.clear()
-            stabilized_this_episode = False
+            # reset max PWM tracker
+            max_force_per_ep = 0
             
             # per-episode bookkeeping
             episode_count += 1
@@ -667,8 +646,7 @@ def main():
                         theta_range=(-np.pi, np.pi),
                         resolution=50,
                         plt_show=False,
-                        save_path=None,  # not used anymore, PDFs saved to checkpoint dir
-                        episode_num=episode_count  # add episode number for filename
+                        save_path=None  # not used anymore, PDFs saved to checkpoint dir
                     )
                     print(f"Saved policy heatmap PDFs to {CHECKPOINT_DIR}")
                     
@@ -681,10 +659,10 @@ def main():
                         )
                         
                         pdf_files = [
-                            f'policy_heatmap_theta_ref_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_force_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_critic_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_mpc_force_grid_ep{episode_count}.pdf',
+                            'policy_heatmap_theta_ref_grid.pdf',
+                            'policy_heatmap_force_grid.pdf',
+                            'policy_heatmap_critic_grid.pdf',
+                            'policy_heatmap_mpc_force_grid.pdf',
                         ]
                         
                         # add each PDF file to the artifact
@@ -735,140 +713,94 @@ def main():
             
             # episode loop
             print("================================")
+            # print(f"start state: x={x}, theta={theta}, v={v}, thetadot={thetadot}, tripped={tripped}")
             print("Starting new episode")
             print(f"Episode {episode_count}, Learning Step: {learning_step}, Total Steps: {abs_step_count}")
-
-            # variables for N-step buffering
-            N = 20  # call actor every N steps
-            step_in_cycle = 0  # tracks position within N-step cycle
-            accumulated_reward = 0.0  # accumulates reward over N steps
-            obs_start_cycle = None  # observation at start of N-step cycle
-            param_current = None  # current parameter to use for MPC
-            ctx_current = ctx  # current context for MPC
 
             while not done:            
                 # step counting
                 episode_step_count += 1
                 abs_step_count += 1
                 
-                # make state ready for actor/planner
+                # make state ready for buffer and actor
                 obs = sac_state_to_tensor(state, batch=False).to(device)
+
+                # compute action/param from actor (warm-start with ctx)
+                # TODO: find out what detreministic does here
                 obs_batch = obs.unsqueeze(0)
+                with torch.no_grad():
+                    pi_out = actor(obs_batch, ctx, deterministic=False)
+
+                # extract param and action
+                # keep param as a tensor (move to replay buffer device) so collate works
+                param_t = pi_out.param[0].detach().to(replay_buffer.device).float()
+                u_force = float(pi_out.action[0].cpu().numpy().squeeze())
                 
-                # decide whether to call actor or just use existing params
-                if step_in_cycle == 0:
-                    # beginning of N-step cycle: call actor to get new params
-                    obs_start_cycle = obs.clone()  # save for buffer
-                    accumulated_reward = 0.0  # reset accumulator
-                    
-                    with torch.no_grad():
-                        pi_out = actor(obs_batch, ctx_current, deterministic=False)
-                    
-                    # extract and save param for next N steps
-                    param_current = pi_out.param[0].detach()
-                    ctx_current = pi_out.ctx  # update context
-                    
-                    # get action (force) from pi_out
-                    u_force = float(pi_out.action[0].cpu().numpy().squeeze())
-                    
-                    # log actor stats
-                    try:
-                        step_stats = {
-                            'step/u_force': u_force,
-                            'step/param': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
-                            'step/x': x,
-                            'step/theta': theta,
-                            'step/v': v,
-                            'step/thetadot': thetadot,
-                            'step/episode_step': episode_step_count,
-                            'step/cycle_step': step_in_cycle,
-                            'step/actor_called': True,
-                        }
-                        
-                        if hasattr(pi_out, 'stats') and pi_out.stats:
-                            for key, val in pi_out.stats.items():
-                                step_stats[f'step/pi_{key}'] = val
-                        wandb.log(step_stats, step=abs_step_count)
-                    except Exception:
-                        pass
+                # extract theta reference from param (if available)
+                # param typically contains MPC reference trajectory weights/targets
+                # for cartpole, param layout depends on param_interface config
+                # param_np = param_t.cpu().numpy()
+                # print(f"DEBUG: param_np shape={param_np.shape}, size={param_np.size}, values={param_np}")
                 
-                else:
-                    # intermediate step: use saved params with MPC planner
-                    with torch.no_grad():
-                        # call planner with saved params
-                        ctx_current, action, _, _, _ = planner(obs_batch, ctx_current, param_current.unsqueeze(0))
-                    
-                    # get force from planner output
-                    u_force = float(action[0].cpu().numpy().squeeze())
-                    
-                    # log planner stats
-                    try:
-                        step_stats = {
-                            'step/u_force': u_force,
-                            'step/param': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
-                            'step/x': x,
-                            'step/theta': theta,
-                            'step/v': v,
-                            'step/thetadot': thetadot,
-                            'step/episode_step': episode_step_count,
-                            'step/cycle_step': step_in_cycle,
-                            'step/actor_called': False,
-                        }
-                        wandb.log(step_stats, step=abs_step_count)
-                    except Exception:
-                        pass
-                
-                # convert force to PWM
+                # # print each element separately
+                # for i in range(param_np.size):
+                #     print(f"  param[{i}] = {param_np.flat[i]}")
+
+
+
+
+                # convert first from N to PWM
                 u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
                 
-                # track maximum absolute force
-                max_force_perep = max(max_force_perep, abs(u_force))
+                # track maximum absolute PWM
+                max_force_perep = max(u_force, abs(u_force))
                 
+                # log per-step statistics to wandb
+                try:
+                    step_stats = {
+                        'step/u_force': u_force,
+                        'step/u_pwm': u_pwm,
+                        'step/param': param_t.cpu().numpy().tolist() if param_t.dim() > 0 else param_t.item(),
+                        'step/x': x,
+                        'step/theta': theta,
+                        'step/v': v,
+                        'step/thetadot': thetadot,
+                        'step/episode_step': episode_step_count,
+                    }
+                    
+                    # add pi_output stats if available
+                    if hasattr(pi_out, 'stats') and pi_out.stats:
+                        for key, val in pi_out.stats.items():
+                            step_stats[f'step/pi_{key}'] = val
+                    wandb.log(step_stats, step=abs_step_count)
+                except Exception:
+                    pass
+
                 # send PWM control to arduino
                 talk_to_arduino(u_pwm, mode=0)
                 
-                # wait for next state and drain queue to freshest
-                state = state_que.get()
+                # wait for next state and drain que to freshest
+                state = state_que.get() # blocks untill the thread adds an item
                 while True:
                     try: 
                         state = state_que.get_nowait()
+    
                     except queue.Empty:
                         break
                 
-                # clip thetadot
+                # clip thetadot since i was witnessing spikes 
                 x, theta, v, thetadot, tripped = state
                 thetadot = np.clip(thetadot, -20.0, 20.0)
                 state = (x, theta, v, thetadot, tripped)
                 
-                # make next state ready
+                # make the state ready for buffer (unbatched tensor on device)
                 obs_next = sac_state_to_tensor(state, batch=False).to(device)
                 
-                # compute reward for this step
+                # compute reward
                 reward = compute_reward(state, u_force)
-                
-                # accumulate reward over N-step cycle
-                accumulated_reward += reward
                 
                 # accumulate episode reward
                 current_episode_reward += reward
-                
-                # track stabilization: add theta to buffer and check if stabilized
-                # normalize theta to [-pi, pi] range around 0 (upright position)
-                theta_normalized = ((theta + np.pi) % (2 * np.pi)) - np.pi
-                theta_buffer.append(theta_normalized)
-                
-                # check if pole is stabilized (all recent theta values within threshold)
-                if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
-                    if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
-                        stabilized_this_episode = True
-                        # log stabilization event
-                        try:
-                            wandb.log({
-                                'stabilization/achieved_at_step': episode_step_count,
-                                'stabilization/achieved_at_abs_step': abs_step_count,
-                            }, step=abs_step_count)
-                        except Exception:
-                            pass
                 
                 # log reward to wandb
                 try:
@@ -879,44 +811,36 @@ def main():
                 # check done 
                 done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
                 
-                # increment cycle counter
-                step_in_cycle += 1
-                
-                # store transition in buffer only at end of N-step cycle or if episode ends
-                if step_in_cycle == N or done:
-                    # store accumulated N-step transition
-                    param_t = param_current.to(replay_buffer.device).float()
-                    replay_buffer.put((obs_start_cycle, param_t, float(accumulated_reward), obs_next, int(done)))
-                    
-                    # notify background learner
-                    try:
-                        learning_event.set()
-                    except Exception:
-                        pass
-                    
-                    # reset cycle counter
-                    step_in_cycle = 0
-                
-                # handle episode termination
+                # double check  for safety
                 if done:
                     talk_to_arduino(0, mode=1)
+                    # save episode reward when episode ends
                     episode_rewards.append({
                         'episode': episode_count,
                         'cumulative_reward': current_episode_reward,
                         'steps': episode_step_count
                     })
-                    print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
+                    print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}")
                     
+                    # log episode statistics to wandb
                     try:
                         wandb.log({
                             'episode/episode_number': episode_count,
                             'episode/cumulative_reward': current_episode_reward,
                             'episode/steps': episode_step_count,
                             'episode/max_force': max_force_perep,
-                            'episode/stabilized': int(stabilized_this_episode),  # 1 if stabilized, 0 otherwise
                         }, step=abs_step_count)
                     except Exception:
                         pass
+
+                # store transition in replay buffer (obs, param, reward, obs_next, done)
+                replay_buffer.put((obs, param_t, float(reward), obs_next, int(done)))
+                # notify background learner that new data is available
+                try:
+                    learning_event.set()
+                except Exception:
+                    pass
+                
 
     except KeyboardInterrupt:
         # try to stop actuator and plot

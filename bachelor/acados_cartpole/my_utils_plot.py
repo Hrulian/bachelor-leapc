@@ -198,7 +198,8 @@ def plot_policy_heatmap(
     theta_range: tuple[float, float] = (-np.pi, np.pi),
     resolution: int = 50,
     plt_show: bool = True,
-    save_path: str | None = None
+    save_path: str | None = None,
+    episode_num: int | None = None
 ):
     """Create a heatmap showing theta_ref output from policy for different (x, theta) states.
     
@@ -439,7 +440,7 @@ def plot_policy_heatmap(
                           extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
             
             # Add title with v and thetadot values
-            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, θ̇={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
             
             # Set custom x-axis ticks
             ax.set_xticks([-0.3, 0, 0.3])
@@ -455,7 +456,7 @@ def plot_policy_heatmap(
                 ax.tick_params(axis='x', which='both', length=0)
             
             if v_idx == 0:  # Left column
-                ax.set_ylabel('θ̇ (rad/s)', fontsize=13)
+                ax.set_ylabel('θ (rad)', fontsize=13)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis='y', which='both', length=0)
@@ -499,7 +500,7 @@ def plot_policy_heatmap(
                           extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
             
             # Add title with v and thetadot values
-            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, θ̇={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
             
             # Set custom x-axis ticks
             ax.set_xticks([-0.3, 0, 0.3])
@@ -515,7 +516,7 @@ def plot_policy_heatmap(
                 ax.tick_params(axis='x', which='both', length=0)
             
             if v_idx == 0:  # Left column
-                ax.set_ylabel('θ̇ (rad/s)', fontsize=13)
+                ax.set_ylabel('θ (rad)', fontsize=13)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis='y', which='both', length=0)
@@ -560,7 +561,7 @@ def plot_policy_heatmap(
                               extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
                 
                 # Add title with v and thetadot values
-                ax.set_title(f'v={v_values[v_idx]:.1f} m/s, θ̇={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+                ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
                 
                 # Set custom x-axis ticks
                 ax.set_xticks([-0.3, 0, 0.3])
@@ -576,7 +577,7 @@ def plot_policy_heatmap(
                     ax.tick_params(axis='x', which='both', length=0)
                 
                 if v_idx == 0:  # Left column
-                    ax.set_ylabel('θ̇ (rad/s)', fontsize=13)
+                    ax.set_ylabel('θ (rad)', fontsize=13)
                 else:
                     ax.set_yticklabels([])
                     ax.tick_params(axis='y', which='both', length=0)
@@ -620,7 +621,7 @@ def plot_policy_heatmap(
                           extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
             
             # Add title with v and thetadot values
-            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, θ̇={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
             
             # Set custom x-axis ticks
             ax.set_xticks([-0.3, 0, 0.3])
@@ -636,7 +637,7 @@ def plot_policy_heatmap(
                 ax.tick_params(axis='x', which='both', length=0)
             
             if v_idx == 0:  # Left column
-                ax.set_ylabel('θ̇ (rad/s)', fontsize=13)
+                ax.set_ylabel('θ (rad)', fontsize=13)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis='y', which='both', length=0)
@@ -654,35 +655,36 @@ def plot_policy_heatmap(
     actor_dir = Path(actor_path).parent
     
     # Save theta_ref grid
-    save_path_theta_grid = actor_dir / "policy_heatmap_theta_ref_grid.pdf"
+    ep_suffix = f"_ep{episode_num}" if episode_num is not None else ""
+    save_path_theta_grid = actor_dir / f"policy_heatmap_theta_ref_grid{ep_suffix}.pdf"
     try:
         fig3.savefig(save_path_theta_grid, bbox_inches='tight', dpi=150)
         print(f"Saved theta_ref grid plot to {save_path_theta_grid}")
     except Exception as e:
         print(f"Failed to save theta_ref grid plot: {e}")
     
-    # Save force grid
-    save_path_force_grid = actor_dir / "policy_heatmap_force_grid.pdf"
+    # Save MPC force grid (baseline, doesn't change with episodes)
+    save_path_mpc_force_grid = actor_dir / f"policy_heatmap_mpc_force_grid.pdf"
     try:
-        fig4.savefig(save_path_force_grid, bbox_inches='tight', dpi=150)
-        print(f"Saved MPC force (theta_ref=0) grid plot to {save_path_force_grid}")
+        fig4.savefig(save_path_mpc_force_grid, bbox_inches='tight', dpi=150)
+        print(f"Saved MPC force (theta_ref=0) grid plot to {save_path_mpc_force_grid}")
     except Exception as e:
         print(f"Failed to save MPC force grid plot: {e}")
     
     # Save critic grid
     if critic is not None:
-        save_path_critic_grid = actor_dir / "policy_heatmap_critic_grid.pdf"
+        save_path_critic_grid = actor_dir / f"policy_heatmap_critic_grid{ep_suffix}.pdf"
         try:
             fig5.savefig(save_path_critic_grid, bbox_inches='tight', dpi=150)
             print(f"Saved critic grid plot to {save_path_critic_grid}")
         except Exception as e:
             print(f"Failed to save critic grid plot: {e}")
     
-    # Save MPC force grid
-    save_path_mpc_grid = actor_dir / "policy_heatmap_mpc_force_grid.pdf"
+    # Save policy force grid (learned, changes with episodes)
+    save_path_policy_force_grid = actor_dir / f"policy_heatmap_force_grid{ep_suffix}.pdf"
     try:
-        fig6.savefig(save_path_mpc_grid, bbox_inches='tight', dpi=150)
-        print(f"Saved policy force grid plot to {save_path_mpc_grid}")
+        fig6.savefig(save_path_policy_force_grid, bbox_inches='tight', dpi=150)
+        print(f"Saved policy force grid plot to {save_path_policy_force_grid}")
     except Exception as e:
         print(f"Failed to save policy force grid plot: {e}")
     
