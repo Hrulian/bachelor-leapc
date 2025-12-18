@@ -170,9 +170,7 @@ stabilized_this_episode = False  # flag: was pole stabilized this episode
 max_ep_steps = 1000  # Good balance between learning and hardware wear
 
 # device setup
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
-
+device = "cpu"
 # MPC Layer Setup
 cfg_planner = CartPolePlannerConfig()
 params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
@@ -242,6 +240,7 @@ actor = MpcSacActor(
 log_alpha = torch.nn.Parameter(
     torch.tensor(cfg_saczop.init_alpha, dtype=torch.float32).log()
 ).to(device)
+
 
 alpha_optimizer = (
     torch.optim.Adam([log_alpha], lr=cfg_saczop.lr_alpha)
@@ -451,7 +450,7 @@ def reset_env():
             break
         # else: stay in mode 2/reset until conditions are met
 
-        print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
+    print(f'trying to reset. State: x={x}, theta={theta}, tripped={tripped_flag}, v={v}, thetadot={thetadot}')
     return
 
 
@@ -541,6 +540,17 @@ def _checkpoint_paths():
 
 
 def main():
+    # seeding
+    # seed = 42  
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)  
+    # np.random.seed(seed)
+    
+    
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    
     # load checkpoints/trained models if available
     # this means training progress persists across restarts
     # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer

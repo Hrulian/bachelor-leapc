@@ -186,6 +186,9 @@ def compute_reward(state, force) -> float:
     # targeting small cart thetadots near upright
     if abs(theta) < 0.15 and abs(thetadot) < 1.5:
         reward += 0.1
+    
+    if reward < 0.0:
+        reward = 0.0
 
     return float(reward)
 

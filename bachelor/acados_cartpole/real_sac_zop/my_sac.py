@@ -60,9 +60,9 @@ class SacTrainerConfig(TrainerConfig):
     lr_pi: float = 1e-4
     lr_alpha: float | None = 1e-3
     init_alpha: float = 0.01
-    target_entropy: float | None = -1.0
+    target_entropy: float | None = -2.0
     entropy_reward_bonus: bool = True
-    num_critics: int = 32
+    num_critics: int = 8 # 8 works good with cpu
     update_freq: int = 1 # per buffer drop!!! we do way more env steps
     distribution_name: BoundedDistributionName = "squashed_gaussian"
 
