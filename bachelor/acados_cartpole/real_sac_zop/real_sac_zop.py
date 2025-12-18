@@ -197,6 +197,9 @@ action_space = controller_wrapped.param_space
 # SacZop config
 cfg_saczop = SacZopTrainerConfig()
 
+# Enable layer normalization for actor and critic
+cfg_saczop.actor_mlp.norm_layer = "layer_norm"
+cfg_saczop.critic_mlp.norm_layer = "layer_norm"
 
 # Replay Buffer init
 replay_buffer = ReplayBuffer(buffer_limit=cfg_saczop.buffer_size, device=device)

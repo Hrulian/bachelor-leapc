@@ -53,11 +53,13 @@ class MlpConfig:
         activation: The activation function to use in the hidden layers.
         weight_init: The weight initialization method to use for the hidden layers.
             If None, no initialization will be applied.
+        norm_layer: The normalization layer to use. Options: "layer_norm", "batch_norm", or None.
     """
 
     hidden_dims: Sequence[int] | None = (256, 256, 256)
     activation: Activation = "relu"
-    weight_init: WeightInit | None = "orthogonal"  # If None, no init will be used
+    weight_init: WeightInit | None = "orthogonal"
+    norm_layer: Literal["layer_norm", "batch_norm"] | None = None  # Add this line
 
 
 class Mlp(nn.Module):
@@ -109,18 +111,32 @@ class Mlp(nn.Module):
             self.param = nn.Parameter(torch.zeros(self._comb_output_dim))
             return
 
-        # mlp
+        # mlp with optional normalization
         layers = []
         prev_d = self._comb_input_dim
-        for d in [*mlp_cfg.hidden_dims, self._comb_output_dim]:
-            layers.extend([nn.Linear(prev_d, d), self.activation])
+        for i, d in enumerate(mlp_cfg.hidden_dims):
+            layers.append(nn.Linear(prev_d, d))
+            
+            # Add normalization layer if specified (before activation)
+            if mlp_cfg.norm_layer == "layer_norm":
+                layers.append(nn.LayerNorm(d))
+            elif mlp_cfg.norm_layer == "batch_norm":
+                layers.append(nn.BatchNorm1d(d))
+            
+            layers.append(self.activation)
             prev_d = d
+        
+        # Output layer (no normalization or activation after this)
+        layers.append(nn.Linear(prev_d, self._comb_output_dim))
 
-        self.mlp = nn.Sequential(*layers[:-1])
+        self.mlp = nn.Sequential(*layers)
         self.param = None
 
         if mlp_cfg.weight_init is not None:
-            self.mlp.apply(string_to_weight_init(mlp_cfg.weight_init))
+            # Only initialize Linear layers, not normalization layers
+            for module in self.mlp.modules():
+                if isinstance(module, nn.Linear):
+                    string_to_weight_init(mlp_cfg.weight_init)(module)
 
     def forward(self, *x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
         if self.param is not None:
