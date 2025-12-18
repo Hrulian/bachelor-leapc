@@ -60,7 +60,7 @@ class SacTrainerConfig(TrainerConfig):
     lr_pi: float = 1e-4
     lr_alpha: float | None = 1e-3
     init_alpha: float = 0.01
-    target_entropy: float | None = -4.0
+    target_entropy: float | None = -2.0
     entropy_reward_bonus: bool = True
     num_critics: int = 4
     update_freq: int = 1 # per buffer drop!!! we do way more env steps
