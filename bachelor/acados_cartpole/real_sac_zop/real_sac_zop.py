@@ -170,7 +170,8 @@ stabilized_this_episode = False  # flag: was pole stabilized this episode
 max_ep_steps = 1000  # Good balance between learning and hardware wear
 
 # device setup
-device = "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device: {device}")
 
 # MPC Layer Setup
 cfg_planner = CartPolePlannerConfig()
@@ -649,8 +650,8 @@ def main():
             # per-episode bookkeeping
             episode_count += 1
             
-            # save checkpoints at episode 1 and then every 50 episodes
-            if episode_count == 1 or episode_count % 50 == 0:
+            # save checkpoints at episode 0 and then every 50 episodes
+            if episode_count == 0 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
                 
