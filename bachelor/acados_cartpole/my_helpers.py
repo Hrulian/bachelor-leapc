@@ -172,10 +172,13 @@ def compute_reward(state, force) -> float:
     """
     
     x, theta, v, thetadot, tripped = state
+    x = counts_to_meters(x)
 
     # Swingup-Reward wie in CartPoleEnv.step
     reward = abs(np.pi - abs(theta)) / (10.0 * np.pi)
-    
+
+    reward -= 0.1 * (abs(x) / 0.39)
+
     # targeting high angular velocities near upright
     if abs(thetadot) > 12.0:
         reward = 0  
