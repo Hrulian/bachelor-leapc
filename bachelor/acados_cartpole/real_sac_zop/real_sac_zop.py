@@ -557,7 +557,7 @@ def _checkpoint_paths():
 
 def main():
     # seeding
-    seed = 1  
+    seed = 2  
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
