@@ -177,15 +177,20 @@ def compute_reward(state, force) -> float:
     # Swingup-Reward wie in CartPoleEnv.step
     reward = abs(np.pi - abs(theta)) / (10.0 * np.pi)
 
+    # Position reward: positive in center, falling to zero at edges
+    # Assuming x_threshold is around 0.4m, we want max reward at x=0
+    # x_max = 0.39  # approximate track limit
+    # position_reward = 0.05 * max(0.0, 1.0 - abs(x) / x_max)
+    # reward += position_reward
     reward -= 0.1 * (abs(x) / 0.39)
 
-    # targeting high angular velocities near upright
+    # targeting high angular velocities 
     if abs(thetadot) > 12.0:
         reward = 0  
         
     # targeting small cart thetadots near upright
     if abs(theta) < 0.15 and abs(thetadot) < 1.5:
-        reward += 0.1
+        reward += 0.5
     
     if reward < 0.0:
         reward = 0.0

@@ -197,8 +197,7 @@ action_space = controller_wrapped.param_space
 # SacZop config
 cfg_saczop = SacZopTrainerConfig()
 
-# Enable layer normalization for actor and critic
-cfg_saczop.actor_mlp.norm_layer = "layer_norm"
+# Enable layer normalization for critic only
 cfg_saczop.critic_mlp.norm_layer = "layer_norm"
 
 # Replay Buffer init
@@ -268,12 +267,13 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
     Background thread function to perform SAC-ZOP updates at specified intervals.
     With N-step buffering, this is called every N steps when a new sample is added.
     update_freq controls how many samples to collect before training once.
-    Performs 20 training steps per update.
+    Performs 20 training steps per update, with actor updated every 5th step.
     """
     
     global abs_step_count
     timeout_s = 1.0
     buffer_drops_since_update = 0  # count buffer drops since last training
+    actor_update_freq = 5  # update actor every 5 critic updates
 
     while True:
         try:
@@ -291,8 +291,10 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
                 # train every update_freq buffer drops (= every update_freq*N steps)
                 if buffer_drops_since_update >= update_freq:
                     # perform 20 training steps
-                    for _ in range(20):
-                        saczop_single_step_update(batch_size)
+                    for i in range(20):
+                        # update actor only every actor_update_freq steps
+                        update_actor = (i % actor_update_freq == 0)
+                        saczop_single_step_update(batch_size, update_actor=update_actor)
                     buffer_drops_since_update = 0
 
         except Exception as e:
@@ -302,7 +304,7 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
             learning_event.clear()
               
               
-def saczop_single_step_update(batch_size):
+def saczop_single_step_update(batch_size, update_actor=True):
     """
     -Performs a single SAC-ZOP update step using a batch sampled from the replay buffer.
     -Only updates when enough samples are available in the buffer.
@@ -310,6 +312,7 @@ def saczop_single_step_update(batch_size):
     
     Args:
         batch_size: The number of samples to use for the update.
+        update_actor: Whether to update the actor network in this step.
     Returns:
         A boolean indicating whether the update was performed.
     """
@@ -345,25 +348,35 @@ def saczop_single_step_update(batch_size):
     q_loss.backward()
     critic_optimizer.step()
 
-    # actor update
-    pi_o = actor(o, None, only_param=True)
-    a_pi = pi_o.param
-    log_p = pi_o.log_prob / entropy_norm
+    # actor update (only if update_actor is True)
+    if update_actor:
+        pi_o = actor(o, None, only_param=True)
+        a_pi = pi_o.param
+        log_p = pi_o.log_prob / entropy_norm
 
-    # temperature update
-    if alpha_optimizer is not None:
-        alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
-        alpha_optimizer.zero_grad()
-        alpha_loss.backward()
-        alpha_optimizer.step()
+        # temperature update
+        if alpha_optimizer is not None:
+            alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
+            alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            alpha_optimizer.step()
 
-    q_pi = torch.cat(critic(o, a_pi), dim=1)
-    min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-    pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
+        q_pi = torch.cat(critic(o, a_pi), dim=1)
+        min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
+        pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
 
-    actor_optimizer.zero_grad()
-    pi_loss.backward()
-    actor_optimizer.step()
+        actor_optimizer.zero_grad()
+        pi_loss.backward()
+        actor_optimizer.step()
+    else:
+        # compute pi_loss for logging even when not updating
+        with torch.no_grad():
+            pi_o = actor(o, None, only_param=True)
+            a_pi = pi_o.param
+            log_p = pi_o.log_prob / entropy_norm
+            q_pi = torch.cat(critic(o, a_pi), dim=1)
+            min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
+            pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
     
     # soft update targets
     if learning_step % cfg_saczop.soft_update_freq == 0:
@@ -544,11 +557,11 @@ def _checkpoint_paths():
 
 def main():
     # seeding
-    # seed = 42  
-    # torch.manual_seed(seed)
-    # torch.cuda.manual_seed(seed)
-    # torch.cuda.manual_seed_all(seed)  
-    # np.random.seed(seed)
+    seed = 0  
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  
+    np.random.seed(seed)
     
     
     # torch.backends.cudnn.deterministic = True
@@ -622,16 +635,6 @@ def main():
     
     
     #Main RL Loop#################################################################
-    """
-    potential issues:
-        - depending on how long the learning function takes leaning steps could be skipped
-        more concretely: if training takes longer than the time between four env steps
-        -currently the controller is initialized with x0 = (0,-pi,0,0) all the time
-        this is not the real state so the first MPC call might not the best but yolo
-        - so the buffer is locked now and i think mostly safe in terms of threading
-        - i think the actor should be thread safe aswell prob train a copy of the actor
-        in the background thread and update actormain -> copyactor periodically?
-        """
     try:
         while True:
             # restart episode. Wait until env is reseted
@@ -664,7 +667,7 @@ def main():
             episode_count += 1
             
             # save checkpoints at episode 0 and then every 50 episodes
-            if episode_count == 0 or episode_count % 50 == 0:
+            if episode_count == 1 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
                 

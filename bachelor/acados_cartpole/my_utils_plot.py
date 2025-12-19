@@ -250,6 +250,9 @@ def plot_policy_heatmap(
     # SacZop config
     cfg_saczop = SacZopTrainerConfig()
     
+    # Enable layer normalization for critic only (must match training settings)
+    cfg_saczop.critic_mlp.norm_layer = "layer_norm"
+    
     # Initialize actor (same as in real_sac_zop.py)
     extractor_cls = get_extractor_cls("identity")
     actor = MpcSacActor(
