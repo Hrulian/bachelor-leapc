@@ -14,7 +14,7 @@ from bachelor.acados_cartpole.my_helpers import (
     done_eval,
     sac_state_to_tensor,
 )
-from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
+from bachelor.acados_cartpole.my_utils_plot import plot_sac_policy_heatmap
  
 from leap_c.torch.nn.extractor import get_extractor_cls
 
@@ -278,23 +278,28 @@ def sac_single_step_update(batch_size, update_actor=True):
     # sample batch
     o, a, r, o_prime, te = replay_buffer.sample(batch_size)
 
-    # get next actions and log probs from actor
+    # sample action from current policy (needed for both temperature and actor updates)
+    a_pi, log_p, _ = actor(o, deterministic=False)
+
+    # temperature update (must happen first, using current policy samples)
+    if update_actor and alpha_optimizer is not None:
+        alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
+        alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        alpha_optimizer.step()
+
+    # update critic
+    alpha = log_alpha.exp().item()
     with torch.no_grad():
-        a_prime, log_p_prime, _ = actor(o_prime, deterministic=False)
-        q_target = torch.cat(target_critic(o_prime, a_prime), dim=1)
+        a_pi_prime, log_p_prime, _ = actor(o_prime, deterministic=False)
+        q_target = torch.cat(target_critic(o_prime, a_pi_prime), dim=1)
         q_target = torch.min(q_target, dim=1, keepdim=True).values
 
-        # ensure log_p_prime has correct shape
-        if log_p_prime.dim() == 1:
-            log_p_prime = log_p_prime.unsqueeze(-1)
-        
         # subtract entropy term (standard SAC)
-        if cfg_sac.entropy_reward_bonus:
-            q_target = q_target - log_alpha.exp() * log_p_prime
+        q_target = q_target - alpha * log_p_prime * float(cfg_sac.entropy_reward_bonus)
 
         target = r[:, None].to(device) + cfg_sac.gamma * (1 - te[:, None].to(device)) * q_target
 
-    # critic update
     q = torch.cat(critic(o, a), dim=1)
     q_loss = torch.mean((q - target).pow(2))
 
@@ -304,23 +309,9 @@ def sac_single_step_update(batch_size, update_actor=True):
 
     # actor update (only if update_actor is True)
     if update_actor:
-        a_pi, log_p, _ = actor(o, deterministic=False)
-        
-        # ensure log_p has correct shape
-        if log_p.dim() == 1:
-            log_p = log_p.unsqueeze(-1)
-
-        # temperature update
-        if alpha_optimizer is not None:
-            alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
-            alpha_optimizer.zero_grad()
-            alpha_loss.backward()
-            alpha_optimizer.step()
-
-        # compute Q-values for sampled actions
         q_pi = torch.cat(critic(o, a_pi), dim=1)
         min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-        pi_loss = (log_alpha.exp() * log_p - min_q_pi).mean()
+        pi_loss = (alpha * log_p - min_q_pi).mean()
 
         actor_optimizer.zero_grad()
         pi_loss.backward()
@@ -328,12 +319,9 @@ def sac_single_step_update(batch_size, update_actor=True):
     else:
         # compute pi_loss for logging even when not updating
         with torch.no_grad():
-            a_pi, log_p, _ = actor(o, deterministic=False)
-            if log_p.dim() == 1:
-                log_p = log_p.unsqueeze(-1)
             q_pi = torch.cat(critic(o, a_pi), dim=1)
             min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-            pi_loss = (log_alpha.exp() * log_p - min_q_pi).mean()
+            pi_loss = (alpha * log_p - min_q_pi).mean()
     
     # soft update targets
     if learning_step % cfg_sac.soft_update_freq == 0:
@@ -497,7 +485,7 @@ def _checkpoint_paths():
 
 def main():
     # seeding (same as SAC-ZOP)
-    seed = 1  
+    seed = 0  
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
@@ -585,50 +573,34 @@ def main():
             
             episode_count += 1
             
-            # save checkpoints and generate heatmaps every 50 episodes (same as SAC-ZOP)
+            # save checkpoints at episode 1 and then every 50 episodes
+            print(f"Episode {episode_count}: Checking if we should plot (episode_count % 50 = {episode_count % 50})")
             if episode_count == 1 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
                 
-                # Generate and log policy heatmaps
-                print(f"Generating policy heatmaps for episode {episode_count}...")
+                # generate and save policy heatmaps
+                print(f"Generating policy heatmaps at episode {episode_count}...")
                 try:
-                    # Create a simple wrapper to match expected interface
-                    def policy_fn(obs_batch):
-                        """
-                        Wrapper for actor that returns deterministic actions.
-                        Args:
-                            obs_batch: batch of observations [batch_size, obs_dim]
-                        Returns:
-                            actions: [batch_size, action_dim]
-                        """
-                        with torch.no_grad():
-                            obs_tensor = torch.tensor(obs_batch, dtype=torch.float32, device=device)
-                            action, _, _ = actor(obs_tensor, deterministic=True)
-                            return action.cpu().numpy()
-                    
-                    # Generate heatmap (SAC directly outputs forces, no MPC needed)
-                    heatmap_path = plot_policy_heatmap(
-                        policy_fn,
-                        episode=episode_count,
-                        save_dir=os.path.join(os.path.dirname(__file__), "policy_heatmaps"),
+                    actor_path = os.path.join(CHECKPOINT_DIR, 'actor.pth')
+                    plot_sac_policy_heatmap(
+                        actor_path=actor_path,
+                        v_fixed=0.0,
+                        thetadot_fixed=0.0,
                         x_range=(-_x_thr, _x_thr),
                         theta_range=(-np.pi, np.pi),
                         resolution=50,
-                        force_only=True  # SAC directly outputs forces
+                        plt_show=False,
+                        save_path=None,
+                        episode_num=episode_count
                     )
-                    
-                    # Log to wandb
-                    if heatmap_path and os.path.exists(heatmap_path):
-                        wandb.log({
-                            "policy_heatmaps/force": wandb.Image(heatmap_path),
-                            "policy_heatmaps/episode": episode_count,
-                        }, step=abs_step_count)
-                        print(f"Logged policy heatmap to wandb: {heatmap_path}")
+                    print(f"Saved policy heatmap PDFs to {CHECKPOINT_DIR}")
                     
                 except Exception as e:
                     print(f"Failed to generate/log policy heatmap: {e}")
-
+                    import traceback
+                    traceback.print_exc()
+            
             state_que.queue.clear()
             
             state = None

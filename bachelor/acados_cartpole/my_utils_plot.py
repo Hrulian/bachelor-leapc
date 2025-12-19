@@ -718,4 +718,275 @@ def plot_policy_heatmap(
         plt.show()
 
 
+def plot_sac_policy_heatmap(
+    actor_path: str,
+    v_fixed: float = 0.0,
+    thetadot_fixed: float = 0.0,
+    x_range: tuple[float, float] = (-0.39, 0.39),
+    theta_range: tuple[float, float] = (-np.pi, np.pi),
+    resolution: int = 50,
+    plt_show: bool = True,
+    save_path: str | None = None,
+    episode_num: int | None = None
+):
+    """Create heatmap grids showing force and critic outputs from vanilla SAC policy.
+    
+    Args:
+        actor_path: Path to actor.pth checkpoint file
+        v_fixed: Fixed cart velocity value (m/s)
+        thetadot_fixed: Fixed pole angular velocity (rad/s)
+        x_range: Range of cart positions to plot (min, max) in meters
+        theta_range: Range of pole angles to plot (min, max) in radians
+        resolution: Number of grid points along each axis
+        plt_show: Whether to display the plot
+        save_path: Optional path to save the figure
+        episode_num: Episode number for filename
+    """
+    try:
+        import torch
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import TwoSlopeNorm
+        from pathlib import Path
+    except ImportError as e:
+        print(f"Required libraries not available: {e}")
+        return
+    
+    # Import required modules
+    try:
+        from leap_c.torch.nn.extractor import get_extractor_cls
+        from leap_c.torch.rl.sac import SacActor, SacCritic
+        import gymnasium as gym
+    except ImportError as e:
+        print(f"Failed to import required modules: {e}")
+        return
+    
+    # Setup device and config
+    device = "cpu"
+    
+    # Define observation space (same as in real_sac.py)
+    _x_thr = x_range[1]
+    obs_low = np.array([-_x_thr, -np.pi, -5, -21], dtype=np.float32)
+    obs_high = np.array([_x_thr, np.pi, 5, 21], dtype=np.float32)
+    obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+    action_space = gym.spaces.Box(low=np.array([-20.0]), high=np.array([20.0]), dtype=np.float32)
+    
+    # Initialize actor (no layer norm for actor in SAC)
+    from leap_c.torch.nn.mlp import MlpConfig
+    actor_mlp_cfg = MlpConfig(
+        hidden_dims=(256, 256, 256),
+        activation="relu",
+        norm_layer=None,  # No layer norm for actor
+    )
+    
+    extractor_cls = get_extractor_cls("identity")
+    actor = SacActor(
+        extractor_cls=extractor_cls,
+        observation_space=obs_space,
+        action_space=action_space,
+        mlp_cfg=actor_mlp_cfg,
+        distribution_name="squashed_gaussian",
+    ).to(device)
+    
+    # Load actor weights
+    try:
+        actor.load_state_dict(torch.load(actor_path, map_location=device))
+        actor.eval()
+        print(f"Loaded actor from {actor_path}")
+    except Exception as e:
+        print(f"Failed to load actor: {e}")
+        return
+    
+    # Load critic (with layer norm)
+    critic_path = str(Path(actor_path).parent / "critic.pth")
+    critic_mlp_cfg = MlpConfig(
+        hidden_dims=(256, 256, 256),
+        activation="relu",
+        norm_layer="layer_norm",  # Layer norm for critic
+    )
+    
+    critic = SacCritic(
+        extractor_cls=extractor_cls,
+        observation_space=obs_space,
+        action_space=action_space,
+        mlp_cfg=critic_mlp_cfg,
+        num_critics=8,  # Match the training config
+    ).to(device)
+    
+    try:
+        critic.load_state_dict(torch.load(critic_path, map_location=device))
+        critic.eval()
+        print(f"Loaded critic from {critic_path}")
+    except Exception as e:
+        print(f"Warning: Failed to load critic: {e}")
+        import traceback
+        traceback.print_exc()
+        critic = None
+    
+    # Create meshgrid for different (v, thetadot) combinations
+    v_values = np.array([-1.0, 0.0, 1.0])
+    thetadot_values = np.array([-5.0, 0.0, 5.0])
+    
+    x_vals = np.linspace(x_range[0], x_range[1], resolution)
+    theta_vals = np.linspace(theta_range[0], theta_range[1], resolution)
+    X, Theta = np.meshgrid(x_vals, theta_vals)
+    
+    grid_size_v = len(v_values)
+    grid_size_thetadot = len(thetadot_values)
+    
+    force_full_grid = np.zeros((grid_size_v, grid_size_thetadot, resolution, resolution))
+    critic_full_grid = np.zeros((grid_size_v, grid_size_thetadot, resolution, resolution))
+    
+    print("Evaluating SAC policy on grid with varying v and thetadot...")
+    
+    with torch.no_grad():
+        for v_idx, v_val in enumerate(v_values):
+            for td_idx, thetadot_val in enumerate(thetadot_values):
+                for i in range(resolution):
+                    for j in range(resolution):
+                        state = np.array([X[i, j], Theta[i, j], v_val, thetadot_val], dtype=np.float32)
+                        obs = torch.from_numpy(state).float().unsqueeze(0).to(device)
+                        
+                        # Get deterministic action from actor
+                        action, _, _ = actor(obs, deterministic=True)
+                        force_full_grid[v_idx, td_idx, i, j] = action[0].cpu().numpy()
+                        
+                        # Get critic Q-value if available
+                        if critic is not None:
+                            q_values = critic(obs, action)
+                            q_value = torch.stack(q_values).min().cpu().numpy()
+                            critic_full_grid[v_idx, td_idx, i, j] = q_value
+    
+    # Filter out inf and nan values
+    force_full_grid = np.nan_to_num(force_full_grid, nan=0.0, posinf=0.0, neginf=0.0)
+    critic_full_grid = np.nan_to_num(critic_full_grid, nan=0.0, posinf=0.0, neginf=0.0)
+    
+    print(f"\n=== SAC Force Analysis ===")
+    print(f"Force range: [{force_full_grid.min():.4f}, {force_full_grid.max():.4f}]")
+    print(f"Force mean: {force_full_grid.mean():.4f}, std: {force_full_grid.std():.4f}")
+    
+    # Clip to reasonable ranges
+    force_full_grid = np.clip(force_full_grid, -100, 100)
+    critic_full_grid = np.clip(critic_full_grid, -1000, 1000)
+    
+    # FIGURE 1: Force output grid (3x3 subplots)
+    fig1, axes1 = plt.subplots(3, 3, figsize=(10, 10))
+    
+    vmin_force = force_full_grid.min()
+    vmax_force = force_full_grid.max()
+    
+    if vmin_force < 0.0 < vmax_force:
+        norm_force = TwoSlopeNorm(vmin=vmin_force, vcenter=0.0, vmax=vmax_force)
+        cmap_force = 'RdYlBu_r'
+    else:
+        norm_force = None
+        cmap_force = 'viridis'
+    
+    for v_idx in range(grid_size_v):
+        for td_idx in range(grid_size_thetadot):
+            ax = axes1[td_idx, v_idx]
+            data = force_full_grid[v_idx, td_idx, :, :]
+            
+            im = ax.imshow(data, cmap=cmap_force, norm=norm_force,
+                          origin='lower', aspect='auto', interpolation='bilinear',
+                          extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
+            
+            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+            ax.set_xticks([-0.3, 0, 0.3])
+            ax.set_yticks([-3, -2, -1, 0, 1, 2, 3])
+            ax.tick_params(axis='both', which='major', labelsize=12)
+            
+            if td_idx == 2:
+                ax.set_xlabel('x (m)', fontsize=13)
+            else:
+                ax.set_xticklabels([])
+                ax.tick_params(axis='x', which='both', length=0)
+            
+            if v_idx == 0:
+                ax.set_ylabel('θ (rad)', fontsize=13)
+            else:
+                ax.set_yticklabels([])
+                ax.tick_params(axis='y', which='both', length=0)
+    
+    fig1.subplots_adjust(right=0.92)
+    cbar_ax1 = fig1.add_axes([0.94, 0.15, 0.02, 0.7])
+    cbar1 = fig1.colorbar(im, cax=cbar_ax1)
+    cbar1.set_label('Force (N)', rotation=270, labelpad=20, fontsize=13)
+    cbar1.ax.tick_params(labelsize=12)
+    plt.tight_layout(rect=[0, 0, 0.92, 1])
+    
+    # FIGURE 2: Critic Q-value grid (3x3 subplots)
+    if critic is not None:
+        fig2, axes2 = plt.subplots(3, 3, figsize=(10, 10))
+        
+        vmin_critic = critic_full_grid.min()
+        vmax_critic = critic_full_grid.max()
+        
+        if vmin_critic < 0.0 < vmax_critic:
+            norm_critic = TwoSlopeNorm(vmin=vmin_critic, vcenter=0.0, vmax=vmax_critic)
+            cmap_critic = 'RdYlBu_r'
+        else:
+            norm_critic = None
+            cmap_critic = 'viridis'
+        
+        for v_idx in range(grid_size_v):
+            for td_idx in range(grid_size_thetadot):
+                ax = axes2[td_idx, v_idx]
+                data = critic_full_grid[v_idx, td_idx, :, :]
+                
+                im = ax.imshow(data, cmap=cmap_critic, norm=norm_critic,
+                              origin='lower', aspect='auto', interpolation='bilinear',
+                              extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
+                
+                ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+                ax.set_xticks([-0.3, 0, 0.3])
+                ax.set_yticks([-3, -2, -1, 0, 1, 2, 3])
+                ax.tick_params(axis='both', which='major', labelsize=12)
+                
+                if td_idx == 2:
+                    ax.set_xlabel('x (m)', fontsize=13)
+                else:
+                    ax.set_xticklabels([])
+                    ax.tick_params(axis='x', which='both', length=0)
+                
+                if v_idx == 0:
+                    ax.set_ylabel('θ (rad)', fontsize=13)
+                else:
+                    ax.set_yticklabels([])
+                    ax.tick_params(axis='y', which='both', length=0)
+        
+        fig2.subplots_adjust(right=0.92)
+        cbar_ax2 = fig2.add_axes([0.94, 0.15, 0.02, 0.7])
+        cbar2 = fig2.colorbar(im, cax=cbar_ax2)
+        cbar2.set_label('Q-value', rotation=270, labelpad=20, fontsize=13)
+        cbar2.ax.tick_params(labelsize=12)
+        plt.tight_layout(rect=[0, 0, 0.92, 1])
+    
+    # Save figures
+    if save_path or episode_num is not None:
+        parent = Path(actor_path).parent
+        stem = "policy_heatmap"
+        suffix = f"_ep{episode_num}.pdf" if episode_num is not None else ".pdf"
+        
+        save_path_force_grid = parent / f"{stem}_force_grid{suffix}"
+        try:
+            fig1.savefig(save_path_force_grid, bbox_inches='tight', dpi=150)
+            print(f"Saved force grid plot to {save_path_force_grid}")
+        except Exception as e:
+            print(f"Failed to save force grid plot: {e}")
+        
+        if critic is not None:
+            save_path_critic_grid = parent / f"{stem}_critic_grid{suffix}"
+            try:
+                fig2.savefig(save_path_critic_grid, bbox_inches='tight', dpi=150)
+                print(f"Saved critic grid plot to {save_path_critic_grid}")
+            except Exception as e:
+                print(f"Failed to save critic grid plot: {e}")
+        else:
+            print(f"Skipping critic plot - critic not loaded successfully")
+    
+    if plt_show:
+        plt.show()
+
+
+
 
