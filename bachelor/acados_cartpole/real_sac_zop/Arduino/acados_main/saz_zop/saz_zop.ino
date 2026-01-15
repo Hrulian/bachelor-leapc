@@ -41,7 +41,7 @@ volatile float thetadot = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 10;
+constexpr unsigned long COMMUNICATION_TIME_MS = 50;
 constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 constexpr long X_CENTER_COUNTS = 0;      // ceter position in counts

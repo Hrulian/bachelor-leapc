@@ -42,7 +42,7 @@ volatile float thetadot = 0.0f;
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
 constexpr unsigned long COMMUNICATION_TIME_MS = 10;
-constexpr uint32_t STATE_UPDATE_US = 5000;
+constexpr uint32_t STATE_UPDATE_US = 1000;
 constexpr byte NUM_CHARS = 32;
 
 volatile bool new_data = false; // if u has been send to motor -> false

@@ -667,7 +667,7 @@ def main():
             episode_count += 1
             
             # save checkpoints at episode 0 and then every 50 episodes
-            if episode_count == 1 or episode_count % 50 == 0:
+            if episode_count == 0 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
                 
@@ -750,7 +750,7 @@ def main():
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
             # variables for N-step buffering
-            N = 5  # call actor every N steps
+            N = 1  # call actor every N steps
             step_in_cycle = 0  # tracks position within N-step cycle
             accumulated_reward = 0.0  # accumulates reward over N steps
             obs_start_cycle = None  # observation at start of N-step cycle

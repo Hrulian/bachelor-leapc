@@ -190,6 +190,96 @@ def plot_cartpole_log(path: str, plt_show: bool = True, save_path: str | None = 
         plt.show()
 
 
+def plot_eval_log(path: str, plt_show: bool = True, save_path: str | None = None):
+    """Plot evaluation log with columns: t, x_m, theta_unwrapped, accumulated_reward.
+    
+    Creates a 3-subplot figure showing:
+    - Cart position (x) over time
+    - Pole angle (theta_unwrapped) over time
+    - Accumulated reward over time
+    
+    Args:
+        path: Path to the CSV log file
+        plt_show: Whether to display the plot interactively
+        save_path: Optional path to save the figure (PNG/PDF/etc)
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except Exception as e:
+        print("matplotlib required for plotting eval log:", e)
+        return
+
+    times = []
+    x_m = []
+    theta = []
+    reward = []
+
+    try:
+        with open(path, newline='') as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                try:
+                    times.append(float(row.get('t', '')))
+                except Exception:
+                    times.append(None)
+                
+                def g(name):
+                    try:
+                        return float(row.get(name, '') or 0.0)
+                    except Exception:
+                        return 0.0
+                
+                x_m.append(g('x_m'))
+                theta.append(g('theta_unwrapped'))
+                reward.append(g('accumulated_reward'))
+    except Exception as e:
+        print('Could not read eval log:', e)
+        return
+
+    if any(t is None for t in times):
+        times = list(range(len(x_m)))
+
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+    
+    axes[0].plot(times, x_m, '-b', linewidth=1.5)
+    axes[0].set_ylabel('Cart Position x (m)', fontsize=11)
+    axes[0].grid(True, alpha=0.3)
+    axes[0].axhline(y=0, color='k', linestyle='--', alpha=0.3, linewidth=0.8)
+
+    axes[1].plot(times, theta, '-r', linewidth=1.5)
+    axes[1].set_ylabel('Pole Angle θ (rad)', fontsize=11)
+    axes[1].grid(True, alpha=0.3)
+    # Mark upright position (multiples of 2π)
+    axes[1].axhline(y=0, color='k', linestyle='--', alpha=0.3, linewidth=0.8, label='upright')
+
+    axes[2].plot(times, reward, '-g', linewidth=1.5)
+    axes[2].set_ylabel('Accumulated Reward', fontsize=11)
+    axes[2].set_xlabel('Time (s)', fontsize=11)
+    axes[2].grid(True, alpha=0.3)
+
+    fig.suptitle('Controller Evaluation', fontsize=13, fontweight='bold')
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+
+    # Save figure
+    try:
+        if save_path is None:
+            default_name = Path(path).stem + '.png'
+            save_target = os.path.join(os.getcwd(), default_name)
+        else:
+            save_target = save_path
+
+        try:
+            fig.savefig(save_target, bbox_inches='tight', dpi=150)
+            print('Saved plot to', save_target)
+        except Exception as e:
+            print('Failed to save plot to', save_target, ':', e)
+    except Exception as e:
+        print('Unexpected error while saving plot:', e)
+
+    if plt_show:
+        plt.show()
+
+
 def plot_policy_heatmap(
     actor_path: str,
     v_fixed: float = 0.0,
