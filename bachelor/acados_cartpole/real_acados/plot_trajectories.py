@@ -1,13 +1,15 @@
 import os
 import csv
+import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+from bachelor.acados_cartpole.my_helpers import reward_eval
 
 # Directory containing the trajectory CSV files
 TRAJECTORIES_DIR = os.path.join(os.path.dirname(__file__), "Trajectories")
 
 def read_trajectory_csv(filepath):
-    """Read a trajectory CSV file and return time, x position, and reward data.
+    """Read a trajectory CSV file and return time, x position, and computed reward data.
     
     Returns:
         tuple: (times, x_positions, rewards) as lists of floats
@@ -19,14 +21,20 @@ def read_trajectory_csv(filepath):
     try:
         with open(filepath, 'r', newline='') as fh:
             reader = csv.DictReader(fh)
+            accumulated_reward = 0.0
             for row in reader:
                 try:
                     t = float(row.get('t', ''))
-                    x = float(row.get('x_m', ''))
-                    r = float(row.get('accumulated_reward', ''))
+                    x_m = float(row.get('x_m', ''))
+                    # Calculate reward using reward_eval function
+                    # Need to convert x_m back to counts for reward_eval
+                    x_counts = x_m / 0.001  # inverse of counts_to_meters
+                    step_reward = reward_eval(x_counts)
+                    accumulated_reward += step_reward
+                    
                     times.append(t)
-                    x_positions.append(x)
-                    rewards.append(r)
+                    x_positions.append(x_m)
+                    rewards.append(accumulated_reward)
                 except (ValueError, TypeError):
                     continue
     except Exception as e:
@@ -59,8 +67,6 @@ def plot_all_trajectories():
     
     print(f"Found {len(mpc_files)} MPC trajectories and {len(sac_files)} SAC trajectories")
     
-    import numpy as np
-    
     # Collect data
     mpc_data = []
     sac_data = []
@@ -84,37 +90,41 @@ def plot_all_trajectories():
     
     # Plot MPC trajectories
     for i, (times, x_positions) in enumerate(mpc_data):
-        # Filter data to first 20 seconds
-        mask = np.array(times) <= 20.0
+        # Filter data to first 10 seconds
+        mask = np.array(times) <= 10.0
         times_filtered = np.array(times)[mask]
         x_filtered = np.array(x_positions)[mask]
-        ax1.plot(times_filtered, x_filtered, color='red', alpha=0.6, linewidth=1.8)
+        ax1.plot(times_filtered, x_filtered, color='red', alpha=1.0, linewidth=1.8,
+                label='MPC' if i == 0 else '')
     
     # Configure MPC position plot
-    ax1.set_ylabel('Cart Position x (m)', fontsize=12)
+    ax1.set_ylabel('x (m)', fontsize=12)
     ax1.grid(True, alpha=0.3, which='major')
     ax1.grid(True, alpha=0.15, which='minor', linestyle=':')
     ax1.minorticks_on()
     ax1.axhline(y=0, color='black', linestyle='--', alpha=0.3, linewidth=1.2)
+    ax1.legend(fontsize=11, loc='best')
     
     # Plot SAC trajectories
     for i, (times, x_positions) in enumerate(sac_data):
-        # Filter data to first 20 seconds
-        mask = np.array(times) <= 20.0
+        # Filter data to first 10 seconds
+        mask = np.array(times) <= 10.0
         times_filtered = np.array(times)[mask]
         x_filtered = np.array(x_positions)[mask]
-        ax2.plot(times_filtered, x_filtered, color='blue', alpha=0.6, linewidth=1.8)
+        ax2.plot(times_filtered, x_filtered, color='blue', alpha=1.0, linewidth=1.8,
+                label='SAC-ZOP' if i == 0 else '')
     
     # Configure SAC position plot
     ax2.set_xlabel('Time (s)', fontsize=12)
-    ax2.set_ylabel('Cart Position x (m)', fontsize=12)
+    ax2.set_ylabel('x (m)', fontsize=12)
     ax2.grid(True, alpha=0.3, which='major')
     ax2.grid(True, alpha=0.15, which='minor', linestyle=':')
     ax2.minorticks_on()
     ax2.axhline(y=0, color='black', linestyle='--', alpha=0.3, linewidth=1.2)
+    ax2.legend(fontsize=11, loc='best')
     
-    # Set x-axis limit to 20 seconds
-    ax2.set_xlim(0, 20)
+    # Set x-axis limit to 10 seconds
+    ax2.set_xlim(0, 10)
     
     plt.tight_layout()
     
@@ -131,57 +141,57 @@ def plot_all_trajectories():
     
     # Plot MPC rewards
     for i, (times, rewards) in enumerate(mpc_reward_data):
-        # Filter data to first 20 seconds
-        mask = np.array(times) <= 20.0
+        # Filter data to first 10 seconds
+        mask = np.array(times) <= 10.0
         times_filtered = np.array(times)[mask]
         rewards_filtered = np.array(rewards)[mask]
-        ax3.plot(times_filtered, rewards_filtered, color='red', alpha=0.6, linewidth=1.8,
+        ax3.plot(times_filtered, rewards_filtered, color='red', alpha=0.3, linewidth=1.8,
                 label='MPC' if i == 0 else '')
     
     # Plot SAC rewards
     for i, (times, rewards) in enumerate(sac_reward_data):
-        # Filter data to first 20 seconds
-        mask = np.array(times) <= 20.0
+        # Filter data to first 10 seconds
+        mask = np.array(times) <= 10.0
         times_filtered = np.array(times)[mask]
         rewards_filtered = np.array(rewards)[mask]
-        ax3.plot(times_filtered, rewards_filtered, color='blue', alpha=0.6, linewidth=1.8,
+        ax3.plot(times_filtered, rewards_filtered, color='blue', alpha=0.3, linewidth=1.8,
                 label='SAC-ZOP' if i == 0 else '')
     
     # Compute and plot mean rewards
     if mpc_reward_data:
-        # Get data up to 20 seconds
+        # Get data up to 10 seconds
         mpc_20s = []
         for times, rewards in mpc_reward_data:
-            mask = np.array(times) <= 20.0
+            mask = np.array(times) <= 10.0
             mpc_20s.append((np.array(times)[mask], np.array(rewards)[mask]))
         
         min_len = min(len(r) for _, r in mpc_20s)
         mpc_reward_mean = np.mean([r[:min_len] for _, r in mpc_20s], axis=0)
         ref_times = mpc_20s[0][0][:min_len]
-        ax3.plot(ref_times, mpc_reward_mean, color='darkred', linewidth=4.5,
-                label='MPC (mean)', linestyle='--')
+        ax3.plot(ref_times, mpc_reward_mean, color='darkred', linewidth=2.5,
+                label='MPC (mean)', linestyle='-')
     
     if sac_reward_data:
-        # Get data up to 20 seconds
+        # Get data up to 10 seconds
         sac_20s = []
         for times, rewards in sac_reward_data:
-            mask = np.array(times) <= 20.0
+            mask = np.array(times) <= 10.0
             sac_20s.append((np.array(times)[mask], np.array(rewards)[mask]))
         
         min_len = min(len(r) for _, r in sac_20s)
         sac_reward_mean = np.mean([r[:min_len] for _, r in sac_20s], axis=0)
         ref_times = sac_20s[0][0][:min_len]
-        ax3.plot(ref_times, sac_reward_mean, color='darkblue', linewidth=4.5,
-                label='SAC-ZOP (mean)', linestyle='--')
+        ax3.plot(ref_times, sac_reward_mean, color='darkblue', linewidth=2.5,
+                label='SAC-ZOP (mean)', linestyle='-')
     
     # Configure reward plot
     ax3.set_xlabel('Time (s)', fontsize=12)
-    ax3.set_ylabel('Accumulated Reward', fontsize=12)
+    ax3.set_ylabel('Accumulated Position Error', fontsize=12)
     ax3.grid(True, alpha=0.3, which='major')
     ax3.grid(True, alpha=0.15, which='minor', linestyle=':')
     ax3.minorticks_on()
     ax3.legend(fontsize=11, loc='best')
-    ax3.set_xlim(0, 20)
+    ax3.set_xlim(0, 10)
     
     plt.tight_layout()
     

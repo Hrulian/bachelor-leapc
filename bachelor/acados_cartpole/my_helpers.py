@@ -198,6 +198,19 @@ def compute_reward(state, force) -> float:
     return float(reward)
 
 
+def reward_eval(x):
+    """Compute reward based on position only.
+    
+    Args:
+        x: position in counts
+    
+    Returns:
+        reward: scaled to give ~20-30 total reward over 15 seconds
+    """
+    x_m = abs(counts_to_meters(x))
+    # Scale down by factor of ~15-20 to get reasonable accumulated values
+    return x_m 
+
 
 def done_eval(state: tuple, current_step: int, max_ep_steps: int, x_threshold: float) -> bool:
     """

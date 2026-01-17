@@ -8,7 +8,7 @@ from bachelor.acados_cartpole.my_helpers import (
     state_tuple_to_tensor,
     counts_to_meters,
     countpersecond_to_meterspersecond,
-    compute_reward,
+    reward_eval,
     sac_state_to_tensor,
 )
 from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
@@ -340,9 +340,8 @@ def main():
             # Convert force to PWM
             u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
             
-            # Compute reward for this step (using helper function)
-            state_with_flag = (x, theta, v, thetadot, 0)
-            reward = compute_reward(state_with_flag, u_force)
+            # Compute reward for this step (using reward_eval function)
+            reward = reward_eval(x)
             accumulated_reward += reward
             
             # Periodic debug output every 10 iterations
