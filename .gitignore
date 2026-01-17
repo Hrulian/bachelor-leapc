@@ -185,10 +185,10 @@ test.gin
 c_generated_code
 
 # Logs and videos
-# keep CSV ignored, but allow image/video files to be committed
-*.csv
+# allow CSV, image, and video files to be committed
 !*.png
 !*.mp4
+!*.csv
 
 # Trash
 **/trash
