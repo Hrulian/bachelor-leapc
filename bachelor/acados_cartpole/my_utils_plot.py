@@ -313,7 +313,7 @@ def plot_policy_heatmap(
     
     # Import required modules for loading the actor
     try:
-        from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import MpcSacActor, SacZopTrainerConfig
+        from bachelor.acados_cartpole.real_sac_zop import MpcSacActor, SacZopTrainerConfig
         from bachelor.acados_cartpole.my_planner import CartPolePlannerConfig, CartPolePlanner, create_custom_cartpole_params
         from leap_c.planner import ControllerFromPlanner
         from leap_c.torch.nn.extractor import get_extractor_cls
@@ -1076,6 +1076,216 @@ def plot_sac_policy_heatmap(
     
     if plt_show:
         plt.show()
+
+
+def plot_critic_heatmap(
+    critic_path: str,
+    x_range: tuple = (-0.35, 0.35),
+    theta_range: tuple = (-np.pi, np.pi),
+    resolution: int = 50,
+    plt_show: bool = False,
+    save_path: str = None,
+    episode_num: int = None
+):
+    """
+    Generate Q-value heatmap grid (3x3) from trained critic network.
+    Shows Q-values for different (v, thetadot) combinations.
+    
+    Args:
+        critic_path: Path to critic.pth checkpoint file
+        x_range: Range of cart positions to visualize (min, max) in meters
+        theta_range: Range of pole angles to visualize (min, max) in radians
+        resolution: Grid resolution (number of points per dimension)
+        plt_show: Whether to display plots interactively
+        save_path: Base path for saving PDFs (if None, uses checkpoint directory)
+        episode_num: Episode number for filename (optional)
+    """
+    import torch
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import TwoSlopeNorm
+    import os
+    from pathlib import Path
+    import gymnasium as gym
+    
+    # Import necessary modules
+    from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
+    from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import SacZopTrainerConfig
+    from bachelor.acados_cartpole.my_planner import (
+        CartPolePlannerConfig,
+        CartPolePlanner,
+        create_custom_cartpole_params
+    )
+    from leap_c.planner import ControllerFromPlanner
+    from leap_c.torch.nn.extractor import get_extractor_cls
+    
+    device = "cpu"
+    
+    # Load config (same as training)
+    cfg_saczop = SacZopTrainerConfig()
+    cfg_saczop.critic_mlp.norm_layer = "layer_norm"  # match training config
+    
+    # Setup planner and action space (same as training)
+    cfg_planner = CartPolePlannerConfig()
+    params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
+    planner = CartPolePlanner(cfg_planner, params)
+    controller_wrapped = ControllerFromPlanner(planner)
+    
+    # Define observation and action spaces (same as training)
+    _x_thr = getattr(cfg_planner, "x_threshold", 0.4)
+    _x_low = -float(_x_thr)
+    _x_high = float(_x_thr)
+    
+    obs_low = np.array([_x_low, -np.pi, -5, -21], dtype=np.float32)
+    obs_high = np.array([_x_high, np.pi, 5, 21], dtype=np.float32)
+    obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+    action_space = controller_wrapped.param_space
+    
+    # Load critic network with proper config
+    extractor_cls = get_extractor_cls("identity")
+    critic = SacCritic(
+        extractor_cls=extractor_cls,
+        observation_space=obs_space,
+        action_space=action_space,
+        mlp_cfg=cfg_saczop.critic_mlp,
+        num_critics=cfg_saczop.num_critics,
+    ).to(device)
+    
+    # Load checkpoint
+    critic.load_state_dict(torch.load(critic_path, map_location=device))
+    critic.eval()
+    print(f"Loaded critic from {critic_path}")
+    
+    # Create meshgrid for different (v, thetadot) combinations
+    v_values = np.array([-1.0, 0.0, 1.0])
+    thetadot_values = np.array([-5.0, 0.0, 5.0])
+    
+    x_vals = np.linspace(x_range[0], x_range[1], resolution)
+    theta_vals = np.linspace(theta_range[0], theta_range[1], resolution)
+    X, Theta = np.meshgrid(x_vals, theta_vals)
+    
+    grid_size_v = len(v_values)
+    grid_size_thetadot = len(thetadot_values)
+    
+    critic_full_grid = np.zeros((grid_size_v, grid_size_thetadot, resolution, resolution))
+    
+    print(f"Computing Q-values over {resolution}x{resolution} grid for 9 (v, thetadot) combinations...")
+    
+    # For each grid point, we need a parameter to evaluate Q(s, param)
+    # We'll use a zero parameter as a reference point
+    param_dim = int(np.prod(action_space.shape))
+    param_ref = torch.zeros(1, param_dim, device=device)
+    
+    # Compute Q-values for all (v, thetadot) combinations
+    with torch.no_grad():
+        for v_idx, v_val in enumerate(v_values):
+            for td_idx, thetadot_val in enumerate(thetadot_values):
+                for i in range(resolution):
+                    for j in range(resolution):
+                        x = X[i, j]
+                        theta = Theta[i, j]
+                        
+                        # Create state tensor: [x, theta, v, thetadot]
+                        state = torch.tensor([[x, theta, v_val, thetadot_val]], 
+                                            dtype=torch.float32, device=device)
+                        
+                        # Get Q-values from both critics
+                        q_values = critic(state, param_ref)
+                        q_values_cat = torch.cat(q_values, dim=1)
+                        
+                        # Take minimum Q-value (standard SAC practice)
+                        q_min = torch.min(q_values_cat, dim=1).values
+                        critic_full_grid[v_idx, td_idx, i, j] = q_min.item()
+    
+    # Filter out inf and nan values
+    critic_full_grid = np.nan_to_num(critic_full_grid, nan=0.0, posinf=0.0, neginf=0.0)
+    critic_full_grid = np.clip(critic_full_grid, -1000, 1000)
+    
+    print(f"Q-value range: [{critic_full_grid.min():.2f}, {critic_full_grid.max():.2f}]")
+    
+    # ========== Create 3x3 grid plot ==========
+    fig, axes = plt.subplots(3, 3, figsize=(10, 10))
+    
+    # Determine global color limits for critic Q-values
+    vmin_critic_global = critic_full_grid.min()
+    vmax_critic_global = critic_full_grid.max()
+    
+    if vmin_critic_global < 0.0 < vmax_critic_global:
+        norm_critic_global = TwoSlopeNorm(vmin=vmin_critic_global, vcenter=0.0, vmax=vmax_critic_global)
+        cmap_critic_global = 'RdYlBu_r'
+    else:
+        norm_critic_global = None
+        cmap_critic_global = 'viridis'
+    
+    # Plot each (v, thetadot) combination in its own subplot
+    for v_idx in range(grid_size_v):
+        for td_idx in range(grid_size_thetadot):
+            ax = axes[td_idx, v_idx]
+            
+            # Get the data for this (v, thetadot) combination
+            data = critic_full_grid[v_idx, td_idx, :, :]
+            
+            # Plot using imshow with correct extent
+            im = ax.imshow(data, cmap=cmap_critic_global, norm=norm_critic_global,
+                          origin='lower', aspect='auto', interpolation='bilinear',
+                          extent=[x_range[0], x_range[1], theta_range[0], theta_range[1]])
+            
+            # Add title with v and thetadot values
+            ax.set_title(f'v={v_values[v_idx]:.1f} m/s, $\\dot{{\\theta}}$={thetadot_values[td_idx]:.1f} rad/s', fontsize=12)
+            
+            # Set custom x-axis ticks
+            ax.set_xticks([-0.3, 0, 0.3])
+            # Set custom y-axis ticks (7 values from -π to π)
+            ax.set_yticks([-3, -2, -1, 0, 1, 2, 3])
+            ax.tick_params(axis='both', which='major', labelsize=12)
+            
+            # Set labels only on outer edges
+            if td_idx == 2:  # Bottom row
+                ax.set_xlabel('x (m)', fontsize=13)
+            else:
+                ax.set_xticklabels([])
+                ax.tick_params(axis='x', which='both', length=0)
+            
+            if v_idx == 0:  # Left column
+                ax.set_ylabel('θ (rad)', fontsize=13)
+            else:
+                ax.set_yticklabels([])
+                ax.tick_params(axis='y', which='both', length=0)
+    
+    # Add a single colorbar for all subplots
+    fig.subplots_adjust(right=0.92)
+    cbar_ax = fig.add_axes([0.94, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax)
+    cbar.set_label(r'$Q$-value', rotation=270, labelpad=20, fontsize=13)
+    cbar.ax.tick_params(labelsize=12)
+    
+    plt.tight_layout(rect=[0, 0, 0.92, 1])
+    
+    # Determine save directory
+    if save_path is None:
+        checkpoint_dir = os.path.dirname(critic_path)
+        save_dir = checkpoint_dir
+    else:
+        save_dir = os.path.dirname(save_path) if save_path else '.'
+    
+    # Create filename suffix
+    ep_suffix = f"_ep{episode_num}" if episode_num is not None else ""
+    
+    # Save figure
+    output_path = os.path.join(save_dir, f'critic_heatmap_grid{ep_suffix}.pdf')
+    try:
+        fig.savefig(output_path, bbox_inches='tight', dpi=150)
+        print(f"Saved critic grid plot to {output_path}")
+    except Exception as e:
+        print(f"Failed to save critic grid plot: {e}")
+    
+    if plt_show:
+        plt.show()
+    else:
+        plt.close()
+    
+    print("\n✓ Critic heatmap generation complete!")
+    return critic_full_grid
 
 
 
