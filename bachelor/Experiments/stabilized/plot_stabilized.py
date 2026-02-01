@@ -86,11 +86,15 @@ def plot_stabilized_from_csv():
         episodes = df.loc[mask, 'episode/episode_number'].values.astype(float)
         stabilized = df.loc[mask, col].values.astype(float)
         
+        # Plot raw curve in background (transparent)
+        ax.plot(episodes, stabilized, color=color, linewidth=1.0, alpha=0.2)
+        
         # Apply advanced smoothing (keeps values between 0 and 1)
         smoothed = advanced_smooth(episodes, stabilized, smoothing_param=smoothing_param)
         
+        # Plot smoothed line on top
         ax.plot(episodes, smoothed, color=color, label=name, 
-                linewidth=1.5, alpha=0.9)
+                linewidth=2.0, alpha=0.9)
         
         # Statistics
         first_success = episodes[stabilized == 1][0] if np.any(stabilized == 1) else None

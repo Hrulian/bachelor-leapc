@@ -9,13 +9,14 @@ from bachelor.acados_cartpole.my_helpers import reward_eval
 TRAJECTORIES_DIR = os.path.join(os.path.dirname(__file__), "Trajectories")
 
 def read_trajectory_csv(filepath):
-    """Read a trajectory CSV file and return time, x position, and computed reward data.
+    """Read a trajectory CSV file and return time, x position, theta angle, and computed reward data.
     
     Returns:
-        tuple: (times, x_positions, rewards) as lists of floats
+        tuple: (times, x_positions, thetas, rewards) as lists of floats
     """
     times = []
     x_positions = []
+    thetas = []
     rewards = []
     
     try:
@@ -26,6 +27,8 @@ def read_trajectory_csv(filepath):
                 try:
                     t = float(row.get('t', ''))
                     x_m = float(row.get('x_m', ''))
+                    theta = float(row.get('theta_unwrapped', ''))
+                    
                     # Calculate reward using reward_eval function
                     # Need to convert x_m back to counts for reward_eval
                     x_counts = x_m / 0.001  # inverse of counts_to_meters
@@ -34,14 +37,15 @@ def read_trajectory_csv(filepath):
                     
                     times.append(t)
                     x_positions.append(x_m)
+                    thetas.append(theta)
                     rewards.append(accumulated_reward)
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, KeyError):
                     continue
     except Exception as e:
         print(f"Error reading {filepath}: {e}")
-        return None, None, None
+        return None, None, None, None
     
-    return times, x_positions, rewards
+    return times, x_positions, thetas, rewards
 
 
 def plot_all_trajectories():
@@ -74,136 +78,177 @@ def plot_all_trajectories():
     sac_reward_data = []
     
     for filepath in mpc_files:
-        times, x_positions, rewards = read_trajectory_csv(filepath)
+        times, x_positions, thetas, rewards = read_trajectory_csv(filepath)
         if times and x_positions:
-            mpc_data.append((times, x_positions))
+            mpc_data.append((times, x_positions, thetas))
             mpc_reward_data.append((times, rewards))
+            print(f"  Loaded MPC: {os.path.basename(filepath)} ({len(times)} points)")
     
     for filepath in sac_files:
-        times, x_positions, rewards = read_trajectory_csv(filepath)
+        times, x_positions, thetas, rewards = read_trajectory_csv(filepath)
         if times and x_positions:
-            sac_data.append((times, x_positions))
+            sac_data.append((times, x_positions, thetas))
             sac_reward_data.append((times, rewards))
+            print(f"  Loaded SAC: {os.path.basename(filepath)} ({len(times)} points)")
     
-    # Plot 1: Stacked position trajectories (MPC and SAC-ZOP)
-    fig1, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, sharey=True)
+    # Compute global axis limits for position and angle plots
+    all_x = []
+    all_theta = []
+    for times, x_positions, thetas in mpc_data + sac_data:
+        all_x.extend(x_positions)
+        all_theta.extend(thetas)
     
-    # Plot MPC trajectories
-    for i, (times, x_positions) in enumerate(mpc_data):
-        # Filter data to first 10 seconds
-        mask = np.array(times) <= 10.0
-        times_filtered = np.array(times)[mask]
-        x_filtered = np.array(x_positions)[mask]
-        ax1.plot(times_filtered, x_filtered, color='red', alpha=1.0, linewidth=1.8,
-                label='MPC' if i == 0 else '')
+    x_min, x_max = min(all_x), max(all_x)
+    theta_min, theta_max = min(all_theta), max(all_theta)
     
-    # Configure MPC position plot
-    ax1.set_ylabel('x (m)', fontsize=12)
-    ax1.grid(True, alpha=0.3, which='major')
-    ax1.grid(True, alpha=0.15, which='minor', linestyle=':')
-    ax1.minorticks_on()
-    ax1.axhline(y=0, color='black', linestyle='--', alpha=0.3, linewidth=1.2)
-    ax1.legend(fontsize=11, loc='best')
+    # Add 10% padding to limits
+    x_padding = (x_max - x_min) * 0.1
+    theta_padding = (theta_max - theta_min) * 0.1
+    x_lim = (x_min - x_padding, x_max + x_padding)
+    theta_lim = (theta_min - theta_padding, theta_max + theta_padding)
     
-    # Plot SAC trajectories
-    for i, (times, x_positions) in enumerate(sac_data):
-        # Filter data to first 10 seconds
-        mask = np.array(times) <= 10.0
-        times_filtered = np.array(times)[mask]
-        x_filtered = np.array(x_positions)[mask]
-        ax2.plot(times_filtered, x_filtered, color='blue', alpha=1.0, linewidth=1.8,
-                label='SAC-ZOP' if i == 0 else '')
+    print(f"\nShared axis limits:")
+    print(f"  Position: [{x_lim[0]:.3f}, {x_lim[1]:.3f}] m")
+    print(f"  Angle: [{theta_lim[0]:.3f}, {theta_lim[1]:.3f}] rad")
     
-    # Configure SAC position plot
-    ax2.set_xlabel('Time (s)', fontsize=12)
-    ax2.set_ylabel('x (m)', fontsize=12)
-    ax2.grid(True, alpha=0.3, which='major')
-    ax2.grid(True, alpha=0.15, which='minor', linestyle=':')
-    ax2.minorticks_on()
-    ax2.axhline(y=0, color='black', linestyle='--', alpha=0.3, linewidth=1.2)
-    ax2.legend(fontsize=11, loc='best')
+    # Define colors (less intense)
+    mpc_color = '#FF8C42'  # Soft orange
+    sac_color = '#5EBA7D'  # Soft green
     
-    # Set x-axis limit to 10 seconds
-    ax2.set_xlim(0, 10)
-    
-    plt.tight_layout()
-    
-    # Save stacked position plot as PDF
-    save_path1 = os.path.join(TRAJECTORIES_DIR, 'position_comparison.pdf')
-    try:
-        fig1.savefig(save_path1, dpi=150, bbox_inches='tight')
-        print(f"Saved position comparison plot to: {save_path1}")
-    except Exception as e:
-        print(f"Failed to save position comparison plot: {e}")
-    
-    # Plot 2: Accumulated Reward (with mean lines)
-    fig2, ax3 = plt.subplots(figsize=(12, 6))
+    # ========== Figure 1: Accumulated Reward Comparison ==========
+    fig1, ax1 = plt.subplots(figsize=(12, 6))
     
     # Plot MPC rewards
     for i, (times, rewards) in enumerate(mpc_reward_data):
-        # Filter data to first 10 seconds
-        mask = np.array(times) <= 10.0
-        times_filtered = np.array(times)[mask]
-        rewards_filtered = np.array(rewards)[mask]
-        ax3.plot(times_filtered, rewards_filtered, color='red', alpha=0.3, linewidth=1.8,
+        times_arr = np.array(times)
+        rewards_arr = np.array(rewards)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        rewards_filtered = rewards_arr[mask]
+        ax1.plot(times_filtered, rewards_filtered, color=mpc_color, alpha=1.0, linewidth=1.5,
                 label='MPC' if i == 0 else '')
     
     # Plot SAC rewards
     for i, (times, rewards) in enumerate(sac_reward_data):
-        # Filter data to first 10 seconds
-        mask = np.array(times) <= 10.0
-        times_filtered = np.array(times)[mask]
-        rewards_filtered = np.array(rewards)[mask]
-        ax3.plot(times_filtered, rewards_filtered, color='blue', alpha=0.3, linewidth=1.8,
+        times_arr = np.array(times)
+        rewards_arr = np.array(rewards)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        rewards_filtered = rewards_arr[mask]
+        ax1.plot(times_filtered, rewards_filtered, color=sac_color, alpha=1.0, linewidth=1.5,
                 label='SAC-ZOP' if i == 0 else '')
     
-    # Compute and plot mean rewards
-    if mpc_reward_data:
-        # Get data up to 10 seconds
-        mpc_20s = []
-        for times, rewards in mpc_reward_data:
-            mask = np.array(times) <= 10.0
-            mpc_20s.append((np.array(times)[mask], np.array(rewards)[mask]))
-        
-        min_len = min(len(r) for _, r in mpc_20s)
-        mpc_reward_mean = np.mean([r[:min_len] for _, r in mpc_20s], axis=0)
-        ref_times = mpc_20s[0][0][:min_len]
-        ax3.plot(ref_times, mpc_reward_mean, color='darkred', linewidth=2.5,
-                label='MPC (mean)', linestyle='-')
-    
-    if sac_reward_data:
-        # Get data up to 10 seconds
-        sac_20s = []
-        for times, rewards in sac_reward_data:
-            mask = np.array(times) <= 10.0
-            sac_20s.append((np.array(times)[mask], np.array(rewards)[mask]))
-        
-        min_len = min(len(r) for _, r in sac_20s)
-        sac_reward_mean = np.mean([r[:min_len] for _, r in sac_20s], axis=0)
-        ref_times = sac_20s[0][0][:min_len]
-        ax3.plot(ref_times, sac_reward_mean, color='darkblue', linewidth=2.5,
-                label='SAC-ZOP (mean)', linestyle='-')
-    
     # Configure reward plot
-    ax3.set_xlabel('Time (s)', fontsize=12)
-    ax3.set_ylabel('Accumulated Position Error', fontsize=12)
-    ax3.grid(True, alpha=0.3, which='major')
-    ax3.grid(True, alpha=0.15, which='minor', linestyle=':')
-    ax3.minorticks_on()
-    ax3.legend(fontsize=11, loc='best')
-    ax3.set_xlim(0, 10)
+    ax1.set_xlabel('Time (s)', fontsize=12)
+    ax1.set_ylabel('Accumulated Position Error (m)', fontsize=12)
+    ax1.grid(True, alpha=0.3, which='major')
+    ax1.grid(True, alpha=0.15, which='minor', linestyle=':')
+    ax1.minorticks_on()
+    ax1.legend(fontsize=11, loc='best')
+    ax1.set_xlim(0, 12)
     
     plt.tight_layout()
     
-    # Save reward plot as PDF
-    save_path2 = os.path.join(TRAJECTORIES_DIR, 'reward_comparison.pdf')
+    # Save reward plot
+    save_path1 = os.path.join(TRAJECTORIES_DIR, 'reward_comparison.pdf')
     try:
-        fig2.savefig(save_path2, dpi=150, bbox_inches='tight')
-        print(f"Saved reward plot to: {save_path2}")
+        fig1.savefig(save_path1, format='pdf', dpi=150, bbox_inches='tight')
+        print(f"\nSaved reward comparison plot to: {save_path1}")
     except Exception as e:
-        print(f"Failed to save reward plot: {e}")
+        print(f"Failed to save reward comparison plot: {e}")
     
-    # Show plots
+    # ========== Figure 2: Combined Trajectories (MPC and SAC-ZOP) ==========
+    fig2, ((ax2a, ax2b), (ax2c, ax2d)) = plt.subplots(2, 2, figsize=(16, 8), sharex=True)
+    
+    # Plot MPC positions (top left)
+    for i, (times, x_positions, thetas) in enumerate(mpc_data):
+        times_arr = np.array(times)
+        x_arr = np.array(x_positions)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        x_filtered = x_arr[mask]
+        ax2a.plot(times_filtered, x_filtered, color=mpc_color, alpha=1.0, linewidth=1.5,
+                 label='MPC' if i == 0 else '')
+    
+    # Plot MPC angles (bottom left)
+    for i, (times, x_positions, thetas) in enumerate(mpc_data):
+        times_arr = np.array(times)
+        theta_arr = np.array(thetas)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        theta_filtered = theta_arr[mask]
+        ax2c.plot(times_filtered, theta_filtered, color=mpc_color, alpha=1.0, linewidth=1.5,
+                 label='MPC' if i == 0 else '')
+    
+    # Plot SAC positions (top right)
+    for i, (times, x_positions, thetas) in enumerate(sac_data):
+        times_arr = np.array(times)
+        x_arr = np.array(x_positions)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        x_filtered = x_arr[mask]
+        ax2b.plot(times_filtered, x_filtered, color=sac_color, alpha=1.0, linewidth=1.5,
+                 label='SAC-ZOP' if i == 0 else '')
+    
+    # Plot SAC angles (bottom right)
+    for i, (times, x_positions, thetas) in enumerate(sac_data):
+        times_arr = np.array(times)
+        theta_arr = np.array(thetas)
+        mask = times_arr <= 12.0
+        times_filtered = times_arr[mask]
+        theta_filtered = theta_arr[mask]
+        ax2d.plot(times_filtered, theta_filtered, color=sac_color, alpha=1.0, linewidth=1.5,
+                 label='SAC-ZOP' if i == 0 else '')
+    
+    # Configure MPC position subplot (top left)
+    ax2a.set_ylabel('x (m)', fontsize=12)
+    ax2a.grid(True, alpha=0.3, which='major')
+    ax2a.grid(True, alpha=0.15, which='minor', linestyle=':')
+    ax2a.minorticks_on()
+    ax2a.legend(fontsize=11, loc='best')
+    ax2a.set_title('MPC Position', fontsize=13)
+    ax2a.set_ylim(x_lim)
+    
+    # Configure SAC position subplot (top right)
+    ax2b.set_ylabel('x (m)', fontsize=12)
+    ax2b.grid(True, alpha=0.3, which='major')
+    ax2b.grid(True, alpha=0.15, which='minor', linestyle=':')
+    ax2b.minorticks_on()
+    ax2b.legend(fontsize=11, loc='best')
+    ax2b.set_title('SAC-ZOP Position', fontsize=13)
+    ax2b.set_ylim(x_lim)
+    
+    # Configure MPC angle subplot (bottom left)
+    ax2c.set_xlabel('Time (s)', fontsize=12)
+    ax2c.set_ylabel('θ (rad, unwrapped)', fontsize=12)
+    ax2c.grid(True, alpha=0.3, which='major')
+    ax2c.grid(True, alpha=0.15, which='minor', linestyle=':')
+    ax2c.minorticks_on()
+    ax2c.set_xlim(0, 12)
+    ax2c.set_ylim(theta_lim)
+    ax2c.set_title('MPC Angle', fontsize=13)
+    
+    # Configure SAC angle subplot (bottom right)
+    ax2d.set_xlabel('Time (s)', fontsize=12)
+    ax2d.set_ylabel('θ (rad, unwrapped)', fontsize=12)
+    ax2d.grid(True, alpha=0.3, which='major')
+    ax2d.grid(True, alpha=0.15, which='minor', linestyle=':')
+    ax2d.minorticks_on()
+    ax2d.set_xlim(0, 12)
+    ax2d.set_ylim(theta_lim)
+    ax2d.set_title('SAC-ZOP Angle', fontsize=13)
+    
+    plt.tight_layout()
+    
+    # Save combined trajectories plot
+    save_path2 = os.path.join(TRAJECTORIES_DIR, 'trajectories_comparison.pdf')
+    try:
+        fig2.savefig(save_path2, format='pdf', dpi=150, bbox_inches='tight')
+        print(f"Saved combined trajectories plot to: {save_path2}")
+    except Exception as e:
+        print(f"Failed to save combined trajectories plot: {e}")
+    
+    # Show all plots
     plt.show()
 
 

@@ -2,26 +2,12 @@
 """
 estimate_from_data.py
 
-Searches CSV files in ../final_speed_param/data/, expects files with columns
-like 't' (ms) and 'x' (counts). Optionally a PWM column ('pwm' or 'pww') may be
-present, otherwise the script will try to parse PWM from the filename using the
-same filename conventions as `integrate_estimatorV1.py` (e.g. 'pwm-225.csv' or
-'pwm-rev-225.csv').
-
-For files missing a 'v' column the script computes v (m/s) by:
-  - converting x (counts) -> x (meters) using counts_per_revolution=1024,
-    wheel_circumference=0.04
-  - converting t from ms -> s
-  - computing v by backward difference v[i] = (x[i]-x[i-1])/(t[i]-t[i-1])
-
-After assembling experiments the script runs a non-linear least-squares fit
-for parameters [a,b,c] using the analytical closed-form v(t) from
-`integrate_estimatorV1.py` and plots measured vs model velocities.
-
-Usage:
-  python3 estimate_from_data.py
-  python3 estimate_from_data.py --data-dir ../final_speed_param/data --pattern "*.csv"
-
+Estimates parameters alpha, beta, gamma from the velocity model:
+    v_dot = alpha * U - beta * v - gamma * sgn(v)
+where:
+    alpha = a/m_c  (voltage-to-acceleration gain)
+    beta = b/m_c   (viscous damping coefficient)
+    gamma = c/m_c  (Coulomb friction coefficient)
 """
 
 import argparse
@@ -52,28 +38,40 @@ def parse_pwm_filename(path, supply_voltage: float = 24.0):
     u = sign * supply_voltage * pwm_val / 255.0
     return u, pwm_val, sign
 
-def v_closed_form_phys(t, u, K_U, F_c, b_v, s, v0, t0, M):
+
+def v_closed_form(t, u, alpha, beta, gamma, s, v0, t0):
     """
-    Lösung der DGL:
-        M * v_dot = K_U * u - F_c * s - b_v * v
-    mit konstantem u und s (s = sign(v)).
+    Closed-form solution of the velocity model:
+        v_dot = alpha * U - beta * v - gamma * sgn(v)
+    
+    with constant u and s = sgn(v).
+    
+    Args:
+        t: time array
+        u: voltage [V]
+        alpha: voltage-to-acceleration gain [m/(s²·V)]
+        beta: viscous damping [1/s]
+        gamma: Coulomb friction [m/s²]
+        s: sign of velocity
+        v0: initial velocity at t0
+        t0: initial time
+    
+    Returns:
+        v(t) = v_inf + (v0 - v_inf) * exp(-beta * (t - t0))
+        where v_inf = (alpha * u - gamma * s) / beta
     """
     tau = t - t0
 
-    # Parameter der normierten DGL v_dot = -a v + d
-    a = b_v / M
-    d = (K_U / M) * u - (F_c / M) * s
+    if np.isclose(beta, 0.0):
+        # Limit case: no viscous damping -> linear growth
+        return v0 + (alpha * u - gamma * s) * tau
 
-    if np.isclose(a, 0.0):
-        # Grenzfall: quasi keine viskose Dämpfung -> lineares Wachstum
-        return v0 + d * tau
-
-    v_inf = d / a
-    return v_inf + (v0 - v_inf) * np.exp(-a * tau)
+    # Steady-state velocity
+    v_inf = (alpha * u - gamma * s) / beta
+    
+    return v_inf + (v0 - v_inf) * np.exp(-beta * tau)
 
 
-
-# Conversion utilities (same as used earlier)
 def counts_to_meters(counts: float) -> float:
     counts_per_revolution = 1024.0
     wheel_circumference = 0.04
@@ -97,13 +95,7 @@ def compute_v_from_tx(t_ms: np.ndarray, x_counts: np.ndarray) -> np.ndarray:
 
 
 def alpha_filter(data: np.ndarray, alpha: float) -> np.ndarray:
-    """Exponential (IIR) smoothing of 1D data.
-
-    y[0] = data[0]
-    y[i] = alpha * data[i] + (1-alpha) * y[i-1]
-
-    alpha closer to 1.0 -> less smoothing / less lag.
-    """
+    """Exponential (IIR) smoothing of 1D data."""
     if alpha is None or alpha >= 1.0 or alpha <= 0.0:
         return data.copy()
     n = len(data)
@@ -116,7 +108,6 @@ def alpha_filter(data: np.ndarray, alpha: float) -> np.ndarray:
     return out
 
 
-# default smoothing alpha (0 < alpha <= 1). Increase toward 1.0 for less smoothing.
 DEFAULT_ALPHA = 1
 
 
@@ -154,16 +145,15 @@ def build_experiments(files: List[str], supply_voltage: float = 24.0, alpha: flo
         t_ms = df[time_col].to_numpy(dtype=float)
         x_counts = df[x_col].to_numpy(dtype=float)
 
-        # velocity: use existing or compute (always convert x->m and t->s)
+        # velocity: use existing or compute
         if v_col is not None:
             v = df[v_col].to_numpy(dtype=float)
-            # convert time to s for consistency
             t_s = t_ms.astype(float) / 1000.0
             x_m = np.vectorize(counts_to_meters)(x_counts.astype(float))
         else:
             t_s, x_m, v = compute_v_from_tx(t_ms, x_counts)
 
-        # apply optional alpha smoothing to velocity (0 < alpha < 1)
+        # apply optional alpha smoothing to velocity
         try:
             a = float(alpha)
         except Exception:
@@ -176,13 +166,11 @@ def build_experiments(files: List[str], supply_voltage: float = 24.0, alpha: flo
         sign = 1.0
         u = 0.0
         if pwm_col is not None:
-            # take first value (should be constant)
             try:
                 pwm_val = int(df[pwm_col].iloc[0])
             except Exception:
                 pwm_val = 0
         else:
-            # try to parse from filename
             try:
                 u_guess, pwm_guess, sign_guess = parse_pwm_filename(path, supply_voltage=supply_voltage)
                 pwm_val = pwm_guess
@@ -191,11 +179,9 @@ def build_experiments(files: List[str], supply_voltage: float = 24.0, alpha: flo
             except Exception:
                 pwm_val = 0
 
-        # if u not set from filename and pwm column present, compute u
         if u == 0.0 and pwm_val is not None:
             u = sign * supply_voltage * pwm_val / 255.0
 
-        # ensure sign (if pwm==0, derive from mean v)
         if pwm_val == 0:
             sign = float(np.sign(np.mean(v))) if np.any(v) else 1.0
 
@@ -211,19 +197,31 @@ def build_experiments(files: List[str], supply_voltage: float = 24.0, alpha: flo
     return experiments
 
 
-def residuals_all_phys(theta, experiments, M):
-    K_U, F_c, b_v = theta
+def residuals_all(theta, experiments):
+    """
+    Compute residuals for all experiments.
+    
+    Args:
+        theta: [alpha, beta, gamma]
+        experiments: list of experiment dictionaries
+    
+    Returns:
+        Stacked residual vector
+    """
+    alpha, beta, gamma = theta
     res_list = []
+    
     for exp in experiments:
         t = exp['t']
         v_meas = exp['v']
         u = exp['u']
         t0 = t[0]
         v0 = v_meas[0]
-        # Bewegungsrichtung (für s = sign(v)), 0 -> 1.0 als Fallback
+        
+        # Sign of velocity direction
         s = float(np.sign(np.mean(v_meas))) if np.any(v_meas) else 1.0
 
-        v_model = v_closed_form_phys(t, u, K_U, F_c, b_v, s, v0, t0, M)
+        v_model = v_closed_form(t, u, alpha, beta, gamma, s, v0, t0)
         res_v = v_model - v_meas
         res_list.append(res_v)
 
@@ -233,18 +231,19 @@ def residuals_all_phys(theta, experiments, M):
 
 
 def main():
-    # mass
-    M = 0.1744  # kg
+    # Cart mass
+    m_c = 0.1744  # kg
+    
     # defaults
     base_dir = os.path.dirname(__file__)
     data_dir = os.path.normpath(os.path.join(base_dir, '..', 'final_speed_param', 'data'))
     pattern = '*.csv'
 
-    # allow simple CLI overrides
     parser = argparse.ArgumentParser(description='Estimate parameters from recorded CSV files')
-    parser.add_argument('--data-dir', default=data_dir, help='Directory containing CSV files (default: %(default)s)')
-    parser.add_argument('--pattern', default=pattern, help='Glob pattern to match files (default: %(default)s)')
-    parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA, help='Exponential smoothing alpha for velocity (0 < alpha <= 1). Larger alpha -> less smoothing.')
+    parser.add_argument('--data-dir', default=data_dir, help='Directory containing CSV files')
+    parser.add_argument('--pattern', default=pattern, help='Glob pattern to match files')
+    parser.add_argument('--alpha', type=float, default=DEFAULT_ALPHA, 
+                       help='Exponential smoothing alpha for velocity (0 < alpha <= 1)')
     args = parser.parse_args()
     data_dir = args.data_dir
     pattern = args.pattern
@@ -266,56 +265,102 @@ def main():
         print('No valid experiments. Exiting.', file=sys.stderr)
         sys.exit(2)
 
-    # initial guess: [K_U, F_c, b_v]
-    theta0 = [10.0, 1.0, 1.0]  # grobe Startwerte, kannst du anpassen
+    # Initial guess: [alpha, beta, gamma]
+    # Reasonable starting values based on physical intuition
+    theta0 = [10.0, 5.0, 5.0]
 
-    # Schranken: alle Parameter physikalisch >= 0
+    # Bounds: all parameters physically >= 0
     lower_bounds = [0.0, 0.0, 0.0]
     upper_bounds = [np.inf, np.inf, np.inf]
 
     result = least_squares(
-        fun=residuals_all_phys,
+        fun=residuals_all,
         x0=theta0,
-        args=(experiments, M),
+        args=(experiments,),
         bounds=(lower_bounds, upper_bounds),
         method='trf',
         max_nfev=5000,
     )
 
-    print('\nOptimization finished')
+    print('\n' + '='*60)
+    print('OPTIMIZATION RESULTS')
+    print('='*60)
     print('Success:', result.success)
     print('Message:', result.message)
-    K_U_hat, F_c_hat, b_v_hat = result.x
-    print(f'Estimated parameters:')
-    print(f'  K_U = {K_U_hat:.6f}  [N / V oder N / PWM-Einheit]')
-    print(f'  F_c = {F_c_hat:.6f}  [N]')
-    print(f'  b_v = {b_v_hat:.6f}  [N·s/m]')
+    print()
+    
+    alpha_hat, beta_hat, gamma_hat = result.x
+    
+    print('Estimated normalized parameters (used in model):')
+    print(f'  α (alpha) = {alpha_hat:.6f}  [m/(s²·V)]  (voltage-to-acceleration gain)')
+    print(f'  β (beta)  = {beta_hat:.6f}  [1/s]        (viscous damping coefficient)')
+    print(f'  γ (gamma) = {gamma_hat:.6f}  [m/s²]      (Coulomb friction coefficient)')
+    print()
+    
+    # Convert back to physical parameters
+    a = alpha_hat * m_c  # [N/V]
+    b = beta_hat * m_c   # [N·s/m]
+    c = gamma_hat * m_c  # [N]
+    
+    print(f'Corresponding physical parameters (with m_c = {m_c} kg):')
+    print(f'  a = α·m_c = {a:.6f}  [N/V]      (motor force gain)')
+    print(f'  b = β·m_c = {b:.6f}  [N·s/m]    (viscous friction)')
+    print(f'  c = γ·m_c = {c:.6f}  [N]        (Coulomb friction)')
+    print('='*60)
 
+    # Group experiments by absolute PWM value for plotting
+    pwm_abs_values = sorted(set(abs(exp['pwm']) for exp in experiments))
+    colors = plt.cm.tab10(np.linspace(0, 1, len(pwm_abs_values)))
+    pwm_to_color = {pwm_abs: colors[i] for i, pwm_abs in enumerate(pwm_abs_values)}
+    
+    labeled_meas = set()
+    labeled_model = set()
 
-    # Plot measured vs model
+    # Plot measured vs model (only first 0.3 seconds)
     plt.figure(figsize=(10, 6))
     for exp in experiments:
         t = exp['t']
         v_meas = exp['v']
         u = exp['u']
+        pwm = exp['pwm']
         t0 = t[0]
         v0 = v_meas[0]
         s = float(np.sign(np.mean(v_meas))) if np.any(v_meas) else 1.0
-        v_model = v_closed_form_phys(t, u, K_U_hat, F_c_hat, b_v_hat, s, v0, t0, M)
+        v_model = v_closed_form(t, u, alpha_hat, beta_hat, gamma_hat, s, v0, t0)
 
-        plt.plot(t, v_meas, '-', linewidth=1.2, label=f"meas u={u:.2f}V")
-        plt.plot(t, v_model, '--', linewidth=1.5, label=f"model u={u:.2f}V")
+        # Filter to first 0.3 seconds
+        mask = t <= 0.3
+        t_filtered = t[mask]
+        v_meas_filtered = v_meas[mask]
+        v_model_filtered = v_model[mask]
 
-    plt.xlabel('t [s]')
-    plt.ylabel('v [m/s]')
-    plt.title('Measured vs. Model velocity')
-    plt.legend(ncol=2)
-    plt.grid(True)
+        # Get color based on absolute PWM value
+        pwm_abs = abs(pwm)
+        color = pwm_to_color[pwm_abs]
+        
+        # Create label with ± notation
+        u_abs = abs(u)
+        label_base = f'±{u_abs:.1f} V'
+        
+        label_meas = label_base if pwm_abs not in labeled_meas else None
+        label_model = f'{label_base} (model)' if pwm_abs not in labeled_model else None
+        
+        plt.plot(t_filtered, v_meas_filtered, '-', linewidth=1.2, color=color, label=label_meas)
+        plt.plot(t_filtered, v_model_filtered, '--', linewidth=1.5, color=color, label=label_model)
+        
+        labeled_meas.add(pwm_abs)
+        labeled_model.add(pwm_abs)
+
+    plt.xlabel('Time (s)', fontsize=12)
+    plt.ylabel('Velocity (m/s)', fontsize=12)
+    plt.legend(loc='best', fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.xlim(0, 0.3)
     plt.tight_layout()
     
-    # Save plot to file and show it
-    output_path = os.path.join(data_dir, 'velocity_fit.png')
-    plt.savefig(output_path, dpi=150)
+    # Save plot
+    output_path = os.path.join(os.path.dirname(__file__), 'velocity_fit.pdf')
+    plt.savefig(output_path, format='pdf', bbox_inches='tight')
     print(f'\nPlot saved to: {output_path}')
     plt.show()
 

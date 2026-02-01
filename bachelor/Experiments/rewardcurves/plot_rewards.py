@@ -89,12 +89,15 @@ def plot_rewards_from_csv():
         episodes = df.loc[mask, 'episode/episode_number'].values.astype(float)
         rewards = df.loc[mask, col].values.astype(float)
         
+        # Plot raw curve in background (transparent)
+        ax.plot(episodes, rewards, color=color, linewidth=1.0, alpha=0.2)
+        
         # Apply advanced smoothing
         smoothed = advanced_smooth(episodes, rewards, smoothing_param=smoothing_param)
         
-        # Plot smoothed line only (no dots)
+        # Plot smoothed line on top
         ax.plot(episodes, smoothed, color=color, label=name, 
-                linewidth=1.5, alpha=0.9)
+                linewidth=2.0, alpha=0.9)
         
         print(f"\n{name}:")
         print(f"  Episodes: {len(rewards)}")
