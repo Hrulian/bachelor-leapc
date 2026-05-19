@@ -240,8 +240,8 @@ actor = MpcSacActor(
 
 # entropy temperature ALpha init
 log_alpha = torch.nn.Parameter(
-    torch.tensor(cfg_saczop.init_alpha, dtype=torch.float32).log()
-).to(device)
+    torch.tensor(cfg_saczop.init_alpha, dtype=torch.float32, device=device).log()
+)
 
 
 alpha_optimizer = (
@@ -290,11 +290,24 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
                 
                 # train every update_freq buffer drops (= every update_freq*N steps)
                 if buffer_drops_since_update >= update_freq:
-                    # perform 20 training steps
+                    # Time the entire learning step (20 critic + 5 actor updates)
+                    learning_step_start = time.perf_counter()
+                    
+                    # perform 20 training steps (10 critic per actor update * 2 actor updates)
                     for i in range(20):
                         # update actor only every actor_update_freq steps
                         update_actor = (i % actor_update_freq == 0)
-                        saczop_single_step_update(batch_size, update_actor=update_actor)
+                        # log metrics after the 2nd actor update (i=10, which is the last actor update)
+                        log_metrics = (i == 20)
+                        saczop_single_step_update(batch_size, update_actor=update_actor, log_metrics=log_metrics)
+                    
+                    # Record full learning step time
+                    learning_step_elapsed = time.perf_counter() - learning_step_start
+                    try:
+                        wandb.log({'learning/full_step_time_ms': learning_step_elapsed * 1000}, step=abs_step_count)
+                    except Exception:
+                        pass
+                    
                     buffer_drops_since_update = 0
 
         except Exception as e:
@@ -304,7 +317,7 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
             learning_event.clear()
               
               
-def saczop_single_step_update(batch_size, update_actor=True):
+def saczop_single_step_update(batch_size, update_actor=True, log_metrics=False):
     """
     -Performs a single SAC-ZOP update step using a batch sampled from the replay buffer.
     -Only updates when enough samples are available in the buffer.
@@ -313,6 +326,7 @@ def saczop_single_step_update(batch_size, update_actor=True):
     Args:
         batch_size: The number of samples to use for the update.
         update_actor: Whether to update the actor network in this step.
+        log_metrics: Whether to compute and log metrics (only on last update of cycle).
     Returns:
         A boolean indicating whether the update was performed.
     """
@@ -329,19 +343,23 @@ def saczop_single_step_update(batch_size, update_actor=True):
     # sample batch
     o, a, r, o_prime, te = replay_buffer.sample(batch_size)
 
+    # Compute alpha (keep gradients for temperature update)
+    alpha = log_alpha.exp()
+    alpha_detached = alpha.detach()  # For use in target computation (no grad needed)
+    
     # policy params for o and o_prime
     with torch.no_grad():
         pi_o_prime = actor(o_prime, None, only_param=True)
-        q_target = torch.cat(target_critic(o_prime, pi_o_prime.param), dim=1)
+        q_target = target_critic(o_prime, pi_o_prime.param)  # (batch_size, num_critics)
         q_target = torch.min(q_target, dim=1, keepdim=True).values
 
         factor = cfg_saczop.entropy_reward_bonus / entropy_norm
-        q_target = q_target - (log_alpha.exp().item()) * pi_o_prime.log_prob * factor
+        q_target = q_target - alpha_detached * pi_o_prime.log_prob * factor
 
         target = r[:, None].to(device) + cfg_saczop.gamma * (1 - te[:, None].to(device)) * q_target
 
     # critic update
-    q = torch.cat(critic(o, a), dim=1)
+    q = critic(o, a)  # (batch_size, num_critics)
     q_loss = torch.mean((q - target).pow(2))
 
     critic_optimizer.zero_grad()
@@ -354,29 +372,20 @@ def saczop_single_step_update(batch_size, update_actor=True):
         a_pi = pi_o.param
         log_p = pi_o.log_prob / entropy_norm
 
-        # temperature update
+        # temperature update (uses alpha with gradients)
         if alpha_optimizer is not None:
-            alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
+            alpha_loss = -torch.mean(alpha * (log_p + target_entropy).detach())
             alpha_optimizer.zero_grad()
             alpha_loss.backward()
             alpha_optimizer.step()
 
-        q_pi = torch.cat(critic(o, a_pi), dim=1)
+        q_pi = critic(o, a_pi)  # (batch_size, num_critics)
         min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-        pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
+        pi_loss = (alpha_detached.item() * log_p - min_q_pi).mean()
 
         actor_optimizer.zero_grad()
         pi_loss.backward()
         actor_optimizer.step()
-    else:
-        # compute pi_loss for logging even when not updating
-        with torch.no_grad():
-            pi_o = actor(o, None, only_param=True)
-            a_pi = pi_o.param
-            log_p = pi_o.log_prob / entropy_norm
-            q_pi = torch.cat(critic(o, a_pi), dim=1)
-            min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
-            pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
     
     # soft update targets
     if learning_step % cfg_saczop.soft_update_freq == 0:
@@ -385,24 +394,25 @@ def saczop_single_step_update(batch_size, update_actor=True):
     # increment learning step count
     learning_step += 1
     
-    # record timing
+    # record timing (for debugging, but not logged individually)
     elapsed_time = time.perf_counter() - start_time
     training_step_times.append(elapsed_time)
     
-    # log learning statistics to wandb
-    try:
-        wandb.log({
-            'learning/q_loss': q_loss.item(),
-            'learning/pi_loss': pi_loss.item(),
-            'learning/alpha': log_alpha.exp().item(),
-            'learning/q': q.mean().item(),
-            'learning/q_target': target.mean().item(),
-            'learning/entropy': -log_p.mean().item(),
-            'learning/learning_step': learning_step,
-            'learning/step_time_ms': elapsed_time * 1000,  # convert to ms
-        }, step=abs_step_count)
-    except Exception:
-        pass
+    # Only log metrics on the last update of a cycle (log_metrics=True)
+    # This reduces wandb overhead from 9 logs per update to 1 log per cycle
+    if log_metrics and update_actor:
+        try:
+            wandb.log({
+                'learning/q_loss': q_loss.item(),
+                'learning/pi_loss': pi_loss.item(),
+                'learning/alpha': alpha.detach().item(),
+                'learning/q': q.mean().item(),
+                'learning/q_target': target.mean().item(),
+                'learning/entropy': -log_p.mean().item(),
+                'learning/learning_step': learning_step,
+            }, step=abs_step_count)
+        except Exception:
+            pass
     
     return True
 
@@ -410,12 +420,15 @@ def saczop_single_step_update(batch_size, update_actor=True):
 def inbetween_training(num_updates: int):
     """
     Perform additional training updates between episodes.
+    Only logs metrics on the last update to reduce wandb overhead.
     Args:
         num_updates: Number of update steps to perform.
     """
     
-    for _ in range(num_updates):
-        ok = saczop_single_step_update(cfg_saczop.batch_size)
+    for i in range(num_updates):
+        # Only log metrics on the last update of this cycle
+        log_metrics = (i == num_updates - 1)
+        ok = saczop_single_step_update(cfg_saczop.batch_size, log_metrics=log_metrics)
         if not ok:
             # not enough data in buffer yet
             break  
@@ -577,7 +590,7 @@ def main():
     if wandb_run_id:
         print(f"Resuming wandb run: {wandb_run_id}")
         wandb.init(
-            project="cartpole-sac-zop-1",
+            project="Paper PreTests",
             id=wandb_run_id,
             resume="allow",
             config={
@@ -594,7 +607,7 @@ def main():
     else:
         print("Starting new wandb run")
         run = wandb.init(
-            project="cartpole-sac-zop-1",
+            project="Paper PreTests",
             name=f"real_hardware_run_{int(time.time())}",
             config={
                 "buffer_size": cfg_saczop.buffer_size,
@@ -645,7 +658,7 @@ def main():
             
             # in between episode training. Train for 200 steps
             print("Training inbetween episodes...")
-            inbetween_training(20)
+            inbetween_training(200)
             
             # reset ctx
             ctx = None

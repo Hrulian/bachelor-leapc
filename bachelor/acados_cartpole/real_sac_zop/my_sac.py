@@ -70,16 +70,19 @@ class SacTrainerConfig(TrainerConfig):
 class SacCritic(nn.Module):
     """A critic network for Soft Actor-Critic (SAC).
     Consists of multiple Q-networks that estimate the expected return for given state-action pairs.
+    Uses vectorized operations for improved efficiency.
 
     Attributes:
-        extractor: A list of feature extractors for the observations.
-        mlp: A list of multi-layer perceptrons (MLPs) that estimate Q-values.
+        extractor: A feature extractor for the observations (shared across critics).
+        mlp_list: A list of multi-layer perceptrons (MLPs) that estimate Q-values.
         action_space: The action space of the environment (used for normalizing the actions).
+        num_critics: The number of critic networks.
     """
 
-    extractor: nn.ModuleList
-    mlp: nn.ModuleList
+    extractor: Extractor
+    mlp_list: nn.ModuleList
     action_space: spaces.Box
+    num_critics: int
 
     def __init__(
         self,
@@ -101,24 +104,46 @@ class SacCritic(nn.Module):
         super().__init__()
 
         action_dim = action_space.shape[0]  # type: ignore
-
-        self.extractor = nn.ModuleList(extractor_cls(observation_space) for _ in range(num_critics))
-        self.mlp = nn.ModuleList(
+        
+        # Use a single shared extractor to reduce computation
+        self.extractor = extractor_cls(observation_space)
+        self.num_critics = num_critics
+        
+        # Create separate MLPs for each critic (they diverge after feature extraction)
+        self.mlp_list = nn.ModuleList(
             [
                 Mlp(
-                    input_sizes=[qe.output_size, action_dim],  # type: ignore
+                    input_sizes=[self.extractor.output_size, action_dim],  # type: ignore
                     output_sizes=1,
                     mlp_cfg=mlp_cfg,
                 )
-                for qe in self.extractor
+                for _ in range(num_critics)
             ]
         )
         self.action_space = action_space
 
-    def forward(self, x: torch.Tensor, a: torch.Tensor):
-        """Returns a list of Q-value estimates for the given state-action pairs."""
+    def forward(self, x: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+        """Returns Q-value estimates for the given state-action pairs.
+        
+        Args:
+            x: Observation tensor of shape (batch_size, obs_dim)
+            a: Action tensor of shape (batch_size, action_dim)
+            
+        Returns:
+            Tensor of shape (batch_size, num_critics) containing Q-values from each critic
+        """
+        # Extract features once (shared across all critics)
+        features = self.extractor(x)  # (batch_size, feature_dim)
+        
+        # Normalize actions
         a_norm = min_max_scaling(a, self.action_space)  # type: ignore
-        return [mlp(qe(x), a_norm) for qe, mlp in zip(self.extractor, self.mlp)]
+        
+        # Forward through all MLPs and stack results
+        # Each MLP takes (features, a_norm) and outputs (batch_size, 1)
+        q_values = [mlp(features, a_norm) for mlp in self.mlp_list]  # list of (batch_size, 1)
+        
+        # Stack and squeeze to get (batch_size, num_critics)
+        return torch.cat(q_values, dim=1)  # (batch_size, num_critics)
 
 
 class SacActor(nn.Module):

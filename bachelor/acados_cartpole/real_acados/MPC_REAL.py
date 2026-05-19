@@ -13,7 +13,7 @@ from bachelor.acados_cartpole.my_utils_plot import plot_cartpole_log
 
 PORT = "/dev/ttyACM0"
 BAUD = 115200
-FRAME_TIMEOUT_S = 0.05   #if for 50 ms nothing arrived discard this frame
+FRAME_TIMEOUT_S = 0.15   #if for 50 ms nothing arrived discard this frame
 MAX_PAYLOAD_LEN = 64
 READ_TIMEOUT_S = 0.002
 
@@ -39,7 +39,7 @@ def listen_to_arduino():
     """
     -reads frames in the background with threading
     -frames come in the form  of <x,theta,v,thetadot>\n
-    -if full frame got received -> put it inn a que as tuple
+    -if full frame got received -> put it in a que as tuple
     """
     
     currently_receiving = False
