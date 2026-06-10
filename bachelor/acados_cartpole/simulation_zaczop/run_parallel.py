@@ -14,6 +14,7 @@ Examples:
 """
 
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -94,8 +95,11 @@ def main():
                 run_dir = args.runs_dir / name
                 run_dir.mkdir(parents=True, exist_ok=True)
                 log_file = open(run_dir / "log.txt", "w")
+                # own process group so the terminal's Ctrl+C doesn't kill the
+                # children directly — we forward a clean SIGINT ourselves below
                 proc = subprocess.Popen(cmd, env=env, stdout=log_file,
-                                        stderr=subprocess.STDOUT)
+                                        stderr=subprocess.STDOUT,
+                                        start_new_session=True)
                 running.append((name, proc))
                 print(f"[started ] {name} (pid {proc.pid}) -> {run_dir / 'log.txt'}")
 
@@ -113,13 +117,17 @@ def main():
             running = still_running
 
     except KeyboardInterrupt:
-        print("\nInterrupted — terminating running jobs...")
+        print("\nInterrupted — signalling jobs to shut down cleanly "
+              "(saving checkpoints + finishing wandb)...")
+        # SIGINT triggers each child's `except KeyboardInterrupt` -> finally ->
+        # wandb.finish(), so the runs are marked finished on the server
         for name, proc in running:
-            proc.terminate()
+            proc.send_signal(signal.SIGINT)
         for name, proc in running:
             try:
-                proc.wait(timeout=30)
+                proc.wait(timeout=60)  # give wandb time to sync
             except subprocess.TimeoutExpired:
+                print(f"  {name} did not exit in time — killing")
                 proc.kill()
 
     print()

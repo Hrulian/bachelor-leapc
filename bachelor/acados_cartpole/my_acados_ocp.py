@@ -55,19 +55,19 @@ def create_custom_cartpole_params(
         AcadosParameter(
             "xref0",
             default=np.array([0.0]),
-            interface="non-learnable",
-        ),  # reference position
-        AcadosParameter(
-            "xref1",
-            default=np.array([0.0]),
             space=gym.spaces.Box(
-                low=np.array([-np.pi]),
-                high=np.array([np.pi]),
+                low=np.array([-0.39]),
+                high=np.array([0.39]),
                 dtype=np.float64,
             ),
             interface="learnable",
             end_stages=list(range(N_horizon + 1)) if param_interface == "stagewise" else [],
-        ),  # reference theta
+        ),  # reference position (learnable: actor steers the cart position)
+        AcadosParameter(
+            "xref1",
+            default=np.array([0.0]),
+            interface="non-learnable",
+        ),  # reference theta (fixed at 0 = upright)
         AcadosParameter(
             "xref2",
             default=np.array([0.0]),
