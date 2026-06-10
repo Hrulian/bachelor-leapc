@@ -271,8 +271,8 @@ def bench_critic_forward(comp, N: int = 2000):
 
     # ── vmap-Version ──────────────────────────────────────────────────────────
     # Stack parameters of all critic MLPs along a new leading dim
-    ref_mlp    = critic.mlp[0]
-    all_params = [dict(mlp.named_parameters()) for mlp in critic.mlp]
+    ref_mlp    = critic.mlp_list[0]
+    all_params = [dict(mlp.named_parameters()) for mlp in critic.mlp_list]
     stacked    = {k: torch.stack([p[k] for p in all_params]).detach()
                   for k in all_params[0]}
 
