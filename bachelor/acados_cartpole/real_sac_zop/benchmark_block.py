@@ -129,7 +129,7 @@ def single_step_old(comp, step_idx: int, actor_update_freq: int = 5):
 
     with torch.no_grad():
         pi_op = actor(op, None, only_param=True)
-        q_tgt = torch.cat(target_critic(op, pi_op.param), dim=1)
+        q_tgt = target_critic(op, pi_op.param)
         q_tgt = torch.min(q_tgt, dim=1, keepdim=True).values
         factor = cfg.entropy_reward_bonus / entropy_norm
         q_tgt = q_tgt - log_alpha.exp().item() * pi_op.log_prob * factor
@@ -145,18 +145,18 @@ def single_step_old(comp, step_idx: int, actor_update_freq: int = 5):
             pi_o = actor(o, None, only_param=True)
             log_p = pi_o.log_prob / entropy_norm
 
-    q = torch.cat(critic(o, a), dim=1)
+    q = critic(o, a)
     q_loss = torch.mean((q - target).pow(2))
     critic_opt.zero_grad(); q_loss.backward(); critic_opt.step()
 
     if update_actor:
-        q_pi = torch.cat(critic(o, pi_o.param), dim=1)
+        q_pi = critic(o, pi_o.param)
         min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
         pi_loss = (log_alpha.exp().item() * log_p - min_q_pi).mean()
         actor_opt.zero_grad(); pi_loss.backward(); actor_opt.step()
     else:
         with torch.no_grad():
-            q_pi = torch.cat(critic(o, pi_o.param), dim=1)
+            q_pi = critic(o, pi_o.param)
             min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
             _ = (log_alpha.exp().item() * log_p - min_q_pi).mean()  # metrics only
 
@@ -177,7 +177,7 @@ def single_step_new(comp, step_idx: int, actor_update_freq: int = 20):
 
     with torch.no_grad():
         pi_op = actor(op, None, only_param=True)
-        q_tgt = torch.cat(target_critic(op, pi_op.param), dim=1)
+        q_tgt = target_critic(op, pi_op.param)
         q_tgt = torch.min(q_tgt, dim=1, keepdim=True).values
         factor = cfg.entropy_reward_bonus / entropy_norm
         q_tgt = q_tgt - alpha * pi_op.log_prob * factor
@@ -189,12 +189,12 @@ def single_step_new(comp, step_idx: int, actor_update_freq: int = 20):
         alpha_loss = -torch.mean(log_alpha.exp() * (log_p + target_entropy).detach())
         alpha_opt.zero_grad(); alpha_loss.backward(); alpha_opt.step()
 
-    q = torch.cat(critic(o, a), dim=1)
+    q = critic(o, a)
     q_loss = torch.mean((q - target).pow(2))
     critic_opt.zero_grad(); q_loss.backward(); critic_opt.step()
 
     if update_actor:
-        q_pi = torch.cat(critic(o, pi_o.param), dim=1)
+        q_pi = critic(o, pi_o.param)
         min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
         pi_loss = (alpha * log_p - min_q_pi).mean()
         actor_opt.zero_grad(); pi_loss.backward(); actor_opt.step()
@@ -263,10 +263,10 @@ def bench_critic_forward(comp, N: int = 2000):
 
     # ── Loop-Baseline ──────────────────────────────────────────────────────────
     for _ in range(50):
-        torch.cat(critic(o, a), dim=1)
+        critic(o, a)
     t0 = time.perf_counter()
     for _ in range(N):
-        torch.cat(critic(o, a), dim=1)
+        critic(o, a)
     t_loop = (time.perf_counter() - t0) / N * 1e6  # µs per forward
 
     # ── vmap-Version ──────────────────────────────────────────────────────────
