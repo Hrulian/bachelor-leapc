@@ -145,12 +145,15 @@ def talk_to_arduino(u: int, mode: int) -> None :
 
 
 #LEARNING###############################################################################
-# event to notify learner thread of new data
-learning_event = threading.Event()  
+# counting semaphore to notify learner thread of new data
+# (threading.Event is binary and loses signals fired during a training block;
+# a Semaphore counts every release() so no transition is silently dropped)
+_learning_sem = threading.Semaphore(0)
 
 # initialize counters
 episode_step_count = 0 # steps in current episode
-learning_step = 0   # total learning updates performed
+total_training_steps = 0  # einzelne training steps (critic + actor updates) - für soft_update_freq
+learning_step = 0   # blocks (20-step blocks) - für logging und tracking
 episode_count = 0   # total episodes completed
 abs_step_count = 0  # total steps across all episodes
 
@@ -262,27 +265,23 @@ actor_optimizer  = torch.optim.Adam(actor.parameters(),  lr=cfg_saczop.lr_pi)
 
 
 
-def sac_zop_update_step(batch_size, update_freq, train_start):
+def sac_zop_update_step(batch_size, train_start):
     """
-    Background thread function to perform SAC-ZOP updates at specified intervals.
-    With N-step buffering, this is called every N steps when a new sample is added.
-    update_freq controls how many samples to collect before training once.
-    Performs 20 training steps per update, with actor updated every 5th step.
+    Background thread: one training block (20 gradient steps) per buffer drop.
+    1 semaphore token = 1 block. If tokens pile up (training slower than sampling)
+    the thread runs back-to-back without waiting, using all available time.
     """
-    
-    global abs_step_count
+    global abs_step_count, learning_step, total_training_steps
     timeout_s = 1.0
-    buffer_drops_since_update = 0  # count buffer drops since last training
-    actor_update_freq = 5  # update actor every 5 critic updates
+    actor_update_freq = 20
+    LOG_FREQ = 10
 
     while True:
         try:
-            # wait until new data is available or timeout passes
-            learning_event.wait(timeout=timeout_s)
-            if not learning_event.is_set():
+            if not _learning_sem.acquire(timeout=timeout_s):
                 continue
-            learning_event.clear()
 
+<<<<<<< HEAD
             
             # train only if we have enough samples
             if abs_step_count >= train_start:
@@ -318,42 +317,97 @@ def sac_zop_update_step(batch_size, update_freq, train_start):
               
               
 def saczop_single_step_update(batch_size, update_actor=True, log_metrics=False):
+=======
+            if abs_step_count < train_start:
+                continue
+
+            block_start_time = time.perf_counter()
+
+            # only pay .item() cost on blocks we'll actually log
+            will_log = (learning_step + 1) % LOG_FREQ == 0
+            metrics_accumulator = {
+                'q_losses': [], 'pi_losses': [], 'alphas': [],
+                'q_values': [], 'q_targets': [], 'entropies': [],
+            } if will_log else None
+
+            for i in range(20):
+                saczop_single_step_update(
+                    batch_size,
+                    update_actor=(i % actor_update_freq == 0),
+                    metrics_accumulator=metrics_accumulator,
+                )
+
+            learning_step += 1
+
+            block_elapsed_time = time.perf_counter() - block_start_time
+            training_step_times.append(block_elapsed_time)
+
+            if learning_step % LOG_FREQ == 0:
+                try:
+                    wandb.log({
+                        'learning/training_block_time_ms': block_elapsed_time * 1000,
+                        'learning/block_step': learning_step,
+                        'learning/total_training_steps': total_training_steps,
+                        'learning/q_loss_avg': np.mean(metrics_accumulator['q_losses']),
+                        'learning/pi_loss': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
+                        'learning/alpha': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
+                        'learning/q_avg': np.mean(metrics_accumulator['q_values']),
+                        'learning/q_target_avg': np.mean(metrics_accumulator['q_targets']),
+                        'learning/entropy': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
+                    }, step=abs_step_count)
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print("Exception in sac_zop_update_step:", e)
+
+
+def saczop_single_step_update(batch_size, update_actor=True, metrics_accumulator=None):
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     """
-    -Performs a single SAC-ZOP update step using a batch sampled from the replay buffer.
-    -Only updates when enough samples are available in the buffer.
-    -also performs soft target updates at specified intervals.
+    Pure training step: Performs one critic+actor update.
+    Increments total_training_steps counter.
+    Only collects metrics into dict - NO logging.
     
     Args:
+<<<<<<< HEAD
         batch_size: The number of samples to use for the update.
         update_actor: Whether to update the actor network in this step.
         log_metrics: Whether to compute and log metrics (only on last update of cycle).
     Returns:
         A boolean indicating whether the update was performed.
+=======
+        batch_size: Number of samples to use.
+        update_actor: Whether to update actor this step.
+        metrics_accumulator: Dict to collect metrics (required, not optional).
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     """
     
-    global learning_step, training_step_times
-    
-    # start timing
-    start_time = time.perf_counter()
-    
-    # if woken up, attempt an update if conditions are met
+    global total_training_steps
+
     if len(replay_buffer) < batch_size:
         return False
-    
-    # sample batch
+
     o, a, r, o_prime, te = replay_buffer.sample(batch_size)
 
+<<<<<<< HEAD
     # Compute alpha (keep gradients for temperature update)
     alpha = log_alpha.exp()
     alpha_detached = alpha.detach()  # For use in target computation (no grad needed)
     
     # policy params for o and o_prime
+=======
+    # cache alpha once — avoids repeated exp() + .item() syncs
+    alpha = log_alpha.exp().item()
+
+    # critic target (no grad)
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     with torch.no_grad():
         pi_o_prime = actor(o_prime, None, only_param=True)
         q_target = target_critic(o_prime, pi_o_prime.param)  # (batch_size, num_critics)
         q_target = torch.min(q_target, dim=1, keepdim=True).values
-
         factor = cfg_saczop.entropy_reward_bonus / entropy_norm
+<<<<<<< HEAD
         q_target = q_target - alpha_detached * pi_o_prime.log_prob * factor
 
         target = r[:, None].to(device) + cfg_saczop.gamma * (1 - te[:, None].to(device)) * q_target
@@ -367,18 +421,28 @@ def saczop_single_step_update(batch_size, update_actor=True, log_metrics=False):
     critic_optimizer.step()
 
     # actor update (only if update_actor is True)
+=======
+        q_target = q_target - alpha * pi_o_prime.log_prob * factor
+        target = r[:, None].to(device) + cfg_saczop.gamma * (1 - te[:, None].to(device)) * q_target
+
+    # actor forward + alpha update BEFORE critic — only on actor steps
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     if update_actor:
         pi_o = actor(o, None, only_param=True)
         a_pi = pi_o.param
         log_p = pi_o.log_prob / entropy_norm
 
+<<<<<<< HEAD
         # temperature update (uses alpha with gradients)
+=======
+>>>>>>> 28fa732 (new updates reward funktion excluded)
         if alpha_optimizer is not None:
             alpha_loss = -torch.mean(alpha * (log_p + target_entropy).detach())
             alpha_optimizer.zero_grad()
             alpha_loss.backward()
             alpha_optimizer.step()
 
+<<<<<<< HEAD
         q_pi = critic(o, a_pi)  # (batch_size, num_critics)
         min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
         pi_loss = (alpha_detached.item() * log_p - min_q_pi).mean()
@@ -414,21 +478,75 @@ def saczop_single_step_update(batch_size, update_actor=True, log_metrics=False):
         except Exception:
             pass
     
+=======
+    # critic update (always)
+    q = torch.cat(critic(o, a), dim=1)
+    q_loss = torch.mean((q - target).pow(2))
+    critic_optimizer.zero_grad()
+    q_loss.backward()
+    critic_optimizer.step()
+
+    # actor update — only on actor steps
+    if update_actor:
+        q_pi = torch.cat(critic(o, a_pi), dim=1)
+        min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
+        pi_loss = (alpha * log_p - min_q_pi).mean()
+        actor_optimizer.zero_grad()
+        pi_loss.backward()
+        actor_optimizer.step()
+
+    if total_training_steps % cfg_saczop.soft_update_freq == 0:
+        soft_target_update(critic, target_critic, cfg_saczop.tau)
+
+    total_training_steps += 1
+
+    if metrics_accumulator is not None:
+        metrics_accumulator['q_losses'].append(q_loss.item())
+        metrics_accumulator['q_values'].append(q.mean().item())
+        metrics_accumulator['q_targets'].append(target.mean().item())
+        if update_actor:
+            metrics_accumulator['pi_losses'].append(pi_loss.item())
+            metrics_accumulator['alphas'].append(alpha)  # already float, no .item() needed
+            metrics_accumulator['entropies'].append(-log_p.mean().item())
+
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     return True
 
 
 def inbetween_training(num_updates: int):
     """
     Perform additional training updates between episodes.
+<<<<<<< HEAD
     Only logs metrics on the last update to reduce wandb overhead.
+=======
+    Collects metrics but doesn't log (training context).
+>>>>>>> 28fa732 (new updates reward funktion excluded)
     Args:
         num_updates: Number of update steps to perform.
     """
     
+<<<<<<< HEAD
     for i in range(num_updates):
         # Only log metrics on the last update of this cycle
         log_metrics = (i == num_updates - 1)
         ok = saczop_single_step_update(cfg_saczop.batch_size, log_metrics=log_metrics)
+=======
+    inbetween_metrics = {
+        'q_losses': [],
+        'pi_losses': [],
+        'alphas': [],
+        'q_values': [],
+        'q_targets': [],
+        'entropies': [],
+    }
+    
+    for i in range(num_updates):
+        ok = saczop_single_step_update(
+            cfg_saczop.batch_size,
+            update_actor=(i % 20 == 0),  # actor once per block (paper: 1 actor per 20 critic)
+            metrics_accumulator=inbetween_metrics
+        )
+>>>>>>> 28fa732 (new updates reward funktion excluded)
         if not ok:
             # not enough data in buffer yet
             break  
@@ -583,8 +701,8 @@ def main():
     # load checkpoints/trained models if available
     # this means training progress persists across restarts
     # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer
-    load_checkpoints()  
-    
+    load_checkpoints()
+
     # initialize wandb (resume if we have a run_id, else create new)
     global wandb_run_id
     if wandb_run_id:
@@ -634,11 +752,8 @@ def main():
     # start the background learning task (use proper args)
     learningThread = threading.Thread(
         target=sac_zop_update_step,
-        args=(
-            cfg_saczop.batch_size, 
-            cfg_saczop.update_freq, 
-            cfg_saczop.train_start),
-        )
+        args=(cfg_saczop.batch_size, cfg_saczop.train_start),
+    )
     learningThread.daemon = True
     learningThread.start()
     
@@ -919,7 +1034,7 @@ def main():
                     
                     # notify background learner
                     try:
-                        learning_event.set()
+                        _learning_sem.release()
                     except Exception:
                         pass
                     
