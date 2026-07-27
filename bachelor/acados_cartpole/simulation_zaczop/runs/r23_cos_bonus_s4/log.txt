@@ -1,0 +1,129 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 28, in <module>
+    import wandb
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/__init__.py", line 25, in <module>
+    from .artifacts.artifact import Artifact
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 30, in <module>
+    from wandb import data_types, env
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/data_types.py", line 16, in <module>
+    from .sdk.data_types.audio import Audio
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/audio.py", line 11, in <module>
+    from .base_types.media import BatchableMedia
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/media.py", line 14, in <module>
+    from .wb_value import WBValue
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/wb_value.py", line 4, in <module>
+    from wandb.sdk import wandb_setup
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_setup.py", line 39, in <module>
+    from . import wandb_settings
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_settings.py", line 159, in <module>
+    class Settings(BaseModel, validate_assignment=True):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 242, in __new__
+    set_model_fields(cls, config_wrapper=config_wrapper, ns_resolver=ns_resolver)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 566, in set_model_fields
+    fields, class_vars = collect_model_fields(cls, config_wrapper, ns_resolver, typevars_map=typevars_map)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_fields.py", line 411, in collect_model_fields
+    _update_fields_from_docstrings(cls, fields)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_fields.py", line 114, in _update_fields_from_docstrings
+    fields_docs = extract_docstrings_from_cls(cls, use_inspect=use_inspect)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 112, in extract_docstrings_from_cls
+    visitor.visit(ast.parse(dedent_source))
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 426, in generic_visit
+    self.visit(item)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 428, in generic_visit
+    self.visit(value)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_docs_extraction.py", line 21, in visit
+    node_result = super().visit(node)
+                  ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line 418, in visit
+    return visitor(node)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/ast.py", line -1, in generic_visit
+KeyboardInterrupt

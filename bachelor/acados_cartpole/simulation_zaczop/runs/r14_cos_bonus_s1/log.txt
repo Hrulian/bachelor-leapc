@@ -1,0 +1,71 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 456, in <module>
+    main()
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 167, in main
+    torch.optim.Adam([log_alpha], lr=cfg_saczop.lr_alpha)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/optim/adam.py", line 101, in __init__
+    super().__init__(params, defaults)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/optim/optimizer.py", line 401, in __init__
+    self.add_param_group(cast(dict, param_group))
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_compile.py", line 46, in inner
+    import torch._dynamo
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/__init__.py", line 13, in <module>
+    from . import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/aot_compile.py", line 15, in <module>
+    from . import convert_frame
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/convert_frame.py", line 57, in <module>
+    from torch._dynamo.symbolic_convert import TensorifyState
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/symbolic_convert.py", line 53, in <module>
+    from torch._dynamo.exc import ObservedException, TensorifyScalarRestartAnalysis
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/exc.py", line 45, in <module>
+    from .utils import counters
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/utils.py", line 67, in <module>
+    import torch.fx.experimental.symbolic_shapes
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/fx/experimental/symbolic_shapes.py", line 3, in <module>
+    import sympy
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/__init__.py", line 111, in <module>
+    from .series import (Order, O, limit, Limit, gruntz, series, approximants,
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/series/__init__.py", line 4, in <module>
+    from .limits import limit, Limit
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/series/limits.py", line 1, in <module>
+    from sympy.calculus.accumulationbounds import AccumBounds
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/calculus/__init__.py", line 8, in <module>
+    from .util import (periodicity, not_empty_in, is_convex,
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/calculus/util.py", line 1, in <module>
+    from .accumulationbounds import AccumBounds, AccumulationBounds # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/calculus/accumulationbounds.py", line 783, in <module>
+    @dispatch(Expr, AccumulationBounds)  # type:ignore
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/core.py", line 71, in _
+    dispatcher.add(types, func, on_ambiguity=on_ambiguity)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/dispatcher.py", line 219, in add
+    self.reorder(on_ambiguity=on_ambiguity)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/dispatcher.py", line 224, in reorder
+    self.ordering = ordering(self.funcs)
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/conflict.py", line 62, in ordering
+    edges = [(a, b) for a in signatures for b in signatures if edge(a, b)]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/conflict.py", line 62, in <listcomp>
+    edges = [(a, b) for a in signatures for b in signatures if edge(a, b)]
+                                                               ^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/conflict.py", line 48, in edge
+    if supercedes(a, b):
+       ^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/sympy/multipledispatch/conflict.py", line 9, in supercedes
+    return len(a) == len(b) and all(map(issubclass, a, b))
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

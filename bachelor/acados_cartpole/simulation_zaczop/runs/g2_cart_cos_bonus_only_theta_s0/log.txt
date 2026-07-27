@@ -1,0 +1,109 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: creating run
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/g2_cart_cos_bonus_only_theta_s0/wandb/run-20260727_133213-7dee1zth
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run g2_cart_cos_bonus_only_theta_s0
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-zop-k_step
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-zop-k_step/runs/7dee1zth
+wandb: uploading history steps 388-402, summary, console lines 23-27
+wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:            episode/cumulative_reward ▇▁▂█▇██▁▁▇█████████
+wandb:               episode/episode_number ▁▁▂▂▃▃▃▄▄▅▅▅▆▆▆▇▇██
+wandb:                    episode/max_force ███████▁███████████
+wandb:                   episode/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                        episode/steps █▁▁████▁▁██████████
+wandb:             episode/steps_per_second █▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   episode/terminated ▁██▁▁▁▁██▁▁▁▁▁▁▁▁▁▁
+wandb:                       learning/alpha ▁▁▁▁▂▂▂▃▃▃▄▄▄▄▄▅▅▅▅▅▆▆▆▆▆▆▆▇█▇▇▇▇███████
+wandb:                     learning/entropy ▂▃▁▁▂▁▄▃▄▄▃▆▄▄▄▆▆▆▆▆▆▆▅▇▇▇▇██▇▆▆▇▇██▇█▇▇
+wandb:                     learning/pi_loss ██▇▇▇▆▆▅▅▅▄▄▄▄▃▃▃▃▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       learning/q_avg ▁▂▂▂▂▄▄▄▄▅▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇▇▇▇▇███████████
+wandb:                  learning/q_loss_avg ▂▁▂▁▂▂▂▂▁▁▅█▅▅▇▂▂▃▆▃▂▃▅▃▃▆▃▁▂▃▄▁▁▃▂▁▁▃▃▁
+wandb:                learning/q_target_avg ▁▁▃▃▄▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇▇▇▇▇▇██████████████
+wandb:        learning/total_training_steps ▁▁▁▂▂▂▂▂▃▃▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇▇███
+wandb: stabilization/stabilized_steps_total ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    step/episode_step ▄▅▂▂▅▂▃▅▇▂▅▆▇▂▅▂▃▄▇▅▄▇▁▅▇▅▂▄▇▁▁▄▇█▂▅▄▇█▅
+wandb:                          step/reward ▇▅██▆▇▁▆▁▄▂▂█▆▁▇▆▁▃▆▅▇▆▂▅▂▂▂▄▂▁▆▁▂▆█▇▄▅▇
+wandb:                         step/rl_step ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▄▄▅▅▅▅▅▅▆▆▇▇▇▇▇▇███
+wandb:                      step/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           step/theta ▄▆▅▄██▅█▂▆▄▆▃▅▃▆▇▅▆▂▅▁▆▅▇▇▂▅▇███▇▆▇▅▅▂▆▄
+wandb:                        step/thetadot ▅▅██▃▃▆▁▃▂▃▁▄▂▃▂▁▂▂▁▂▃▁▅▂▂▅▁▁▅▂▃▃▂▂▄▂▄▃▃
+wandb:                         step/u_force ▃▅▃▃▂▂▄▃▇▃█▄▄▃▃▁▅▇▁▂▃▆▁▅▆▄▃▇▁▆▅▅▅▃▂▃▄▆▄▂
+wandb:                               step/v ▆▅█▄▅▅▃▁▇▁▄▇▆▅▆▄▃▇▄▇▇▅▇▄▇▇▃▅▅▃▅▄▄▃▇▆█▄▃█
+wandb:                               step/x ▆▄▅█▁▆▂▃▄▅▄█▁█▆▅▅▅▆▆▆▅▅█▄▂█▄▅▄▄▅▆▄▅▃▆▃▅▆
+wandb:                   terminations/total ▁▃▅▅▅▅▅▅▅▅▅▅▅▅▅▆████████████████████████
+wandb: 
+wandb: Run summary:
+wandb:            episode/cumulative_reward 546.55542
+wandb:               episode/episode_number 19
+wandb:                    episode/max_force 20
+wandb:                   episode/stabilized 0
+wandb:                        episode/steps 1001
+wandb:             episode/steps_per_second 39.97371
+wandb:                   episode/terminated 0
+wandb:                       learning/alpha 0.05618
+wandb:                     learning/entropy -1.12651
+wandb:                     learning/pi_loss -243.96703
+wandb:                       learning/q_avg 244.24144
+wandb:                  learning/q_loss_avg 15.95363
+wandb:                learning/q_target_avg 244.27845
+wandb:        learning/total_training_steps 61129
+wandb: stabilization/stabilized_steps_total 0
+wandb:                    step/episode_step 590
+wandb:                          step/reward 4.74006
+wandb:                         step/rl_step 3240
+wandb:                      step/stabilized 0
+wandb:                           step/theta -0.39074
+wandb:                        step/thetadot -28.30387
+wandb:                         step/u_force 1.17905
+wandb:                               step/v 2.57108
+wandb:                               step/x 0.12614
+wandb:                   terminations/total 4
+wandb: 
+wandb: 🚀 View run g2_cart_cos_bonus_only_theta_s0 at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-zop-k_step/runs/7dee1zth
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-zop-k_step
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./bachelor/acados_cartpole/simulation_zaczop/runs/g2_cart_cos_bonus_only_theta_s0/wandb/run-20260727_133213-7dee1zth/logs
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+============================================================
+Run: g2_cart_cos_bonus_only_theta_s0 | reward: cos_bonus_only_theta | seed: 0
+Steps: 200000 | dt: 0.01s | K-step ON (K=5, actor every 5 env steps)
+============================================================
+Ep 1: reward = 454.78, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 1001 (1198 steps/s)
+Ep 2: reward = 32.51, steps = 114, max |F| = 20.0 N, stabilized = False, total steps = 1115 (304 steps/s)
+Ep 3: reward = 77.43, steps = 159, max |F| = 20.0 N, stabilized = False, total steps = 1274 (166 steps/s)
+Ep 4: reward = 511.68, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 2275 (66 steps/s)
+Ep 5: reward = 452.57, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 3276 (55 steps/s)
+Ep 6: reward = 519.48, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 4277 (50 steps/s)
+Ep 7: reward = 520.44, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 5278 (47 steps/s)
+Ep 8: reward = 58.01, steps = 109, max |F| = 15.6 N, stabilized = False, total steps = 5387 (47 steps/s)
+Ep 9: reward = 49.35, steps = 149, max |F| = 20.0 N, stabilized = False, total steps = 5536 (47 steps/s)
+Ep 10: reward = 504.45, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 6537 (45 steps/s)
+Ep 11: reward = 513.00, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 7538 (44 steps/s)
+Ep 12: reward = 523.42, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 8539 (43 steps/s)
+Ep 13: reward = 513.00, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 9540 (42 steps/s)
+Ep 14: reward = 527.43, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 10541 (42 steps/s)
+Ep 15: reward = 524.25, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 11542 (41 steps/s)
+Ep 16: reward = 529.67, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 12543 (41 steps/s)
+Ep 17: reward = 534.24, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 13544 (41 steps/s)
+Ep 18: reward = 529.30, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 14545 (40 steps/s)
+Ep 19: reward = 546.56, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 15546 (40 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/g2_cart_cos_bonus_only_theta_s0/checkpoints
+
+Done: 16216 env steps, 61129 gradient steps in 6.8 min (40 steps/s)

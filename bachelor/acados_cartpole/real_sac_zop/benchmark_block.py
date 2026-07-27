@@ -12,6 +12,7 @@ import time
 import gymnasium as gym
 import numpy as np
 import torch
+import torch.nn as nn
 
 from bachelor.acados_cartpole.my_planner import (
     CartPolePlannerConfig,
@@ -30,6 +31,7 @@ DEVICE          = "cpu"
 N_WARMUP        = 5    # blocks before timing (cache warmup / JIT trigger)
 N_BENCH         = 50   # blocks to measure
 BUFFER_FILL     = 5_000  # transitions pre-loaded into buffer
+DROPOUT_P       = 0.1  # dropout prob for the dropout-critic comparison
 
 
 # ── setup ──────────────────────────────────────────────────────────────────────
@@ -113,6 +115,10 @@ def setup():
         buf           = buf,
         entropy_norm  = entropy_norm,
         target_entropy= target_entropy,
+        # kept so a dropout variant of the critic can be rebuilt 1:1
+        obs_space     = obs_space,
+        action_space  = action_space,
+        extractor_cls = extractor_cls,
     )
 
 
@@ -231,6 +237,55 @@ def bench(comp, label: str, step_fn, actor_update_freq: int) -> float:
     return med
 
 
+# ── dropout variant ──────────────────────────────────────────────────────────
+def add_dropout_to_critic(critic, p: float) -> None:
+    """Insert nn.Dropout(p) after every activation in each critic MLP (in-place).
+
+    MlpConfig has no dropout knob, so we patch the built nn.Sequential directly.
+    Dropout carries no parameters, so weights/state_dict values are unchanged
+    (only the Sequential indices shift).
+    """
+    for mlp in critic.mlp_list:
+        if mlp.mlp is None:
+            continue
+        act = mlp.activation  # same instance is reused at each hidden layer
+        new_layers = []
+        for layer in mlp.mlp:
+            new_layers.append(layer)
+            if layer is act:
+                new_layers.append(nn.Dropout(p))
+        mlp.mlp = nn.Sequential(*new_layers)
+
+
+def build_dropout_comp(comp, p: float):
+    """Shallow-copy comp with critic + target + critic_opt replaced by dropout
+    versions (same initial weights as the no-dropout critic for a fair compare)."""
+    cfg = comp['cfg']
+
+    def make_critic(src_state_dict):
+        c = SacCritic(
+            extractor_cls=comp['extractor_cls'],
+            observation_space=comp['obs_space'],
+            action_space=comp['action_space'],
+            mlp_cfg=cfg.critic_mlp,
+            num_critics=cfg.num_critics,
+        ).to(DEVICE)
+        # load weights BEFORE adding dropout — inserting Dropout shifts the
+        # Sequential indices, so keys no longer match the plain critic.
+        c.load_state_dict(src_state_dict)
+        add_dropout_to_critic(c, p)
+        return c
+
+    critic_do = make_critic(comp['critic'].state_dict())
+    target_do = make_critic(comp['critic'].state_dict())
+
+    comp_do = dict(comp)
+    comp_do['critic']        = critic_do
+    comp_do['target_critic'] = target_do
+    comp_do['critic_opt']    = torch.optim.Adam(critic_do.parameters(), lr=cfg.lr_q)
+    return comp_do
+
+
 # ── main ───────────────────────────────────────────────────────────────────────
 def main():
     print("=" * 60)
@@ -248,6 +303,17 @@ def main():
     print(f"\n{'='*60}")
     print(f"  OLD: {t_old:.1f} ms  →  NEW: {t_new:.1f} ms  (median per block)")
     print(f"  Speedup: {t_old/t_new:.2f}x   Saved: {saved_ms:+.1f} ms  ({saved_pct:+.1f}%)")
+
+    # ── dropout overhead: same NEW block, critics with vs without dropout ────────
+    comp_do = build_dropout_comp(comp, DROPOUT_P)
+    t_do = bench(comp_do, f"NEW + dropout p={DROPOUT_P} (online + target critic)",
+                 single_step_new, actor_update_freq=20)
+    extra_ms  = t_do - t_new
+    extra_pct = extra_ms / t_new * 100
+    print(f"\n{'='*60}")
+    print(f"  NEW no-dropout: {t_new:.1f} ms  →  NEW dropout: {t_do:.1f} ms  (median per block)")
+    print(f"  Dropout overhead: {extra_ms:+.1f} ms  ({extra_pct:+.1f}%)   "
+          f"per gradient step: {extra_ms/20:+.2f} ms")
 
     bench_critic_forward(comp)
 

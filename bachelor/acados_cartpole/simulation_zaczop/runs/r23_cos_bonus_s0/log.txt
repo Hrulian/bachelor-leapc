@@ -1,0 +1,84 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 28, in <module>
+    import wandb
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/__init__.py", line 25, in <module>
+    from .artifacts.artifact import Artifact
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 30, in <module>
+    from wandb import data_types, env
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/data_types.py", line 16, in <module>
+    from .sdk.data_types.audio import Audio
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/audio.py", line 11, in <module>
+    from .base_types.media import BatchableMedia
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/media.py", line 14, in <module>
+    from .wb_value import WBValue
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/wb_value.py", line 4, in <module>
+    from wandb.sdk import wandb_setup
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_setup.py", line 39, in <module>
+    from . import wandb_settings
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_settings.py", line 159, in <module>
+    class Settings(BaseModel, validate_assignment=True):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 255, in __new__
+    complete_model_class(
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 648, in complete_model_class
+    schema = gen_schema.generate_schema(cls)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 729, in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1023, in _generate_schema_inner
+    return self._model_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 856, in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 856, in <dictcomp>
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1228, in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1282, in _common_field_schema
+    schema = self._apply_annotations(
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 2227, in _apply_annotations
+    schema = get_inner_schema(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 2356, in new_handler
+    schema = annotation_get_schema(source, get_inner_schema)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/functional_validators.py", line 128, in __get_pydantic_core_schema__
+    schema = handler(source_type)
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_schema_generation_shared.py", line 83, in __call__
+    schema = self._handler(source_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 2206, in inner_handler
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1028, in _generate_schema_inner
+    return self.match_type(obj)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1144, in match_type
+    return self._match_generic_type(obj, origin)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1167, in _match_generic_type
+    return self._union_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1327, in _union_schema
+    choices.append(self.generate_schema(arg))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 729, in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1021, in _generate_schema_inner
+    if lenient_issubclass(obj, BaseModel):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_utils.py", line 103, in lenient_issubclass
+    def lenient_issubclass(cls: Any, class_or_tuple: Any) -> bool:  # pragma: no cover
+    
+KeyboardInterrupt

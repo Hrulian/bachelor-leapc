@@ -16,6 +16,8 @@ To test a new reward, add a function here and decorate it with
 
 import numpy as np
 
+
+
 REWARDS: dict = {}
 
 
@@ -48,41 +50,99 @@ def reward_default(state, force) -> float:
     if abs(thetadot) > 12.0:
         reward = 0.0
 
-    # bonus for being upright and slow
-    if abs(theta) < 0.15 and abs(thetadot) < 1.5:
-        reward += 0.5
+    # # bonus for being upright and slow
+    # if abs(theta) < 0.15 and abs(thetadot) < 1.5:
+    #     reward += 0.5
 
     return float(max(reward, 0.0))
+
+
 
 
 @register("cosine")
-def reward_cosine(state, force) -> float:
-    """Smooth cosine shaping: 1 upright, 0 hanging down, with small penalties."""
+def compute_reward_cos(state, force) -> float:
     x, theta, v, thetadot, tripped = state
-    upright = 0.5 * (1.0 + np.cos(theta))           # in [0, 1]
-    reward = 0.1 * upright
-    reward -= 0.02 * (abs(x) / 0.39)
-    reward -= 0.001 * abs(force) / 20.0
+    x_max = 0.39
+
+    reward  = np.cos(theta)                 # +1 oben (theta=0), -1 unten (theta=+-pi)
+    reward -= 0.3 * (x / x_max) ** 2        # Positions-Strafe, glatt
+    reward -= 0.001 * thetadot ** 2         # milder Spin-Penalty
+
     if abs(theta) < 0.15 and abs(thetadot) < 1.5:
         reward += 0.5
-    return float(max(reward, 0.0))
+    return float(reward)
 
 
-@register("energy")
-def reward_energy(state, force) -> float:
-    """Energy-based shaping for swingup + upright bonus for stabilization.
+# === Quadratische Variante ===============================================
+@register("quadratic")
+def compute_reward_quad(state, force) -> float:
+    x, theta, v, thetadot, tripped = state
+   
+    x_max = 0.39
 
-    Rewards approaching the energy of the upright equilibrium, which often
-    speeds up learning of the swingup phase.
+    reward  = -1.0 * (theta / np.pi) ** 2   # 0 oben, -1 unten (theta=+-pi)
+    reward -= 0.3 * (x / x_max) ** 2        # Positions-Strafe
+    reward -= 0.001 * thetadot ** 2         # Spin-Penalty
+
+    if abs(theta) < 0.15 and abs(thetadot) < 1.5:
+        reward += 6
+
+    return float(reward)
+
+
+# === Strikt positive Varianten (kein suicidal-tripping) ==================
+# terminated == tripped, daher: positive Rewards => "länger leben" lohnt sich
+# => der Agent meidet die Wand von selbst, ohne Strafterm.
+
+@register("cos_pos")
+def compute_reward_cos_pos(state, force) -> float:
+    """Strikt positiver, glatter Swingup-Reward in [0, 1].
+
+    Keine negativen Terme, keine Cliffs. Position und Spin wirken nur als
+    *multiplikative* Faktoren in [0.5, 1], dämpfen also sanft, ohne das
+    Aufschwing-Signal je auf 0 zu ziehen.
     """
     x, theta, v, thetadot, tripped = state
-    m, l, g = 0.016, 0.18, 9.81
-    # pendulum energy relative to upright (theta=0): E_target = 0
-    e_kin = 0.5 * m * (l * thetadot) ** 2
-    e_pot = m * g * l * (np.cos(theta) - 1.0)       # 0 upright, -2mgl down
-    e_err = abs(e_kin + e_pot)                      # 0 when on the homoclinic orbit
-    reward = 0.1 * np.exp(-10.0 * e_err)
-    reward -= 0.02 * (abs(x) / 0.39)
-    if abs(theta) < 0.15 and abs(thetadot) < 1.5:
-        reward += 0.5
-    return float(max(reward, 0.0))
+    x_max = 0.39
+
+    upright  = 0.5 * (1.0 + np.cos(theta))      # 1 oben, 0 unten, dicht & glatt
+    centered = np.exp(-(x / x_max) ** 2)        # 1 in der Mitte -> ~0 am Rand
+    calm     = np.exp(-(thetadot / 8.0) ** 2)   # 1 bei ruhigem Pendel
+
+    reward = upright * (0.5 + 0.5 * centered) * (0.5 + 0.5 * calm)
+    return float(reward)
+
+
+
+
+#TODO: put into realsaczop but check that the state has counts and not meters
+# so needs to be converted in real script for sim is ok!!
+@register("cos_bonus")
+def compute_reward_cos_bonus(state, force) -> float:
+    """Dichtes positives Basissignal + glatte (gaußsche) Upright-Prämie, ~[0, 1.5].
+
+    Ersetzt den harten `if abs(theta)<0.15: += const`-Sprung durch eine glatte
+    Beule, die SACs Critic deutlich leichter fittet.
+    """
+    x, theta, v, thetadot, tripped = state
+    x_max = 0.39
+
+    upright  = 0.5 * (1.0 + np.cos(theta))                                   # [0,1] dicht
+    balanced = np.exp(-(theta / 0.25) ** 2) * np.exp(-(thetadot / 2.0) ** 2) * 3 # [0,1] glatte Praemie
+    reward = (upright + 0.5 * balanced) * np.exp(-0.5 * (x / x_max) ** 2)
+    return float(reward)
+
+@register("cos_bonus_only_theta")
+def compute_reward_cos_bonus(state, force) -> float:
+    """Dichtes positives Basissignal + glatte (gaußsche) Upright-Prämie, ~[0, 1.5].
+
+    Ersetzt den harten `if abs(theta)<0.15: += const`-Sprung durch eine glatte
+    Beule, die SACs Critic deutlich leichter fittet.
+    """
+    x, theta, v, thetadot, tripped = state
+    x_max = 0.39
+
+    upright  = 0.5 * (1.0 + np.cos(theta))                                   # [0,1] dicht
+    balanced = np.exp(-(theta / 0.25) ** 2) * np.exp(-(thetadot / 2.0) ** 2) * 3 # [0,3] glatte Praemie
+    reward = (upright +  balanced) 
+    return float(reward)

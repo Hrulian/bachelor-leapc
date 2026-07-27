@@ -1,0 +1,229 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+rm -f libacados_ocp_solver_cartpole.so
+rm -f cartpole_cost/cartpole_cost_ext_cost_0_fun.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_0_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_0_grad_p.o cartpole_cost/cartpole_cost_ext_cost_fun.o cartpole_cost/cartpole_cost_ext_cost_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_grad_p.o cartpole_cost/cartpole_cost_ext_cost_e_fun.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_e_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_e_grad_p.o ./cartpole_p_global_precompute_fun.o acados_solver_cartpole.o
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_0_fun.o cartpole_cost/cartpole_cost_ext_cost_0_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_0_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_0_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_0_grad_p.o cartpole_cost/cartpole_cost_ext_cost_0_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_fun.o cartpole_cost/cartpole_cost_ext_cost_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_grad_p.o cartpole_cost/cartpole_cost_ext_cost_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_e_fun.o cartpole_cost/cartpole_cost_ext_cost_e_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_e_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_e_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_cost/cartpole_cost_ext_cost_e_grad_p.o cartpole_cost/cartpole_cost_ext_cost_e_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_p_global_precompute_fun.o cartpole_p_global_precompute_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o acados_solver_cartpole.o acados_solver_cartpole.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_model/cartpole_dyn_disc_phi_fun.o cartpole_model/cartpole_dyn_disc_phi_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_model/cartpole_dyn_disc_phi_fun_jac.o cartpole_model/cartpole_dyn_disc_phi_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_model/cartpole_dyn_disc_phi_fun_jac_hess.o cartpole_model/cartpole_dyn_disc_phi_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_model/cartpole_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_model/cartpole_dyn_disc_phi_jac_p_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_model/cartpole_dyn_disc_phi_adj_p.o cartpole_model/cartpole_dyn_disc_phi_adj_p.c
+cc -shared cartpole_cost/cartpole_cost_ext_cost_0_fun.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_0_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_0_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_0_grad_p.o cartpole_cost/cartpole_cost_ext_cost_fun.o cartpole_cost/cartpole_cost_ext_cost_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_grad_p.o cartpole_cost/cartpole_cost_ext_cost_e_fun.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac_hess.o cartpole_cost/cartpole_cost_ext_cost_e_fun_jac.o cartpole_cost/cartpole_cost_ext_cost_e_hess_xu_p.o cartpole_cost/cartpole_cost_ext_cost_e_grad_p.o cartpole_p_global_precompute_fun.o acados_solver_cartpole.o cartpole_model/cartpole_dyn_disc_phi_fun.o cartpole_model/cartpole_dyn_disc_phi_fun_jac.o cartpole_model/cartpole_dyn_disc_phi_fun_jac_hess.o cartpole_model/cartpole_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_model/cartpole_dyn_disc_phi_adj_p.o -o libacados_ocp_solver_cartpole.so -L/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/lib -fopenmp -lacados -lhpipm -lblasfeo -lm \
+-L -l
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: creating run
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g4_full_saczop_cos_bonus_only_theta_s0/wandb/run-20260702_160939-vlttrz32
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run g4_full_saczop_cos_bonus_only_theta_s0
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop/runs/vlttrz32
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP itWARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+============================================================
+Run: g4_full_saczop_cos_bonus_only_theta_s0 | reward: cos_bonus_only_theta | seed: 0
+Phase 1 (0..10000): fill = saczop (planner=full), no learning
+Phase 2 (10000..200000): pure SAC driving + learning
+dt: 0.01s
+============================================================
+Ep 1 [fill]: reward = 443.43, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 1001 (5 steps/s)
+Ep 2 [fill]: reward = 556.33, steps = 870, max |F| = 20.0 N, stabilized = False, total steps = 1871 (5 steps/s)
+Ep 3 [fill]: reward = 647.11, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 2872 (5 steps/s)
+Ep 4 [fill]: reward = 511.30, steps = 923, max |F| = 20.0 N, stabilized = False, total steps = 3795 (5 steps/s)
+Ep 5 [fill]: reward = 477.37, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 4796 (6 steps/s)
+Ep 6 [fill]: reward = 434.32, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 5797 (6 steps/s)
+Ep 7 [fill]: reward = 540.16, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 6798 (6 steps/s)
+Ep 8 [fill]: reward = 548.64, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 7799 (6 steps/s)
+Ep 9 [fill]: reward = 420.14, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 8800 (7 steps/s)
+Ep 10 [fill]: reward = 458.79, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 9801 (7 steps/s)
+Ep 11 [fill]: reward = 65.84, steps = 227, max |F| = 20.0 N, stabilized = False, total steps = 10028 (7 steps/s)
+Ep 12 [sac]: reward = 0.99, steps = 14, max |F| = 19.9 N, stabilized = False, total steps = 10042 (7 steps/s)
+Ep 13 [sac]: reward = 0.73, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10052 (7 steps/s)
+Ep 14 [sac]: reward = 0.65, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10061 (7 steps/s)
+Ep 15 [sac]: reward = 0.93, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 10073 (7 steps/s)
+Ep 16 [sac]: reward = 0.65, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10083 (7 steps/s)
+Ep 17 [sac]: reward = 0.93, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10093 (7 steps/s)
+Ep 18 [sac]: reward = 0.75, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10102 (7 steps/s)
+Ep 19 [sac]: reward = 0.75, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10112 (7 steps/s)
+Ep 20 [sac]: reward = 0.67, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10121 (7 steps/s)
+Ep 21 [sac]: reward = 0.96, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10131 (7 steps/s)
+Ep 22 [sac]: reward = 0.65, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10140 (7 steps/s)
+Ep 23 [sac]: reward = 0.88, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10151 (7 steps/s)
+Ep 24 [sac]: reward = 0.72, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10160 (7 steps/s)
+Ep 25 [sac]: reward = 0.61, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10169 (7 steps/s)
+Ep 26 [sac]: reward = 0.71, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10179 (7 steps/s)
+Ep 27 [sac]: reward = 0.64, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10188 (7 steps/s)
+Ep 28 [sac]: reward = 0.69, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10198 (7 steps/s)
+Ep 29 [sac]: reward = 0.92, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 10211 (7 steps/s)
+Ep 30 [sac]: reward = 0.73, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 10223 (7 steps/s)
+Ep 31 [sac]: reward = 3.80, steps = 30, max |F| = 20.0 N, stabilized = False, total steps = 10253 (7 steps/s)
+Ep 32 [sac]: reward = 5.51, steps = 78, max |F| = 20.0 N, stabilized = False, total steps = 10331 (7 steps/s)
+Ep 33 [sac]: reward = 0.84, steps = 30, max |F| = 20.0 N, stabilized = False, total steps = 10361 (7 steps/s)
+Ep 34 [sac]: reward = 0.85, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 10376 (7 steps/s)
+Ep 35 [sac]: reward = 0.81, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 10391 (7 steps/s)
+Ep 36 [sac]: reward = 0.75, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 10406 (7 steps/s)
+Ep 37 [sac]: reward = 0.89, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 10421 (7 steps/s)
+Ep 38 [sac]: reward = 1.08, steps = 16, max |F| = 20.0 N, stabilized = False, total steps = 10437 (7 steps/s)
+Ep 39 [sac]: reward = 2.51, steps = 43, max |F| = 20.0 N, stabilized = False, total steps = 10480 (7 steps/s)
+Ep 40 [sac]: reward = 1.47, steps = 37, max |F| = 20.0 N, stabilized = False, total steps = 10517 (7 steps/s)
+Ep 41 [sac]: reward = 1.16, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 10534 (7 steps/s)
+Ep 42 [sac]: reward = 1.70, steps = 18, max |F| = 19.9 N, stabilized = False, total steps = 10552 (7 steps/s)
+Ep 43 [sac]: reward = 1.29, steps = 15, max |F| = 19.9 N, stabilized = False, total steps = 10567 (7 steps/s)
+Ep 44 [sac]: reward = 1.29, steps = 13, max |F| = 19.0 N, stabilized = False, total steps = 10580 (7 steps/s)
+Ep 45 [sac]: reward = 1.01, steps = 12, max |F| = 18.1 N, stabilized = False, total steps = 10592 (7 steps/s)
+Ep 46 [sac]: reward = 1.21, steps = 13, max |F| = 17.3 N, stabilized = False, total steps = 10605 (7 steps/s)
+Ep 47 [sac]: reward = 1.10, steps = 12, max |F| = 19.8 N, stabilized = False, total steps = 10617 (7 steps/s)
+Ep 48 [sac]: reward = 1.16, steps = 12, max |F| = 18.7 N, stabilized = False, total steps = 10629 (7 steps/s)
+Ep 49 [sac]: reward = 1.38, steps = 14, max |F| = 19.5 N, stabilized = False, total steps = 10643 (7 steps/s)
+Ep 50 [sac]: reward = 1.17, steps = 12, max |F| = 18.9 N, stabilized = False, total steps = 10655 (7 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g4_full_saczop_cos_bonus_only_theta_s0/checkpoints
+Ep 51 [sac]: reward = 1.27, steps = 13, max |F| = 19.6 N, stabilized = False, total steps = 10668 (7 steps/s)
+Ep 52 [sac]: reward = 1.39, steps = 13, max |F| = 19.5 N, stabilized = False, total steps = 10681 (7 steps/s)
+Ep 53 [sac]: reward = 1.44, steps = 14, max |F| = 19.3 N, stabilized = False, total steps = 10695 (7 steps/s)
+Ep 54 [sac]: reward = 1.24, steps = 12, max |F| = 19.8 N, stabilized = False, total steps = 10707 (7 steps/s)
+Ep 55 [sac]: reward = 1.63, steps = 15, max |F| = 19.3 N, stabilized = False, total steps = 10722 (7 steps/s)
+Ep 56 [sac]: reward = 1.31, steps = 15, max |F| = 19.3 N, stabilized = False, total steps = 10737 (7 steps/s)
+Ep 57 [sac]: reward = 1.17, steps = 12, max |F| = 19.3 N, stabilized = False, total steps = 10749 (7 steps/s)
+Ep 58 [sac]: reward = 1.27, steps = 13, max |F| = 19.0 N, stabilized = False, total steps = 10762 (7 steps/s)
+Ep 59 [sac]: reward = 0.58, steps = 179, max |F| = 19.7 N, stabilized = False, total steps = 10941 (7 steps/s)
+Ep 60 [sac]: reward = 1.49, steps = 33, max |F| = 13.6 N, stabilized = False, total steps = 10974 (7 steps/s)
+Ep 61 [sac]: reward = 2.05, steps = 29, max |F| = 11.4 N, stabilized = False, total steps = 11003 (7 steps/s)
+Ep 62 [sac]: reward = 2.32, steps = 35, max |F| = 14.4 N, stabilized = False, total steps = 11038 (7 steps/s)
+Ep 63 [sac]: reward = 41.14, steps = 368, max |F| = 17.4 N, stabilized = False, total steps = 11406 (7 steps/s)

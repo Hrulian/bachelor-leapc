@@ -1,0 +1,168 @@
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: creating run
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_sac/r8_cos_bonus_s2/wandb/run-20260701_163503-um7tp0jy
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run r8_cos_bonus_s2
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim/runs/um7tp0jy
+============================================================
+Run: r8_cos_bonus_s2 | reward: cos_bonus | seed: 2 | algo: pure SAC
+Steps: 200000 | dt: 0.01s
+============================================================
+Ep 1: reward = 0.88, steps = 20, max |F| = 18.3 N, stabilized = False, total steps = 20 (3163 steps/s)
+Ep 2: reward = 1.05, steps = 40, max |F| = 19.9 N, stabilized = False, total steps = 60 (3610 steps/s)
+Ep 3: reward = 0.71, steps = 12, max |F| = 19.2 N, stabilized = False, total steps = 72 (3601 steps/s)
+Ep 4: reward = 2.48, steps = 99, max |F| = 19.9 N, stabilized = False, total steps = 171 (3906 steps/s)
+Ep 5: reward = 0.99, steps = 52, max |F| = 19.9 N, stabilized = False, total steps = 223 (3749 steps/s)
+Ep 6: reward = 0.79, steps = 18, max |F| = 19.3 N, stabilized = False, total steps = 241 (3742 steps/s)
+Ep 7: reward = 0.76, steps = 15, max |F| = 18.5 N, stabilized = False, total steps = 256 (3727 steps/s)
+Ep 8: reward = 6.57, steps = 135, max |F| = 19.3 N, stabilized = False, total steps = 391 (3762 steps/s)
+Ep 9: reward = 0.95, steps = 20, max |F| = 19.9 N, stabilized = False, total steps = 411 (3733 steps/s)
+Ep 10: reward = 1.06, steps = 29, max |F| = 19.0 N, stabilized = False, total steps = 440 (3743 steps/s)
+Ep 11: reward = 0.83, steps = 14, max |F| = 19.3 N, stabilized = False, total steps = 454 (3721 steps/s)
+Ep 12: reward = 3.05, steps = 67, max |F| = 19.4 N, stabilized = False, total steps = 521 (3747 steps/s)
+Ep 13: reward = 0.81, steps = 17, max |F| = 19.8 N, stabilized = False, total steps = 538 (3723 steps/s)
+Ep 14: reward = 0.71, steps = 15, max |F| = 19.8 N, stabilized = False, total steps = 553 (3714 steps/s)
+Ep 15: reward = 0.69, steps = 18, max |F| = 18.9 N, stabilized = False, total steps = 571 (3704 steps/s)
+Ep 16: reward = 0.63, steps = 14, max |F| = 18.6 N, stabilized = False, total steps = 585 (3675 steps/s)
+Ep 17: reward = 0.74, steps = 24, max |F| = 19.3 N, stabilized = False, total steps = 609 (3666 steps/s)
+Ep 18: reward = 17.73, steps = 109, max |F| = 19.6 N, stabilized = False, total steps = 718 (3701 steps/s)
+Ep 19: reward = 0.85, steps = 21, max |F| = 19.6 N, stabilized = False, total steps = 739 (3700 steps/s)
+Ep 20: reward = 0.84, steps = 24, max |F| = 19.1 N, stabilized = False, total steps = 763 (3686 steps/s)
+Ep 21: reward = 1.39, steps = 39, max |F| = 18.9 N, stabilized = False, total steps = 802 (3683 steps/s)
+Ep 22: reward = 0.97, steps = 19, max |F| = 19.2 N, stabilized = False, total steps = 821 (3672 steps/s)
+Ep 23: reward = 1.23, steps = 44, max |F| = 19.7 N, stabilized = False, total steps = 865 (3668 steps/s)
+Ep 24: reward = 1.05, steps = 25, max |F| = 18.9 N, stabilized = False, total steps = 890 (3656 steps/s)
+Ep 25: reward = 1.89, steps = 58, max |F| = 19.8 N, stabilized = False, total steps = 948 (3664 steps/s)
+Ep 26: reward = 1.68, steps = 40, max |F| = 19.7 N, stabilized = False, total steps = 988 (3678 steps/s)
+Ep 27: reward = 0.62, steps = 19, max |F| = 19.4 N, stabilized = False, total steps = 1007 (698 steps/s)
+Ep 28: reward = 0.60, steps = 23, max |F| = 20.0 N, stabilized = False, total steps = 1030 (219 steps/s)
+Ep 29: reward = 0.53, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 1042 (162 steps/s)
+Ep 30: reward = 0.54, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 1052 (134 steps/s)
+Ep 31: reward = 0.47, steps = 9, max |F| = 19.9 N, stabilized = False, total steps = 1061 (116 steps/s)
+Ep 32: reward = 0.50, steps = 11, max |F| = 19.9 N, stabilized = False, total steps = 1072 (100 steps/s)
+Ep 33: reward = 0.71, steps = 13, max |F| = 19.2 N, stabilized = False, total steps = 1085 (86 steps/s)
+Ep 34: reward = 1.95, steps = 43, max |F| = 19.8 N, stabilized = False, total steps = 1128 (60 steps/s)
+Ep 35: reward = 0.28, steps = 162, max |F| = 19.9 N, stabilized = False, total steps = 1290 (30 steps/s)
+Ep 36: reward = 1.85, steps = 71, max |F| = 19.8 N, stabilized = False, total steps = 1361 (26 steps/s)
+Ep 37: reward = 1.57, steps = 53, max |F| = 19.7 N, stabilized = False, total steps = 1414 (24 steps/s)
+Ep 38: reward = 2.09, steps = 58, max |F| = 18.7 N, stabilized = False, total steps = 1472 (21 steps/s)
+Ep 39: reward = 3.21, steps = 45, max |F| = 20.0 N, stabilized = False, total steps = 1517 (20 steps/s)
+Ep 40: reward = 0.49, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1526 (20 steps/s)
+Ep 41: reward = 0.52, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1535 (20 steps/s)
+Ep 42: reward = 0.52, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1544 (20 steps/s)
+Ep 43: reward = 0.52, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1553 (19 steps/s)
+Ep 44: reward = 0.52, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1562 (19 steps/s)
+Ep 45: reward = 0.52, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1571 (19 steps/s)
+Ep 46: reward = 0.51, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 1580 (19 steps/s)
+Ep 47: reward = 0.55, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 1590 (19 steps/s)
+Ep 48: reward = 0.58, steps = 10, max |F| = 19.9 N, stabilized = False, total steps = 1600 (18 steps/s)
+Ep 49: reward = 1.65, steps = 26, max |F| = 18.7 N, stabilized = False, total steps = 1626 (18 steps/s)
+Ep 50: reward = 1.65, steps = 35, max |F| = 19.2 N, stabilized = False, total steps = 1661 (17 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_sac/r8_cos_bonus_s2/checkpoints
+Ep 51: reward = 1.00, steps = 59, max |F| = 19.6 N, stabilized = False, total steps = 1720 (17 steps/s)
+Ep 52: reward = 0.41, steps = 180, max |F| = 19.7 N, stabilized = False, total steps = 1900 (15 steps/s)
+Ep 53: reward = 0.64, steps = 127, max |F| = 19.8 N, stabilized = False, total steps = 2027 (14 steps/s)
+Ep 54: reward = 1.42, steps = 20, max |F| = 18.7 N, stabilized = False, total steps = 2047 (14 steps/s)
+Ep 55: reward = 1.57, steps = 23, max |F| = 18.0 N, stabilized = False, total steps = 2070 (13 steps/s)
+Ep 56: reward = 1.89, steps = 35, max |F| = 18.7 N, stabilized = False, total steps = 2105 (13 steps/s)
+Ep 57: reward = 11.25, steps = 407, max |F| = 20.0 N, stabilized = False, total steps = 2512 (12 steps/s)
+Ep 58: reward = 11.91, steps = 112, max |F| = 19.9 N, stabilized = False, total steps = 2624 (11 steps/s)
+Ep 59: reward = 39.44, steps = 194, max |F| = 19.9 N, stabilized = False, total steps = 2818 (11 steps/s)
+Ep 60: reward = 85.51, steps = 573, max |F| = 20.0 N, stabilized = False, total steps = 3391 (10 steps/s)
+Ep 61: reward = 69.45, steps = 235, max |F| = 20.0 N, stabilized = False, total steps = 3626 (9 steps/s)
+Ep 62: reward = 60.57, steps = 218, max |F| = 20.0 N, stabilized = False, total steps = 3844 (9 steps/s)
+Ep 63: reward = 128.71, steps = 272, max |F| = 19.9 N, stabilized = False, total steps = 4116 (8 steps/s)
+Ep 64: reward = 125.11, steps = 312, max |F| = 20.0 N, stabilized = False, total steps = 4428 (8 steps/s)
+Ep 65: reward = 95.83, steps = 249, max |F| = 20.0 N, stabilized = False, total steps = 4677 (7 steps/s)
+Ep 66: reward = 77.12, steps = 233, max |F| = 20.0 N, stabilized = False, total steps = 4910 (7 steps/s)
+Ep 67: reward = 457.09, steps = 1001, max |F| = 19.9 N, stabilized = False, total steps = 5911 (6 steps/s)
+Ep 68: reward = 532.42, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 6912 (6 steps/s)
+Ep 69: reward = 563.77, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 7913 (6 steps/s)
+Ep 70: reward = 543.84, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 8914 (6 steps/s)
+Ep 71: reward = 577.63, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 9915 (6 steps/s)
+Ep 72: reward = 608.81, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 10916 (6 steps/s)
+Ep 73: reward = 672.77, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 11917 (5 steps/s)
+Ep 74: reward = 573.95, steps = 984, max |F| = 20.0 N, stabilized = False, total steps = 12901 (5 steps/s)
+Ep 75: reward = 689.61, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 13902 (5 steps/s)wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:      episode/cumulative_reward ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃▃▃▃▃▄▄▅▄▆▇▇███
+wandb:         episode/episode_number ▁▁▁▂▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▇▇▇█████
+wandb:              episode/max_force ▅██▅▆▃▆▇▅▄██▅█▄█████▃▁██████████████████
+wandb:             episode/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█████
+wandb:                  episode/steps ▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▂▂▂▃███████████████
+wandb:       episode/steps_per_second █████████████▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                 learning/alpha █▇▆▆▄▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:               learning/entropy █▇▆▄▁▂▁▂▁▂▂▂▁▁▁▁▁▁▁▂▂▂▂▁▂▂▂▂▁▂▁▂▂▂▃▂▃▃▃▃
+wandb:               learning/pi_loss █████▆▆▆▆▆▆▆▆▅▅▅▅▅▅▅▅▅▅▄▄▄▃▂▂▂▂▂▂▂▂▁▁▁▁▁
+wandb:                 learning/q_avg ▁▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▃▃▄▄▄▄▄▄▄▄▄▄▄▅▆▆▇▇▇▇███
+wandb:            learning/q_loss_avg ▁▁▁▁▁▄▂▁▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▃▄▃▄▂▃▃▃▃▂▃▅▄▃▃▄█
+wandb:          learning/q_target_avg ▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▃▃▄▄▄▄▄▄▄▄▅▅▆▆▇▇▇▇▇█████
+wandb:  learning/total_training_steps ▁▁▁▁▂▂▂▂▃▃▃▃▃▃▃▄▄▄▄▅▅▅▅▅▆▆▆▆▆▆▆▆▇▇▇▇████
+wandb: stabilization/achieved_at_step █▂▁▁▁▁▁▁█▁▇▁▁▁
+wandb:              step/episode_step ▁▁▁▂▂▂▃▂▅▆▂▃▅▅▆▂█▂▃▅▅▆▃▂▂█▃▃█▅▂▃▅▆█▅▃█▅▃
+wandb:                    step/reward ▁▁▁▃▃▄▃▄▂▃▃▃▃▂▃▃▁▃▆▃▇▃▄▃▂▇▃▂▇▇▇▇▃▂▇▆█▃██
+wandb:                     step/theta ▇▁██▁█▃▁▃▃▂▄▆▄▆▅▅▁▄▅▅▃▃▄▃▂▅▃██▄▂▃▅▄▄▆▄▄▄
+wandb:                  step/thetadot ▆▆▆▃▆▁▂▂▃▃▄▄▆▁▄▄▅▅█▄▅▁▁▄▄▅▅▅▄▅▅▄▅▅▆▅▅▅▅▅
+wandb:                   step/u_force █▃▅▄▄▄▁▄▅▄▄▅▂▆▄▄▅▁█▄▄▅▅▄▄▅▄▅▄▄▄▄▂▄▄▄▅▄▄▄
+wandb:                         step/v ▂▁▃▇▄▆▄▄▄▃▄▅▅▃▅▃▅▆▃▄█▅▄▆▅▄▄▅▅▅▅▅▅▅▅▅▅▄▅▆
+wandb:                         step/x ▄▃▆█▃▅██▅▆▆▆▅▁▃▅▄▃▂▅▅▃▂▂▂▃▃▃▂▂▃▃▅▄▃▃▄▄▄▄
+wandb: 
+wandb: Run summary:
+wandb:      episode/cumulative_reward 2129.91047
+wandb:         episode/episode_number 98
+wandb:              episode/max_force 19.89142
+wandb:             episode/stabilized 1
+wandb:                  episode/steps 1001
+wandb:       episode/steps_per_second 5.36183
+wandb:                 learning/alpha 0.0
+wandb:               learning/entropy 0.30444
+wandb:               learning/pi_loss -154.79846
+wandb:                 learning/q_avg 156.71442
+wandb:            learning/q_loss_avg 1.26949
+wandb:          learning/q_target_avg 156.71907
+wandb:  learning/total_training_steps 726935
+wandb: stabilization/achieved_at_step 375
+wandb:              step/episode_step 275
+wandb:                    step/reward 2.45111
+wandb:                     step/theta 0.01604
+wandb:                  step/thetadot -0.11425
+wandb:                   step/u_force -0.57342
+wandb:                         step/v -0.04684
+wandb:                         step/x -0.06823
+wandb: 
+wandb: 🚀 View run r8_cos_bonus_s2 at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim/runs/um7tp0jy
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./runs_sac/r8_cos_bonus_s2/wandb/run-20260701_163503-um7tp0jy/logs
+
+Ep 76: reward = 654.54, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 14903 (5 steps/s)
+Ep 77: reward = 577.46, steps = 1001, max |F| = 19.9 N, stabilized = False, total steps = 15904 (5 steps/s)
+Ep 78: reward = 685.89, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 16905 (5 steps/s)
+Ep 79: reward = 887.77, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 17906 (5 steps/s)
+Ep 80: reward = 799.52, steps = 1001, max |F| = 19.9 N, stabilized = False, total steps = 18907 (5 steps/s)
+Ep 81: reward = 946.35, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 19908 (5 steps/s)
+Ep 82: reward = 913.11, steps = 1001, max |F| = 19.9 N, stabilized = False, total steps = 20909 (5 steps/s)
+Ep 83: reward = 1170.33, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 21910 (5 steps/s)
+Ep 84: reward = 838.28, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 22911 (5 steps/s)
+Ep 85: reward = 1325.11, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 23912 (5 steps/s)
+Ep 86: reward = 1458.49, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 24913 (5 steps/s)
+Ep 87: reward = 1756.07, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 25914 (5 steps/s)
+Ep 88: reward = 1859.10, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 26915 (5 steps/s)
+Ep 89: reward = 1924.25, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 27916 (5 steps/s)
+Ep 90: reward = 1896.67, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 28917 (5 steps/s)
+Ep 91: reward = 1890.85, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 29918 (5 steps/s)
+Ep 92: reward = 1919.18, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 30919 (5 steps/s)
+Ep 93: reward = 1541.31, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 31920 (5 steps/s)
+Ep 94: reward = 1938.02, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 32921 (5 steps/s)
+Ep 95: reward = 1657.00, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 33922 (5 steps/s)
+Ep 96: reward = 2046.40, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 34923 (5 steps/s)
+Ep 97: reward = 2098.80, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 35924 (5 steps/s)
+Ep 98: reward = 2129.91, steps = 1001, max |F| = 19.9 N, stabilized = True, total steps = 36925 (5 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_sac/r8_cos_bonus_s2/checkpoints
+
+Done: 37346 env steps, 726935 gradient steps in 115.8 min (5 steps/s)

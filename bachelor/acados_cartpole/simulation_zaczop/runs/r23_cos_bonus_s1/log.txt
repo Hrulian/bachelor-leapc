@@ -1,0 +1,47 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 28, in <module>
+    import wandb
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/__init__.py", line 25, in <module>
+    from .artifacts.artifact import Artifact
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/artifacts/artifact.py", line 30, in <module>
+    from wandb import data_types, env
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/data_types.py", line 16, in <module>
+    from .sdk.data_types.audio import Audio
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/audio.py", line 11, in <module>
+    from .base_types.media import BatchableMedia
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/media.py", line 14, in <module>
+    from .wb_value import WBValue
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/data_types/base_types/wb_value.py", line 4, in <module>
+    from wandb.sdk import wandb_setup
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_setup.py", line 39, in <module>
+    from . import wandb_settings
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/wandb/sdk/wandb_settings.py", line 159, in <module>
+    class Settings(BaseModel, validate_assignment=True):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 255, in __new__
+    complete_model_class(
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_model_construction.py", line 648, in complete_model_class
+    schema = gen_schema.generate_schema(cls)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 729, in generate_schema
+    schema = self._generate_schema_inner(obj)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1023, in _generate_schema_inner
+    return self._model_schema(obj)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 856, in _model_schema
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 856, in <dictcomp>
+    {k: self._generate_md_field_schema(k, v, decorators) for k, v in fields.items()},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1228, in _generate_md_field_schema
+    schema, metadata = self._common_field_schema(name, field_info, decorators)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py", line 1312, in _common_field_schema
+    update_core_metadata(
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/pydantic/_internal/_core_metadata.py", line 76, in update_core_metadata
+    if (existing_updates := core_metadata.get('pydantic_js_updates')) is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

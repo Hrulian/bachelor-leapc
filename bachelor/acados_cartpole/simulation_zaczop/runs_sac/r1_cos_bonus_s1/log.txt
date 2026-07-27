@@ -1,0 +1,55 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac.py", line 30, in <module>
+    from bachelor.acados_cartpole.real_sac_zop.my_sac import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/real_sac_zop/my_sac.py", line 22, in <module>
+    from bachelor.acados_cartpole.real_sac_zop.my_trainer import Trainer, TrainerConfig
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/real_sac_zop/my_trainer.py", line 14, in <module>
+    from leap_c.utils.rollout import episode_rollout
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/utils/rollout.py", line 14, in <module>
+    from leap_c.examples.utils.matplotlib_env import MatplotlibRenderEnv
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/__init__.py", line 11, in <module>
+    from leap_c.examples.cartpole.planner import CartPolePlanner, CartPolePlannerConfig
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/cartpole/planner.py", line 4, in <module>
+    from leap_c.examples.cartpole.acados_ocp import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/cartpole/acados_ocp.py", line 6, in <module>
+    from acados_template import AcadosModel, AcadosOcp
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/__init__.py", line 56, in <module>
+    from .plot_utils import latexify_plot, plot_convergence, plot_contraction_rates, plot_trajectories
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/plot_utils.py", line 34, in <module>
+    import matplotlib.pyplot as plt
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/pyplot.py", line 57, in <module>
+    import matplotlib.colorbar
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/colorbar.py", line 19, in <module>
+    from matplotlib import _api, cbook, collections, cm, colors, contour, ticker
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/contour.py", line 15, in <module>
+    from matplotlib.backend_bases import MouseButton
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/backend_bases.py", line 49, in <module>
+    from matplotlib import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/text.py", line 18, in <module>
+    from .textpath import TextPath, TextToPath  # noqa # Logically located here
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/textpath.py", line 12, in <module>
+    from matplotlib.mathtext import MathTextParser
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/mathtext.py", line 22, in <module>
+    from matplotlib import _api, _mathtext
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/_mathtext.py", line 75, in <module>
+    class VectorParse(NamedTuple):
+  File "/usr/lib/python3.11/typing.py", line 2927, in __new__
+    nm_tpl = _make_nmtuple(typename, types.items(),
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/typing.py", line 2893, in _make_nmtuple
+    types = {n: _type_check(t, f"field {n} annotation must be a type")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/typing.py", line 2893, in <dictcomp>
+    types = {n: _type_check(t, f"field {n} annotation must be a type")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/typing.py", line 186, in _type_check
+    arg = _type_convert(arg, module=module, allow_special_forms=allow_special_forms)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/typing.py", line 164, in _type_convert
+    return ForwardRef(arg, module=module, is_class=allow_special_forms)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/typing.py", line 878, in __init__
+    code = compile(arg_to_compile, '<string>', 'eval')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

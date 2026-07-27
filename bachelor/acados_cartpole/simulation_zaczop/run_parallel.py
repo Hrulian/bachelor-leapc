@@ -26,10 +26,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from bachelor.acados_cartpole.simulation_zaczop.rewards import REWARDS
+from bachelor.acados_cartpole.simulation_zaczop.planner_registry import PLANNER_REGISTRY
+
+# ---------------------------------------------------------------------------
+# Which planner (and thus OCP / parameter interface) to bind for this sweep.
+# Names come from planner_registry.py:
+#   "full" -> my_planner.py       (cart + pendulum, 4 states)
+#   "cart" -> my_planner_cart.py  (cart only, 2 states, only cart pos learnable)
+# Override per run on the command line with --planner.
+PLANNER = "full"
+# ---------------------------------------------------------------------------
 
 
 def parse_args():
     p = ArgumentParser(description="Parallel SAC-ZOP simulation sweep")
+    p.add_argument("--planner", type=str, default=PLANNER, choices=sorted(PLANNER_REGISTRY),
+                   help="Which planner/OCP to bind (default set by PLANNER at top of file)")
     p.add_argument("--rewards", nargs="+", default=["default"], choices=sorted(REWARDS))
     p.add_argument("--seeds", nargs="+", type=int, default=[0])
     p.add_argument("--steps", type=int, default=200_000)
@@ -37,7 +49,7 @@ def parse_args():
                    help="Max concurrent processes (each uses ~2 threads: torch + acados)")
     p.add_argument("--torch-threads", type=int, default=1,
                    help="torch threads per process")
-    p.add_argument("--wandb-project", type=str, default="cartpole-sac-zop-sim")
+    p.add_argument("--wandb-project", type=str, default="cartpole-planner-ablation-sim")
     p.add_argument("--wandb-mode", type=str, default="online",
                    choices=["online", "offline", "disabled"])
     p.add_argument("--group", type=str, default=None,
@@ -57,9 +69,10 @@ def main():
 
     jobs = []
     for reward, seed in product(args.rewards, args.seeds):
-        run_name = f"{group}_{reward}_s{seed}"
+        run_name = f"{group}_{args.planner}_{reward}_s{seed}"
         cmd = [
             sys.executable, str(script),
+            "--planner", args.planner,
             "--reward", reward,
             "--seed", str(seed),
             "--steps", str(args.steps),
@@ -73,7 +86,8 @@ def main():
         ]
         jobs.append((run_name, cmd))
 
-    print(f"Sweep '{group}': {len(jobs)} runs, {args.workers} parallel workers")
+    print(f"Sweep '{group}': {len(jobs)} runs, {args.workers} parallel workers "
+          f"(planner={args.planner})")
     for name, _ in jobs:
         print(f"  - {name}")
     print()

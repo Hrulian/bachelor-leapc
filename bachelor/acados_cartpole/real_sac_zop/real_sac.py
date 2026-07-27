@@ -133,6 +133,10 @@ current_episode_reward = 0.0
 max_force_perep = 0
 wandb_run_id = None
 
+# metrics mirrored from the sim scripts (sim_sac / sim_sac_zop / sim_sac_zopfill)
+num_terminations = 0  # cumulative episodes that ended in a trip (terminated, not truncated)
+num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
+
 # stabilization tracking
 STABILIZATION_BUFFER_SIZE = 200
 STABILIZATION_THRESHOLD = 0.15
@@ -531,8 +535,11 @@ def main():
         wandb_run_id = run.id
         print(f"New wandb run ID: {wandb_run_id}")
     
-    global episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode
-    
+    global episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps
+
+    # env-throughput timing (for episode/steps_per_second, like the sim scripts)
+    t_start = time.perf_counter()
+
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
@@ -649,6 +656,9 @@ def main():
                         'step/thetadot': thetadot,
                         'step/episode_step': episode_step_count,
                         'step/abs_step': abs_step_count,
+                        'step/stabilized': int(stabilized_this_episode),
+                        'stabilization/stabilized_steps_total': num_stabilized_steps,
+                        'terminations/total': num_terminations,
                     }
                     if stats:
                         for key, val in stats.items():
@@ -684,6 +694,7 @@ def main():
                 if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
                     if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
                         stabilized_this_episode = True
+                        num_stabilized_steps += STABILIZATION_BUFFER_SIZE  # retroactively credit the 200-step balanced window
                         try:
                             wandb.log({
                                 'stabilization/achieved_at_step': episode_step_count,
@@ -692,6 +703,8 @@ def main():
                             }, step=abs_step_count)
                         except Exception:
                             pass
+                elif stabilized_this_episode:
+                    num_stabilized_steps += 1  # latched: every step after achievement counts as stabilized
                 
                 try:
                     wandb.log({'step/reward': reward}, step=abs_step_count)
@@ -702,13 +715,20 @@ def main():
                 
                 if done:
                     talk_to_arduino(0, mode=1)
+                    # terminated = ended by a trip (safety flag or |x| > threshold);
+                    # otherwise the episode was truncated (max_ep_steps reached)
+                    terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+                    if terminated:
+                        num_terminations += 1
+                    elapsed = time.perf_counter() - t_start
+                    sps = abs_step_count / max(elapsed, 1e-9)
                     episode_rewards.append({
                         'episode': episode_count,
                         'cumulative_reward': current_episode_reward,
                         'steps': episode_step_count
                     })
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
-                    
+
                     try:
                         wandb.log({
                             'episode/episode_number': episode_count,
@@ -716,6 +736,9 @@ def main():
                             'episode/steps': episode_step_count,
                             'episode/max_force': max_force_perep,
                             'episode/stabilized': int(stabilized_this_episode),
+                            'episode/steps_per_second': sps,
+                            'episode/terminated': int(terminated),
+                            'terminations/total': num_terminations,
                             'episode/learning_step': learning_step,
                             'episode/abs_step': abs_step_count,
                         }, step=abs_step_count)

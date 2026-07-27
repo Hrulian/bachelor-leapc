@@ -42,7 +42,7 @@ def create_custom_cartpole_params(
         AcadosParameter("M", default=np.array([0.17444])),  # mass of the cart [kg]
         AcadosParameter("m", default=np.array([0.016])),  # mass of the rod [kg]
         AcadosParameter("g", default=np.array([9.81])),  # gravity constant [m/s^2]
-        AcadosParameter("l", default=np.array([0.36])),  # length of the rod [m]
+        AcadosParameter("l", default=np.array([0.6])),  # length of the rod [m]
         AcadosParameter("Ip", default=np.array([0.0001728])),  # moment of inertia 
         # Cost matrix factorization parameters
         AcadosParameter(
@@ -55,19 +55,19 @@ def create_custom_cartpole_params(
         AcadosParameter(
             "xref0",
             default=np.array([0.0]),
+            interface="non-learnable",
+        ),  # reference position
+        AcadosParameter(
+            "xref1",
+            default=np.array([0.0]),
             space=gym.spaces.Box(
-                low=np.array([-0.39]),
-                high=np.array([0.39]),
+                low=np.array([-np.pi]),
+                high=np.array([np.pi]),
                 dtype=np.float64,
             ),
             interface="learnable",
             end_stages=list(range(N_horizon + 1)) if param_interface == "stagewise" else [],
-        ),  # reference position (learnable: actor steers the cart position)
-        AcadosParameter(
-            "xref1",
-            default=np.array([0.0]),
-            interface="non-learnable",
-        ),  # reference theta (fixed at 0 = upright)
+        ),  # reference theta
         AcadosParameter(
             "xref2",
             default=np.array([0.0]),
@@ -239,6 +239,7 @@ def export_parametric_ocp(
     ocp.constraints.ubu = np.array([+Fmax])
     ocp.constraints.idxbu = np.array([0])
 
+    # Position constraints on the cart temporarily disabled for testing.
     ocp.constraints.lbx = np.array([-x_threshold])
     ocp.constraints.ubx = -ocp.constraints.lbx
     ocp.constraints.idxbx = np.array([0])
@@ -246,19 +247,6 @@ def export_parametric_ocp(
     ocp.constraints.ubx_e = -ocp.constraints.lbx_e
     ocp.constraints.idxbx_e = np.array([0])
 
-    # Allow a slack variable for the x-position constraint so violations are
-    # permitted but penalized. Increase Z_* to make slack more expensive.
-    # idxsbx: indices of state components with stage slacks
-    
-    # ocp.constraints.idxsbx = np.array([0])
-    # # Quadratic penalty on the slack variables (stage)
-    # ocp.cost.Zl = ocp.cost.Zu = np.array([1e3])
-    # ocp.cost.zl = ocp.cost.zu = np.array([0.0])
-
-    # # Terminal slack (optional) — apply same settings for terminal constraint
-    # ocp.constraints.idxsbx_e = np.array([0])
-    # ocp.cost.Zl_e = ocp.cost.Zu_e = np.array([1e3])
-    # ocp.cost.zl_e = ocp.cost.zu_e = np.array([0.0])
 
 
     ######## Solver configuration ########

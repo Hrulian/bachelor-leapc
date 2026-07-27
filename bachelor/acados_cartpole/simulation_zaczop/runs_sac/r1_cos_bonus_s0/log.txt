@@ -1,0 +1,44 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac.py", line 30, in <module>
+    from bachelor.acados_cartpole.real_sac_zop.my_sac import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/real_sac_zop/my_sac.py", line 22, in <module>
+    from bachelor.acados_cartpole.real_sac_zop.my_trainer import Trainer, TrainerConfig
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/real_sac_zop/my_trainer.py", line 14, in <module>
+    from leap_c.utils.rollout import episode_rollout
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/utils/rollout.py", line 14, in <module>
+    from leap_c.examples.utils.matplotlib_env import MatplotlibRenderEnv
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/__init__.py", line 11, in <module>
+    from leap_c.examples.cartpole.planner import CartPolePlanner, CartPolePlannerConfig
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/cartpole/planner.py", line 4, in <module>
+    from leap_c.examples.cartpole.acados_ocp import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/leap_c/examples/cartpole/acados_ocp.py", line 6, in <module>
+    from acados_template import AcadosModel, AcadosOcp
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/__init__.py", line 56, in <module>
+    from .plot_utils import latexify_plot, plot_convergence, plot_contraction_rates, plot_trajectories
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/plot_utils.py", line 34, in <module>
+    import matplotlib.pyplot as plt
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/pyplot.py", line 57, in <module>
+    import matplotlib.colorbar
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/colorbar.py", line 19, in <module>
+    from matplotlib import _api, cbook, collections, cm, colors, contour, ticker
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/contour.py", line 15, in <module>
+    from matplotlib.backend_bases import MouseButton
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/backend_bases.py", line 49, in <module>
+    from matplotlib import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/text.py", line 95, in <module>
+    class Text(Artist):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/artist.py", line 149, in __init_subclass__
+    cls._update_set_signature_and_docstring()
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/matplotlib/artist.py", line 168, in _update_set_signature_and_docstring
+    [Parameter("self", Parameter.POSITIONAL_OR_KEYWORD),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/inspect.py", line 2671, in __init__
+    self._kind = _ParameterKind(kind)
+                 ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/enum.py", line 714, in __call__
+    return cls.__new__(cls, value)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/enum.py", line 1095, in __new__
+    def __new__(cls, value):
+
+KeyboardInterrupt

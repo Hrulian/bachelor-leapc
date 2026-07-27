@@ -1,0 +1,262 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+rm -f libacados_ocp_solver_cartpole_fullcart.so
+rm -f cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_grad_p.o ./cartpole_fullcart_p_global_precompute_fun.o acados_solver_cartpole_fullcart.o
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_p_global_precompute_fun.o cartpole_fullcart_p_global_precompute_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o acados_solver_cartpole_fullcart.o acados_solver_cartpole_fullcart.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac_hess.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_jac_p_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_adj_p.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_adj_p.c
+cc -shared cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_0_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_grad_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac_hess.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_fun_jac.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_hess_xu_p.o cartpole_fullcart_cost/cartpole_fullcart_cost_ext_cost_e_grad_p.o cartpole_fullcart_p_global_precompute_fun.o acados_solver_cartpole_fullcart.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_fun_jac_hess.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_fullcart_model/cartpole_fullcart_dyn_disc_phi_adj_p.o -o libacados_ocp_solver_cartpole_fullcart.so -L/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/lib -fopenmp -lacados -lhpipm -lblasfeo -lm \
+-L -l
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g3_fullcart_saczop_cos_bonus_only_theta_s1/wandb/run-20260702_160729-yjbdddqc
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run g3_fullcart_saczop_cos_bonus_only_theta_s1
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop/runs/yjbdddqc
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+============================================================
+Run: g3_fullcart_saczop_cos_bonus_only_theta_s1 | reward: cos_bonus_only_theta | seed: 1
+Phase 1 (0..10000): fill = saczop (planner=fullcart), no learning
+Phase 2 (10000..200000): pure SAC driving + learning
+dt: 0.01s
+============================================================
+Ep 1 [fill]: reward = 2.10, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 18 (23 steps/s)
+Ep 2 [fill]: reward = 2.59, steps = 24, max |F| = 19.5 N, stabilized = False, total steps = 42 (23 steps/s)
+Ep 3 [fill]: reward = 1901.64, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 1043 (14 steps/s)
+Ep 4 [fill]: reward = 2.07, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 1060 (14 steps/s)
+Ep 5 [fill]: reward = 1.84, steps = 16, max |F| = 19.5 N, stabilized = False, total steps = 1076 (14 steps/s)
+Ep 6 [fill]: reward = 2.10, steps = 17, max |F| = 19.6 N, stabilized = False, total steps = 1093 (14 steps/s)
+Ep 7 [fill]: reward = 2.07, steps = 17, max |F| = 19.6 N, stabilized = False, total steps = 1110 (14 steps/s)
+Ep 8 [fill]: reward = 2.07, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 1128 (14 steps/s)
+Ep 9 [fill]: reward = 2.00, steps = 18, max |F| = 19.5 N, stabilized = False, total steps = 1146 (14 steps/s)
+Ep 10 [fill]: reward = 2.04, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 1163 (14 steps/s)
+Ep 11 [fill]: reward = 2044.59, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 2164 (9 steps/s)
+Ep 12 [fill]: reward = 2.05, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 2181 (9 steps/s)
+Ep 13 [fill]: reward = 2.06, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2198 (9 steps/s)
+Ep 14 [fill]: reward = 1.99, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 2215 (9 steps/s)
+Ep 15 [fill]: reward = 2.11, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2232 (9 steps/s)
+Ep 16 [fill]: reward = 2.10, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 2250 (9 steps/s)
+Ep 17 [fill]: reward = 2.02, steps = 18, max |F| = 19.5 N, stabilized = False, total steps = 2268 (9 steps/s)
+Ep 18 [fill]: reward = 2.02, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 2286 (9 steps/s)
+Ep 19 [fill]: reward = 2.02, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 2304 (9 steps/s)
+Ep 20 [fill]: reward = 2.09, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2321 (9 steps/s)
+Ep 21 [fill]: reward = 2.08, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2338 (8 steps/s)
+Ep 22 [fill]: reward = 1.97, steps = 18, max |F| = 19.5 N, stabilized = False, total steps = 2356 (8 steps/s)
+Ep 23 [fill]: reward = 1.99, steps = 19, max |F| = 20.0 N, stabilized = False, total steps = 2375 (8 steps/s)
+Ep 24 [fill]: reward = 1.91, steps = 22, max |F| = 20.0 N, stabilized = False, total steps = 2397 (8 steps/s)
+Ep 25 [fill]: reward = 2.10, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2414 (8 steps/s)
+Ep 26 [fill]: reward = 2.00, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 2432 (8 steps/s)
+Ep 27 [fill]: reward = 1.99, steps = 21, max |F| = 20.0 N, stabilized = False, total steps = 2453 (8 steps/s)
+Ep 28 [fill]: reward = 2.22, steps = 21, max |F| = 20.0 N, stabilized = False, total steps = 2474 (8 steps/s)
+Ep 29 [fill]: reward = 1.98, steps = 19, max |F| = 19.5 N, stabilized = False, total steps = 2493 (8 steps/s)
+Ep 30 [fill]: reward = 2.05, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 2510 (8 steps/s)
+Ep 31 [fill]: reward = 2.09, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 2528 (8 steps/s)
+Ep 32 [fill]: reward = 2.10, steps = 18, max |F| = 18.6 N, stabilized = False, total steps = 2546 (8 steps/s)
+Ep 33 [fill]: reward = 2.09, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 2563 (8 steps/s)
+Ep 34 [fill]: reward = 2.00, steps = 17, max |F| = 19.6 N, stabilized = False, total steps = 2580 (8 steps/s)
+Ep 35 [fill]: reward = 1952.39, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 3581 (7 steps/s)
+Ep 36 [fill]: reward = 2.06, steps = 25, max |F| = 20.0 N, stabilized = False, total steps = 3606 (7 steps/s)
+Ep 37 [fill]: reward = 2.06, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 3623 (7 steps/s)
+Ep 38 [fill]: reward = 1901.55, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 4624 (7 steps/s)
+Ep 39 [fill]: reward = 2.02, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 4641 (7 steps/s)
+Ep 40 [fill]: reward = 2.03, steps = 18, max |F| = 19.5 N, stabilized = False, total steps = 4659 (7 steps/s)
+Ep 41 [fill]: reward = 10.51, steps = 65, max |F| = 20.0 N, stabilized = False, total steps = 4724 (7 steps/s)
+Ep 42 [fill]: reward = 1830.47, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 5725 (7 steps/s)
+Ep 43 [fill]: reward = 2.09, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 5742 (7 steps/s)
+Ep 44 [fill]: reward = 2.03, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 5759 (7 steps/s)
+Ep 45 [fill]: reward = 2.06, steps = 17, max |F| = 19.6 N, stabilized = False, total steps = 5776 (7 steps/s)
+Ep 46 [fill]: reward = 6.56, steps = 52, max |F| = 20.0 N, stabilized = False, total steps = 5828 (7 steps/s)
+Ep 47 [fill]: reward = 2.09, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 5845 (7 steps/s)
+Ep 48 [fill]: reward = 2.09, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 5862 (7 steps/s)
+Ep 49 [fill]: reward = 1.89, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 5879 (7 steps/s)
+Ep 50 [fill]: reward = 2.06, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 5896 (7 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g3_fullcart_saczop_cos_bonus_only_theta_s1/checkpoints
+Ep 51 [fill]: reward = 2.06, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 5913 (7 steps/s)
+Ep 52 [fill]: reward = 2.00, steps = 19, max |F| = 20.0 N, stabilized = False, total steps = 5932 (7 steps/s)
+Ep 53 [fill]: reward = 2.05, steps = 18, max |F| = 19.4 N, stabilized = False, total steps = 5950 (7 steps/s)
+Ep 54 [fill]: reward = 2.06, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 5967 (7 steps/s)
+Ep 55 [fill]: reward = 2.07, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 5985 (7 steps/s)
+Ep 56 [fill]: reward = 1704.13, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 6986 (7 steps/s)
+Ep 57 [fill]: reward = 1961.65, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 7987 (7 steps/s)
+Ep 58 [fill]: reward = 2.07, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 8004 (7 steps/s)
+Ep 59 [fill]: reward = 3.01, steps = 50, max |F| = 20.0 N, stabilized = False, total steps = 8054 (7 steps/s)
+Ep 60 [fill]: reward = 2.06, steps = 19, max |F| = 20.0 N, stabilized = False, total steps = 8073 (7 steps/s)
+Ep 61 [fill]: reward = 2.07, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 8090 (7 steps/s)
+Ep 62 [fill]: reward = 2.09, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 8107 (7 steps/s)
+Ep 63 [fill]: reward = 1805.58, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 9108 (7 steps/s)
+Ep 64 [fill]: reward = 2.01, steps = 17, max |F| = 19.6 N, stabilized = False, total steps = 9125 (7 steps/s)
+Ep 65 [fill]: reward = 6.85, steps = 61, max |F| = 20.0 N, stabilized = False, total steps = 9186 (7 steps/s)
+Ep 66 [fill]: reward = 2.09, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 9203 (7 steps/s)
+Ep 67 [fill]: reward = 37.74, steps = 196, max |F| = 20.0 N, stabilized = False, total steps = 9399 (7 steps/s)
+Ep 68 [fill]: reward = 2.06, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 9417 (7 steps/s)
+Ep 69 [fill]: reward = 1.98, steps = 17, max |F| = 19.5 N, stabilized = False, total steps = 9434 (7 steps/s)
+Ep 70 [fill]: reward = 2.10, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 9451 (7 steps/s)
+Ep 71 [fill]: reward = 747.45, steps = 567, max |F| = 20.0 N, stabilized = False, total steps = 10018 (7 steps/s)
+Ep 72 [sac]: reward = 0.95, steps = 19, max |F| = 19.9 N, stabilized = False, total steps = 10037 (7 steps/s)
+Ep 73 [sac]: reward = 0.75, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10048 (7 steps/s)
+Ep 74 [sac]: reward = 0.92, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10058 (7 steps/s)
+Ep 75 [sac]: reward = 0.81, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10068 (7 steps/s)
+Ep 76 [sac]: reward = 0.89, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10079 (7 steps/s)
+Ep 77 [sac]: reward = 0.86, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10089 (7 steps/s)
+Ep 78 [sac]: reward = 0.72, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10098 (7 steps/s)
+Ep 79 [sac]: reward = 0.86, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10108 (7 steps/s)
+Ep 80 [sac]: reward = 0.70, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10117 (7 steps/s)
+Ep 81 [sac]: reward = 0.67, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10126 (7 steps/s)
+Ep 82 [sac]: reward = 0.62, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10135 (7 steps/s)
+Ep 83 [sac]: reward = 0.72, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10144 (7 steps/s)
+Ep 84 [sac]: reward = 0.69, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10153 (7 steps/s)
+Ep 85 [sac]: reward = 0.73, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10162 (7 steps/s)
+Ep 86 [sac]: reward = 0.73, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10171 (7 steps/s)
+Ep 87 [sac]: reward = 0.73, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10180 (7 steps/s)
+Ep 88 [sac]: reward = 0.74, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10189 (7 steps/s)
+Ep 89 [sac]: reward = 0.76, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10198 (7 steps/s)
+Ep 90 [sac]: reward = 0.74, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10207 (7 steps/s)
+Ep 91 [sac]: reward = 0.74, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10216 (7 steps/s)
+Ep 92 [sac]: reward = 0.72, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10225 (7 steps/s)
+Ep 93 [sac]: reward = 0.67, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10234 (7 steps/s)
+Ep 94 [sac]: reward = 0.86, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10244 (7 steps/s)
+Ep 95 [sac]: reward = 0.68, steps = 10, max |F| = 20.0 N, stabilized = False, total steps = 10254 (7 steps/s)
+Ep 96 [sac]: reward = 0.86, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10265 (7 steps/s)
+Ep 97 [sac]: reward = 0.79, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10276 (7 steps/s)
+Ep 98 [sac]: reward = 0.76, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10287 (7 steps/s)
+Ep 99 [sac]: reward = 0.74, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10298 (7 steps/s)
+Ep 100 [sac]: reward = 0.66, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10309 (7 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g3_fullcart_saczop_cos_bonus_only_theta_s1/checkpoints
+Ep 101 [sac]: reward = 1.55, steps = 56, max |F| = 20.0 N, stabilized = False, total steps = 10365 (7 steps/s)
+Ep 102 [sac]: reward = 1.86, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 10420 (7 steps/s)
+Ep 103 [sac]: reward = 1.78, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 10475 (7 steps/s)
+Ep 104 [sac]: reward = 1.74, steps = 54, max |F| = 20.0 N, stabilized = False, total steps = 10529 (7 steps/s)
+Ep 105 [sac]: reward = 1.80, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 10584 (7 steps/s)
+Ep 106 [sac]: reward = 1.77, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 10639 (7 steps/s)
+Ep 107 [sac]: reward = 1.89, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 10694 (7 steps/s)
+Ep 108 [sac]: reward = 1.13, steps = 41, max |F| = 20.0 N, stabilized = False, total steps = 10735 (7 steps/s)
+Ep 109 [sac]: reward = 0.92, steps = 24, max |F| = 20.0 N, stabilized = False, total steps = 10759 (7 steps/s)
+Ep 110 [sac]: reward = 1.39, steps = 43, max |F| = 20.0 N, stabilized = False, total steps = 10802 (7 steps/s)
+Ep 111 [sac]: reward = 1.35, steps = 26, max |F| = 20.0 N, stabilized = False, total steps = 10828 (7 steps/s)
+Ep 112 [sac]: reward = 0.67, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10839 (7 steps/s)
+Ep 113 [sac]: reward = 0.75, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10850 (7 steps/s)
+Ep 114 [sac]: reward = 0.75, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10861 (7 steps/s)
+Ep 115 [sac]: reward = 0.75, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10872 (7 steps/s)
+Ep 116 [sac]: reward = 0.76, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10883 (7 steps/s)
+Ep 117 [sac]: reward = 0.77, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10894 (7 steps/s)
+Ep 118 [sac]: reward = 0.65, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 10905 (7 steps/s)
+Ep 119 [sac]: reward = 0.91, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 10918 (7 steps/s)
+Ep 120 [sac]: reward = 0.74, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10927 (7 steps/s)
+Ep 121 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10936 (7 steps/s)
+Ep 122 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10945 (7 steps/s)
+Ep 123 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10954 (7 steps/s)
+Ep 124 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10963 (7 steps/s)
+Ep 125 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10972 (7 steps/s)
+Ep 126 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10981 (7 steps/s)
+Ep 127 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10990 (7 steps/s)
+Ep 128 [sac]: reward = 0.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 10999 (7 steps/s)
+Ep 129 [sac]: reward = 0.78, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 11008 (7 steps/s)
+Ep 130 [sac]: reward = 0.78, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 11017 (7 steps/s)
+Ep 131 [sac]: reward = 0.75, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 11026 (7 steps/s)
+Ep 132 [sac]: reward = 0.18, steps = 192, max |F| = 20.0 N, stabilized = False, total steps = 11218 (7 steps/s)
+Ep 133 [sac]: reward = 0.11, steps = 217, max |F| = 20.0 N, stabilized = False, total steps = 11435 (6 steps/s)
+Ep 134 [sac]: reward = 0.06, steps = 228, max |F| = 20.0 N, stabilized = False, total steps = 11663 (6 steps/s)
+Ep 135 [sac]: reward = 0.36, steps = 83, max |F| = 20.0 N, stabilized = False, total steps = 11746 (6 steps/s)
+Ep 136 [sac]: reward = 1.78, steps = 31, max |F| = 20.0 N, stabilized = False, total steps = 11777 (6 steps/s)
+Ep 137 [sac]: reward = 2.28, steps = 25, max |F| = 20.0 N, stabilized = False, total steps = 11802 (6 steps/s)
+Ep 138 [sac]: reward = 2.02, steps = 24, max |F| = 20.0 N, stabilized = False, total steps = 11826 (6 steps/s)
+Ep 139 [sac]: reward = 1.99, steps = 39, max |F| = 20.0 N, stabilized = False, total steps = 11865 (6 steps/s)
+Ep 140 [sac]: reward = 1.30, steps = 28, max |F| = 20.0 N, stabilized = False, total steps = 11893 (6 steps/s)
+Ep 141 [sac]: reward = 4.30, steps = 52, max |F| = 20.0 N, stabilized = False, total steps = 11945 (6 steps/s)
+Ep 142 [sac]: reward = 1.19, steps = 59, max |F| = 20.0 N, stabilized = False, total steps = 12004 (6 steps/s)
+Ep 143 [sac]: reward = 1.32, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 12059 (6 steps/s)
+Ep 144 [sac]: reward = 0.89, steps = 52, max |F| = 20.0 N, stabilized = False, total steps = 12111 (6 steps/s)
+Ep 145 [sac]: reward = 5.45, steps = 54, max |F| = 20.0 N, stabilized = False, total steps = 12165 (6 steps/s)
+Ep 146 [sac]: reward = 0.85, steps = 64, max |F| = 20.0 N, stabilized = False, total steps = 12229 (6 steps/s)
+Ep 147 [sac]: reward = 0.89, steps = 61, max |F| = 20.0 N, stabilized = False, total steps = 12290 (6 steps/s)
+Ep 148 [sac]: reward = 1.03, steps = 60, max |F| = 20.0 N, stabilized = False, total steps = 12350 (6 steps/s)
+Ep 149 [sac]: reward = 0.09, steps = 131, max |F| = 20.0 N, stabilized = False, total steps = 12481 (6 steps/s)
+Ep 150 [sac]: reward = 2.23, steps = 107, max |F| = 20.0 N, stabilized = False, total steps = 12588 (6 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g3_fullcart_saczop_cos_bonus_only_theta_s1/checkpoints
+Ep 151 [sac]: reward = 0.70, steps = 22, max |F| = 20.0 N, stabilized = False, total steps = 12610 (6 steps/s)
+Ep 152 [sac]: reward = 0.73, steps = 17, max |F| = 19.9 N, stabilized = False, total steps = 12627 (6 steps/s)
+Ep 153 [sac]: reward = 0.80, steps = 21, max |F| = 20.0 N, stabilized = False, total steps = 12648 (6 steps/s)
+Ep 154 [sac]: reward = 0.84, steps = 118, max |F| = 20.0 N, stabilized = False, total steps = 12766 (6 steps/s)
+Ep 155 [sac]: reward = 4.97, steps = 44, max |F| = 19.9 N, stabilized = False, total steps = 12810 (6 steps/s)
+Ep 156 [sac]: reward = 2.56, steps = 37, max |F| = 19.8 N, stabilized = False, total steps = 12847 (6 steps/s)
+Ep 157 [sac]: reward = 0.92, steps = 10, max |F| = 19.9 N, stabilized = False, total steps = 12857 (6 steps/s)
+Ep 158 [sac]: reward = 1.19, steps = 13, max |F| = 19.8 N, stabilized = False, total steps = 12870 (6 steps/s)
+Ep 159 [sac]: reward = 1.71, steps = 42, max |F| = 19.8 N, stabilized = False, total steps = 12912 (6 steps/s)
+Ep 160 [sac]: reward = 1.07, steps = 14, max |F| = 19.8 N, stabilized = False, total steps = 12926 (6 steps/s)
+Ep 161 [sac]: reward = 1.65, steps = 37, max |F| = 19.8 N, stabilized = False, total steps = 12963 (6 steps/s)
+Ep 162 [sac]: reward = 1.51, steps = 42, max |F| = 19.8 N, stabilized = False, total steps = 13005 (6 steps/s)
+Ep 163 [sac]: reward = 2.18, steps = 39, max |F| = 19.9 N, stabilized = False, total steps = 13044 (6 steps/s)
+Ep 164 [sac]: reward = 3.25, steps = 33, max |F| = 19.9 N, stabilized = False, total steps = 13077 (6 steps/s)
+Ep 165 [sac]: reward = 1.34, steps = 50, max |F| = 19.9 N, stabilized = False, total steps = 13127 (6 steps/s)
+Ep 166 [sac]: reward = 0.70, steps = 61, max |F| = 19.8 N, stabilized = False, total steps = 13188 (6 steps/s)
+Ep 167 [sac]: reward = 94.80, steps = 215, max |F| = 19.7 N, stabilized = False, total steps = 13403 (6 steps/s)
+Ep 168 [sac]: reward = 8.60, steps = 76, max |F| = 18.3 N, stabilized = False, total steps = 13479 (6 steps/s)
+Ep 169 [sac]: reward = 12.29, steps = 77, max |F| = 18.0 N, stabilized = False, total steps = 13556 (6 steps/s)
+Ep 170 [sac]: reward = 22.52, steps = 89, max |F| = 19.6 N, stabilized = False, total steps = 13645 (6 steps/s)
+Ep 171 [sac]: reward = 0.67, steps = 64, max |F| = 20.0 N, stabilized = False, total steps = 13709 (6 steps/s)
+Ep 172 [sac]: reward = 2.57, steps = 50, max |F| = 20.0 N, stabilized = False, total steps = 13759 (6 steps/s)
+Ep 173 [sac]: reward = 1.41, steps = 56, max |F| = 20.0 N, stabilized = False, total steps = 13815 (6 steps/s)
+Ep 174 [sac]: reward = 0.78, steps = 65, max |F| = 20.0 N, stabilized = False, total steps = 13880 (6 steps/s)
+Ep 175 [sac]: reward = 0.74, steps = 80, max |F| = 20.0 N, stabilized = False, total steps = 13960 (6 steps/s)
+Ep 176 [sac]: reward = 1.49, steps = 69, max |F| = 20.0 N, stabilized = False, total steps = 14029 (6 steps/s)
+Ep 177 [sac]: reward = 0.63, steps = 143, max |F| = 20.0 N, stabilized = False, total steps = 14172 (6 steps/s)
+Ep 178 [sac]: reward = 0.24, steps = 133, max |F| = 20.0 N, stabilized = False, total steps = 14305 (6 steps/s)
+Ep 179 [sac]: reward = 0.38, steps = 176, max |F| = 20.0 N, stabilized = False, total steps = 14481 (6 steps/s)
+Ep 180 [sac]: reward = 0.32, steps = 181, max |F| = 20.0 N, stabilized = False, total steps = 14662 (5 steps/s)
+Ep 181 [sac]: reward = 0.22, steps = 173, max |F| = 19.9 N, stabilized = False, total steps = 14835 (5 steps/s)
+Ep 182 [sac]: reward = 2.61, steps = 150, max |F| = 19.9 N, stabilized = False, total steps = 14985 (5 steps/s)
+Ep 183 [sac]: reward = 4.54, steps = 75, max |F| = 19.9 N, stabilized = False, total steps = 15060 (5 steps/s)
+Ep 184 [sac]: reward = 8.47, steps = 137, max |F| = 19.0 N, stabilized = False, total steps = 15197 (5 steps/s)
+Ep 185 [sac]: reward = 7.09, steps = 64, max |F| = 19.7 N, stabilized = False, total steps = 15261 (5 steps/s)
+Ep 186 [sac]: reward = 1.21, steps = 12, max |F| = 19.8 N, stabilized = False, total steps = 15273 (5 steps/s)
+Ep 187 [sac]: reward = 15.16, steps = 89, max |F| = 19.8 N, stabilized = False, total steps = 15362 (5 steps/s)
+Ep 188 [sac]: reward = 2.04, steps = 52, max |F| = 19.9 N, stabilized = False, total steps = 15414 (5 steps/s)
+Ep 189 [sac]: reward = 7.32, steps = 83, max |F| = 19.9 N, stabilized = False, total steps = 15497 (5 steps/s)
+Ep 190 [sac]: reward = 4.41, steps = 82, max |F| = 19.9 N, stabilized = False, total steps = 15579 (5 steps/s)
+Ep 191 [sac]: reward = 0.74, steps = 60, max |F| = 19.9 N, stabilized = False, total steps = 15639 (5 steps/s)
+Ep 192 [sac]: reward = 16.71, steps = 83, max |F| = 19.9 N, stabilized = False, total steps = 15722 (5 steps/s)
+Ep 193 [sac]: reward = 15.81, steps = 71, max |F| = 19.9 N, stabilized = False, total steps = 15793 (5 steps/s)
+Ep 194 [sac]: reward = 3.91, steps = 45, max |F| = 19.7 N, stabilized = False, total steps = 15838 (5 steps/s)
+Ep 195 [sac]: reward = 73.88, steps = 207, max |F| = 19.4 N, stabilized = False, total steps = 16045 (5 steps/s)
+Ep 196 [sac]: reward = 4.90, steps = 80, max |F| = 19.5 N, stabilized = False, total steps = 16125 (5 steps/s)
+Ep 197 [sac]: reward = 3.54, steps = 81, max |F| = 19.5 N, stabilized = False, total steps = 16206 (5 steps/s)
+Ep 198 [sac]: reward = 3.17, steps = 79, max |F| = 19.7 N, stabilized = False, total steps = 16285 (5 steps/s)
+Ep 199 [sac]: reward = 1.91, steps = 90, max |F| = 19.7 N, stabilized = False, total steps = 16375 (5 steps/s)
+Ep 200 [sac]: reward = 0.62, steps = 99, max |F| = 19.3 N, stabilized = False, total steps = 16474 (5 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g3_fullcart_saczop_cos_bonus_only_theta_s1/checkpoints
+Ep 201 [sac]: reward = 15.23, steps = 191, max |F| = 19.9 N, stabilized = False, total steps = 16665 (5 steps/s)
+Ep 202 [sac]: reward = 281.75, steps = 370, max |F| = 19.4 N, stabilized = False, total steps = 17035 (5 steps/s)
+Ep 203 [sac]: reward = 532.82, steps = 399, max |F| = 20.0 N, stabilized = False, total steps = 17434 (5 steps/s)
+Ep 204 [sac]: reward = 185.20, steps = 246, max |F| = 20.0 N, stabilized = False, total steps = 17680 (5 steps/s)
+Ep 205 [sac]: reward = 8.12, steps = 82, max |F| = 19.9 N, stabilized = False, total steps = 17762 (5 steps/s)
+Ep 206 [sac]: reward = 4.10, steps = 74, max |F| = 20.0 N, stabilized = False, total steps = 17836 (5 steps/s)
+Ep 207 [sac]: reward = 5.57, steps = 79, max |F| = 20.0 N, stabilized = False, total steps = 17915 (5 steps/s)

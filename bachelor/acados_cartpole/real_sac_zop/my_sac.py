@@ -354,7 +354,8 @@ class SacTrainer(Trainer[SacTrainerConfig]):
                 alpha = self.log_alpha.exp().item()
                 with torch.no_grad():
                     a_pi_prime, log_p_prime, _ = self.pi(o_prime)
-                    q_target = torch.cat(self.q_target(o_prime, a_pi_prime), dim=1)
+                    # SacCritic.forward already returns (batch, num_critics)
+                    q_target = self.q_target(o_prime, a_pi_prime)
                     q_target = torch.min(q_target, dim=1, keepdim=True).values
 
                     # add entropy
@@ -362,7 +363,7 @@ class SacTrainer(Trainer[SacTrainerConfig]):
 
                     target = r[:, None] + self.cfg.gamma * (1 - te[:, None]) * q_target
 
-                q = torch.cat(self.q(o, a), dim=1)
+                q = self.q(o, a)
                 q_loss = torch.mean((q - target).pow(2))
 
                 self.q_optim.zero_grad()
@@ -370,7 +371,7 @@ class SacTrainer(Trainer[SacTrainerConfig]):
                 self.q_optim.step()
 
                 # update actor
-                q_pi = torch.cat(self.q(o, a_pi), dim=1)
+                q_pi = self.q(o, a_pi)
                 min_q_pi = torch.min(q_pi, dim=1, keepdim=True).values
                 pi_loss = (alpha * log_p - min_q_pi).mean()
 

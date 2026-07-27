@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zopfill.py", line 579, in <module>
+    main()
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zopfill.py", line 226, in main
+    torch.optim.Adam([log_alpha], lr=cfg_sac.lr_alpha)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/optim/adam.py", line 101, in __init__
+    super().__init__(params, defaults)
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/optim/optimizer.py", line 401, in __init__
+    self.add_param_group(cast(dict, param_group))
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_compile.py", line 46, in inner
+    import torch._dynamo
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/__init__.py", line 13, in <module>
+    from . import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/aot_compile.py", line 15, in <module>
+    from . import convert_frame
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/convert_frame.py", line 57, in <module>
+    from torch._dynamo.symbolic_convert import TensorifyState
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/symbolic_convert.py", line 53, in <module>
+    from torch._dynamo.exc import ObservedException, TensorifyScalarRestartAnalysis
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/exc.py", line 45, in <module>
+    from .utils import counters
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/_dynamo/utils.py", line 67, in <module>
+    import torch.fx.experimental.symbolic_shapes
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/torch/fx/experimental/symbolic_shapes.py", line 1821, in <module>
+    class StrictMinMaxConstraint(Constraint):
+KeyboardInterrupt

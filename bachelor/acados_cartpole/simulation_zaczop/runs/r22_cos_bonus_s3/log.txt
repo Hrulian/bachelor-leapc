@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac_zop.py", line 31, in <module>
+    from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/real_sac_zop/my_sac.py", line 5, in <module>
+    import gymnasium as gym
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/__init__.py", line 13, in <module>
+    from gymnasium.envs.registration import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/envs/__init__.py", line 5, in <module>
+    from gymnasium.envs.registration import make, pprint_registry, register, registry, spec
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/envs/registration.py", line 23, in <module>
+    from gymnasium.vector import AutoresetMode
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/vector/__init__.py", line 3, in <module>
+    from gymnasium.vector import utils
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/vector/utils/__init__.py", line 4, in <module>
+    from gymnasium.vector.utils.shared_memory import (
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/.venv/lib/python3.11/site-packages/gymnasium/vector/utils/shared_memory.py", line 239, in <module>
+    @write_to_shared_memory.register(MultiBinary)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/functools.py", line 861, in <lambda>
+    return lambda f: register(cls, f)
+
+KeyboardInterrupt

@@ -1,3 +1,8 @@
+#TODO: overlaying updates in thread and inbetween learning maybe just do it so that
+# the funktion only increases the tokens/waits untill tokens are empty
+
+
+
 import torch, threading, queue, serial, time, os, csv
 import numpy as np
 import gymnasium as gym
@@ -150,6 +155,29 @@ def talk_to_arduino(u: int, mode: int) -> None :
 # a Semaphore counts every release() so no transition is silently dropped)
 _learning_sem = threading.Semaphore(0)
 
+# drain synchronization: lets inbetween_training() block until the learner thread
+# has caught up on every token released so far (no concurrent updates needed).
+_drain_cond = threading.Condition()
+_tokens_released = 0   # total _learning_sem.release() calls
+_tokens_processed = 0  # tokens the learner thread has consumed + handled
+
+
+def _note_token_released():
+    """Release one learner token and count it (for drain bookkeeping)."""
+    global _tokens_released
+    with _drain_cond:
+        _tokens_released += 1
+    _learning_sem.release()
+
+
+def _note_token_processed():
+    """Mark one acquired token as fully handled and wake any drain waiter."""
+    global _tokens_processed
+    with _drain_cond:
+        _tokens_processed += 1
+        _drain_cond.notify_all()
+
+
 # initialize counters
 episode_step_count = 0 # steps in current episode
 total_training_steps = 0  # einzelne training steps (critic + actor updates) - für soft_update_freq
@@ -162,6 +190,10 @@ episode_rewards = []  # list of cumulative rewards per episode
 current_episode_reward = 0.0  # accumulated reward in current episode
 max_force_perep = 0  # track max force per episode
 wandb_run_id = None  # wandb run ID for resuming runs
+
+# metrics mirrored from the sim scripts (sim_sac / sim_sac_zop / sim_sac_zopfill)
+num_terminations = 0  # cumulative episodes that ended in a trip (terminated, not truncated)
+num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
 
 # stabilization tracking
 STABILIZATION_BUFFER_SIZE = 200  # ~1 second at 10ms sample time
@@ -281,26 +313,31 @@ def sac_zop_update_step(batch_size, train_start):
             if not _learning_sem.acquire(timeout=timeout_s):
                 continue
 
-            if abs_step_count < train_start:
-                continue
+            # token consumed: mark it processed once handled (also on the warmup
+            # skip path) so inbetween_training()'s drain can never hang.
+            try:
+                if abs_step_count < train_start:
+                    continue
 
-            block_start_time = time.perf_counter()
+                block_start_time = time.perf_counter()
 
-            # only pay .item() cost on blocks we'll actually log
-            will_log = (learning_step + 1) % LOG_FREQ == 0
-            metrics_accumulator = {
-                'q_losses': [], 'pi_losses': [], 'alphas': [],
-                'q_values': [], 'q_targets': [], 'entropies': [],
-            } if will_log else None
+                # only pay .item() cost on blocks we'll actually log
+                will_log = (learning_step + 1) % LOG_FREQ == 0
+                metrics_accumulator = {
+                    'q_losses': [], 'pi_losses': [], 'alphas': [],
+                    'q_values': [], 'q_targets': [], 'entropies': [],
+                } if will_log else None
 
-            for i in range(20):
-                saczop_single_step_update(
-                    batch_size,
-                    update_actor=(i % actor_update_freq == 0),
-                    metrics_accumulator=metrics_accumulator,
-                )
+                for i in range(20):
+                    saczop_single_step_update(
+                        batch_size,
+                        update_actor=(i % actor_update_freq == 0),
+                        metrics_accumulator=metrics_accumulator,
+                    )
 
-            learning_step += 1
+                learning_step += 1
+            finally:
+                _note_token_processed()
 
             block_elapsed_time = time.perf_counter() - block_start_time
             training_step_times.append(block_elapsed_time)
@@ -311,6 +348,8 @@ def sac_zop_update_step(batch_size, train_start):
                         'learning/training_block_time_ms': block_elapsed_time * 1000,
                         'learning/block_step': learning_step,
                         'learning/total_training_steps': total_training_steps,
+                        # backlog: tokens released but not yet processed (lock-free read)
+                        'learning/pending_tokens': _tokens_released - _tokens_processed,
                         'learning/q_loss_avg': np.mean(metrics_accumulator['q_losses']),
                         'learning/pi_loss': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
                         'learning/alpha': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
@@ -401,32 +440,30 @@ def saczop_single_step_update(batch_size, update_actor=True, metrics_accumulator
     return True
 
 
-def inbetween_training(num_updates: int):
+def inbetween_training(timeout_s: float | None = 30.0):
     """
-    Perform additional training updates between episodes.
-    Collects metrics but doesn't log (training context).
+    Block until the background learner thread has drained all tokens released so
+    far, i.e. every transition queued up to this point has been trained on.
+
+    Does NOT run gradient updates itself — the learner thread owns all updates,
+    so there is no concurrent in-place modification of the networks (which used
+    to trigger the autograd version-counter RuntimeError between episodes).
+
     Args:
-        num_updates: Number of update steps to perform.
+        timeout_s: Safety cap in seconds. None blocks indefinitely.
+
+    Returns:
+        True if fully drained, False if the timeout was hit first.
     """
-    
-    inbetween_metrics = {
-        'q_losses': [],
-        'pi_losses': [],
-        'alphas': [],
-        'q_values': [],
-        'q_targets': [],
-        'entropies': [],
-    }
-    
-    for i in range(num_updates):
-        ok = saczop_single_step_update(
-            cfg_saczop.batch_size,
-            update_actor=(i % 20 == 0),  # actor once per block (paper: 1 actor per 20 critic)
-            metrics_accumulator=inbetween_metrics
+    with _drain_cond:
+        target = _tokens_released  # snapshot: everything queued up to now
+        drained = _drain_cond.wait_for(
+            lambda: _tokens_processed >= target, timeout=timeout_s
         )
-        if not ok:
-            # not enough data in buffer yet
-            break  
+    if not drained:
+        print(f"inbetween_training: drain timed out "
+              f"({_tokens_processed}/{target} tokens processed)")
+    return drained
 
 
 def reset_env():
@@ -565,11 +602,11 @@ def _checkpoint_paths():
 
 def main():
     # seeding
-    seed = 2  
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  
-    np.random.seed(seed)
+    # seed = 2  
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)  
+    # np.random.seed(seed)
     
     
     # torch.backends.cudnn.deterministic = True
@@ -619,8 +656,11 @@ def main():
         print(f"New wandb run ID: {wandb_run_id}")
     
     # ensures we reference the module-level variables
-    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode
-    
+    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps
+
+    # env-throughput timing (for episode/steps_per_second, like the sim scripts)
+    t_start = time.perf_counter()
+
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
@@ -648,9 +688,9 @@ def main():
             # env is reseted so set new mode
             talk_to_arduino(0, mode=0)  # -> arduino is ready for normal operation
             
-            # in between episode training. Train for 200 steps
+            # wait for the learner thread to catch up on all queued transitions
             print("Training inbetween episodes...")
-            inbetween_training(20)
+            inbetween_training()
             
             # reset ctx
             ctx = None
@@ -755,7 +795,7 @@ def main():
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
             # variables for N-step buffering
-            N = 1  # call actor every N steps
+            N = 5  # call actor every N steps
             step_in_cycle = 0  # tracks position within N-step cycle
             accumulated_reward = 0.0  # accumulates reward over N steps
             obs_start_cycle = None  # observation at start of N-step cycle
@@ -804,8 +844,11 @@ def main():
                             'step/episode_step': episode_step_count,
                             'step/cycle_step': step_in_cycle,
                             'step/actor_called': True,
+                            'step/stabilized': int(stabilized_this_episode),
+                            'stabilization/stabilized_steps_total': num_stabilized_steps,
+                            'terminations/total': num_terminations,
                         }
-                        
+
                         if hasattr(pi_out, 'stats') and pi_out.stats:
                             for key, val in pi_out.stats.items():
                                 step_stats[f'step/pi_{key}'] = val
@@ -834,6 +877,9 @@ def main():
                             'step/episode_step': episode_step_count,
                             'step/cycle_step': step_in_cycle,
                             'step/actor_called': False,
+                            'step/stabilized': int(stabilized_this_episode),
+                            'stabilization/stabilized_steps_total': num_stabilized_steps,
+                            'terminations/total': num_terminations,
                         }
                         wandb.log(step_stats, step=abs_step_count)
                     except Exception:
@@ -882,6 +928,7 @@ def main():
                 if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
                     if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
                         stabilized_this_episode = True
+                        num_stabilized_steps += STABILIZATION_BUFFER_SIZE  # retroactively credit the 200-step balanced window
                         # log stabilization event
                         try:
                             wandb.log({
@@ -890,6 +937,8 @@ def main():
                             }, step=abs_step_count)
                         except Exception:
                             pass
+                elif stabilized_this_episode:
+                    num_stabilized_steps += 1  # latched: every step after achievement counts as stabilized
                 
                 # log reward to wandb
                 try:
@@ -909,9 +958,9 @@ def main():
                     param_t = param_current.to(replay_buffer.device).float()
                     replay_buffer.put((obs_start_cycle, param_t, float(accumulated_reward), obs_next, int(done)))
                     
-                    # notify background learner
+                    # notify background learner (counted for drain bookkeeping)
                     try:
-                        _learning_sem.release()
+                        _note_token_released()
                     except Exception:
                         pass
                     
@@ -921,13 +970,20 @@ def main():
                 # handle episode termination
                 if done:
                     talk_to_arduino(0, mode=1)
+                    # terminated = ended by a trip (safety flag or |x| > threshold);
+                    # otherwise the episode was truncated (max_ep_steps reached)
+                    terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+                    if terminated:
+                        num_terminations += 1
+                    elapsed = time.perf_counter() - t_start
+                    sps = abs_step_count / max(elapsed, 1e-9)
                     episode_rewards.append({
                         'episode': episode_count,
                         'cumulative_reward': current_episode_reward,
                         'steps': episode_step_count
                     })
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
-                    
+
                     try:
                         wandb.log({
                             'episode/episode_number': episode_count,
@@ -935,6 +991,9 @@ def main():
                             'episode/steps': episode_step_count,
                             'episode/max_force': max_force_perep,
                             'episode/stabilized': int(stabilized_this_episode),  # 1 if stabilized, 0 otherwise
+                            'episode/steps_per_second': sps,
+                            'episode/terminated': int(terminated),
+                            'terminations/total': num_terminations,
                         }, step=abs_step_count)
                     except Exception:
                         pass

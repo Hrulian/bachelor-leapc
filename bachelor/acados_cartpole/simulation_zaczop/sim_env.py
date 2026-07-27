@@ -7,8 +7,8 @@ The state convention matches what the host receives from the Arduino
 
 - theta is wrapped to [-pi, pi]; 0 = upright, +-pi = hanging down
   (Arduino sends -wrap_to_pi(theta)).
-- thetadot is clipped to +-20 rad/s (same clip as in real_sac_zop.py).
-- Termination when |x| > x_threshold = 0.39 m (same as done_eval / hardware trip).
+- thetadot is NOT clipped (swingup needs high angular velocities).
+- Termination when |x| > x_threshold (same as done_eval / hardware trip).
 - dt = 10 ms (control frequency of the real loop).
 - Reset puts the pole straight down at the center, like a normal gym env.
 
@@ -32,13 +32,12 @@ class RealCartPoleSimConfig:
     gravity: float = 9.81
     masscart: float = 0.17444
     masspole: float = 0.016
-    length: float = 0.18
+    length: float = 0.18  # half the pole length
 
     # timing / bounds (matching real_sac_zop.py)
-    dt: float = 0.01             # control frequency of the real loop [s]
-    x_threshold: float = 0.39    # CartPolePlannerConfig.x_threshold
-    Fmax: float = 20.0           # CartPolePlannerConfig.Fmax
-    thetadot_limit: float = 20.0  # clip in real_sac_zop.py
+    dt: float = 0.01         # control frequency of the real loop [s]
+    x_threshold: float = 0.4     # episode ends (trip) when |x| > x_threshold
+    Fmax: float = 20          # CartPolePlannerConfig.Fmax
 
 
 def wrap_to_pi(theta: float) -> float:
@@ -122,7 +121,8 @@ class RealCartPoleSimEnv(gym.Env):
 
         self.x = self._rk4_step(self.x, force, self.cfg.dt)
         self.x[1] = wrap_to_pi(self.x[1])
-        self.x[3] = np.clip(self.x[3], -self.cfg.thetadot_limit, self.cfg.thetadot_limit)
+        # thetadot is intentionally NOT clipped — swingup needs high angular
+        # velocities and clipping them removes/distorts the very dynamics we learn.
         self.step_count += 1
 
         tripped = bool(abs(self.x[0]) > self.cfg.x_threshold)
@@ -139,7 +139,7 @@ class RealCartPoleSimEnv(gym.Env):
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
         # pole hanging down at the center, everything still
-        self.x = np.array([0.0, np.pi, 0.0, 0.0], dtype=np.float64)
+        self.x = np.array([0, np.pi , 0.0, 0.0], dtype=np.float64)
         self.step_count = 0
         self.reset_needed = False
         return self.x.astype(np.float32), {}

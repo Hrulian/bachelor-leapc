@@ -32,10 +32,9 @@ from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
 from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import MpcSacActor, SacZopTrainerConfig
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
 from bachelor.acados_cartpole.real_sac_zop.my_buffer import ReplayBuffer
-from bachelor.acados_cartpole.my_planner import (
-    CartPolePlannerConfig,
-    CartPolePlanner,
-    create_custom_cartpole_params,
+from bachelor.acados_cartpole.simulation_zaczop.planner_registry import (
+    build_planner,
+    PLANNER_REGISTRY,
 )
 from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
 from bachelor.acados_cartpole.simulation_zaczop.sim_env import (
@@ -57,6 +56,11 @@ STABILIZATION_BUFFER_SIZE = 200
 STABILIZATION_THRESHOLD = 0.15  # rad
 
 
+def str2bool(v):
+    """Parse a --flag true/false string into a bool."""
+    return str(v).strip().lower() in ("true", "1", "yes", "t", "y")
+
+
 def parse_args():
     p = ArgumentParser(description="SAC-ZOP simulation training (reward function testing)")
     p.add_argument("--reward", type=str, default="default", choices=sorted(REWARDS),
@@ -66,18 +70,27 @@ def parse_args():
     p.add_argument("--max-ep-steps", type=int, default=1000)
     p.add_argument("--dt", type=float, default=0.01, help="Sim time step [s] (real control freq: 10 ms)")
     p.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
+    p.add_argument("--planner", type=str, default="full", choices=sorted(PLANNER_REGISTRY),
+                   help="Which planner/OCP to use (see planner_registry.py)")
     p.add_argument("--torch-threads", type=int, default=0,
                    help="torch.set_num_threads; 0 = leave default. Use 1-2 for parallel sweeps.")
     # training cadence
     p.add_argument("--train-start", type=int, default=1000,
                    help="Env steps before gradient updates begin")
-    p.add_argument("--updates-per-step", type=int, default=1,
+    p.add_argument("--updates-per-step", type=int, default=20,
                    help="Gradient steps per env step")
     p.add_argument("--actor-update-freq", type=int, default=20,
                    help="Actor update every N gradient steps (paper: 1 per 20)")
+    # K-step (action-repeat) pattern from real_sac_zop.py
+    p.add_argument("--K_step", type=str2bool, default=False,
+                   help="Enable the K-step pattern: the actor picks a param every K env steps, "
+                        "the MPC re-solves each step with the HELD param, and one "
+                        "accumulated-reward transition is stored per cycle. true/false.")
+    p.add_argument("--K", type=int, default=5,
+                   help="Env steps per RL decision when --K_step true (real script uses 5)")
     # logging / output
     p.add_argument("--run-name", type=str, default=None)
-    p.add_argument("--wandb-project", type=str, default="cartpole-sac-zop-sim")
+    p.add_argument("--wandb-project", type=str, default="cartpole-planner-ablation-sim")
     p.add_argument("--wandb-group", type=str, default=None,
                    help="Group runs in wandb (e.g. one group per sweep)")
     p.add_argument("--wandb-mode", type=str, default="online",
@@ -114,14 +127,14 @@ def main():
     reward_fn = get_reward_fn(args.reward)
     env = RealCartPoleSimEnv(reward_fn, cfg=sim_cfg, max_episode_steps=args.max_ep_steps)
 
-    # MPC layer (same config as real_sac_zop.py: global param interface) ######
-    cfg_planner = CartPolePlannerConfig()
-    params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
-    planner = CartPolePlanner(cfg_planner, params, export_directory=run_dir / "acados_code")
+    # MPC layer — the planner (and thus the OCP / parameter interface) is chosen
+    # from the planner registry via --planner. The env always passes the full
+    # [x, theta, v, thetadot] state, so each planner adapts internally.
+    planner = build_planner(args.planner, run_dir / "acados_code")
     controller_wrapped = ControllerFromPlanner(planner)
 
     # observation / action spaces — identical to real_sac_zop.py
-    _x_thr = cfg_planner.x_threshold
+    _x_thr = planner.cfg.x_threshold
     obs_low = np.array([-_x_thr, -np.pi, -5, -21], dtype=np.float32)
     obs_high = np.array([_x_thr, np.pi, 5, 21], dtype=np.float32)
     obs_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
@@ -172,9 +185,9 @@ def main():
     param_dim = int(np.prod(action_space.shape))
     action_dim = 1
     entropy_norm = param_dim / action_dim
-    target_entropy = (
-        -action_dim if cfg_saczop.target_entropy is None else cfg_saczop.target_entropy
-    )
+    # match pure SAC (sim_sac.py): target entropy = -action_dim (= -1.0), not the
+    # config's -2.0, so both baselines use the same temperature target.
+    target_entropy = -float(action_dim)
 
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=cfg_saczop.lr_q)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=cfg_saczop.lr_pi)
@@ -187,6 +200,7 @@ def main():
         mode=args.wandb_mode,
         dir=str(run_dir),
         config={
+            "planner": args.planner,
             "reward": args.reward,
             "seed": args.seed,
             "steps": args.steps,
@@ -195,6 +209,8 @@ def main():
             "train_start": args.train_start,
             "updates_per_step": args.updates_per_step,
             "actor_update_freq": args.actor_update_freq,
+            "K_step": args.K_step,
+            "K": args.K,
             "buffer_size": cfg_saczop.buffer_size,
             "batch_size": cfg_saczop.batch_size,
             "lr_q": cfg_saczop.lr_q,
@@ -307,13 +323,20 @@ def main():
     # Main RL loop ############################################################
     abs_step_count = 0
     episode_count = 0
+    rl_step_count = 0  # RL decisions (== env steps in standard mode, every K-th in K-step mode)
     episode_rewards = []
     grad_steps_since_log = 0
+    num_terminations = 0  # cumulative count of episodes that ended in a trip (terminated)
+    num_stabilized_steps = 0  # cumulative count of steps spent in the balanced/stabilized mode
+    # log step-level stats every rl_log_every RL steps (keeps the env-step density
+    # of log_step_freq the same whether or not K-step is on)
+    rl_log_every = max(1, args.log_step_freq // args.K) if args.K_step else max(1, args.log_step_freq)
     t_start = time.perf_counter()
 
     print("=" * 60)
     print(f"Run: {run_name} | reward: {args.reward} | seed: {args.seed}")
-    print(f"Steps: {args.steps} | dt: {args.dt}s")
+    print(f"Steps: {args.steps} | dt: {args.dt}s"
+          + (f" | K-step ON (K={args.K}, actor every {args.K} env steps)" if args.K_step else ""))
     print("=" * 60)
 
     try:
@@ -334,61 +357,114 @@ def main():
                 pi_out = actor(obs_batch, ctx_planner, deterministic=False)
             ctx_current = pi_out.ctx
 
+            # K-step cycle state (only used when args.K_step): the actor picks a
+            # param every K env steps, the MPC re-solves each step with the HELD
+            # param, and one accumulated-reward transition is stored per cycle.
+            step_in_cycle = 0
+            accumulated_reward = 0.0
+            obs_start_cycle = None
+            param_current = None
+
             done = False
             while not done and abs_step_count < args.steps:
                 episode_step_count += 1
                 abs_step_count += 1
 
                 obs_batch = torch.as_tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
-                with torch.no_grad():
-                    pi_out = actor(obs_batch, ctx_current, deterministic=False)
-                param_current = pi_out.param[0].detach()
-                ctx_current = pi_out.ctx
-                u_force = float(pi_out.action[0].cpu().numpy().squeeze())
+
+                if not args.K_step:
+                    # standard: call the actor every env step
+                    with torch.no_grad():
+                        pi_out = actor(obs_batch, ctx_current, deterministic=False)
+                    param_current = pi_out.param[0].detach()
+                    ctx_current = pi_out.ctx
+                    u_force = float(pi_out.action[0].cpu().numpy().squeeze())
+                elif step_in_cycle == 0:
+                    # K-step, cycle start: call the actor for a fresh param
+                    obs_start_cycle = torch.as_tensor(obs, dtype=torch.float32)
+                    accumulated_reward = 0.0
+                    with torch.no_grad():
+                        pi_out = actor(obs_batch, ctx_current, deterministic=False)
+                    param_current = pi_out.param[0].detach()
+                    ctx_current = pi_out.ctx
+                    u_force = float(pi_out.action[0].cpu().numpy().squeeze())
+                else:
+                    # K-step, intermediate: hold the param, MPC re-solves this state
+                    with torch.no_grad():
+                        ctx_current, action = controller_wrapped(
+                            obs_batch, param_current.unsqueeze(0), ctx=ctx_current)
+                    u_force = float(action[0].cpu().numpy().squeeze())
+
                 max_force_perep = max(max_force_perep, abs(u_force))
 
                 obs_next, reward, terminated, truncated, info = env.step(u_force)
                 done = terminated or truncated
+                if terminated:
+                    num_terminations += 1  # this step tripped the episode (|x| > x_threshold)
                 current_episode_reward += reward
 
-                # stabilization tracking (same as real script)
+                # stabilization tracking (per env step, same as real script)
                 theta_buffer.append(float(obs_next[1]))
                 if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
                     if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
                         stabilized_this_episode = True
                         stabilized_at_step = episode_step_count
+                        num_stabilized_steps += STABILIZATION_BUFFER_SIZE  # retroactively credit the 200-step balanced window
+                elif stabilized_this_episode:
+                    num_stabilized_steps += 1  # latched: every step after achievement counts as stabilized
 
-                # store transition
-                obs_t = torch.as_tensor(obs, dtype=torch.float32)
                 obs_next_t = torch.as_tensor(obs_next, dtype=torch.float32)
-                param_t = param_current.cpu().float()
-                replay_buffer.put((obs_t, param_t, float(reward), obs_next_t, int(terminated)))
 
-                # gradient updates (synchronous instead of background thread)
-                if abs_step_count >= args.train_start:
-                    for _ in range(args.updates_per_step):
-                        update_actor = (
-                            state_train['total_training_steps'] % args.actor_update_freq == 0
-                        )
-                        if single_update(update_actor):
-                            grad_steps_since_log += 1
-                    if grad_steps_since_log >= args.learn_log_freq:
-                        flush_learn_metrics(abs_step_count)
-                        grad_steps_since_log = 0
+                # store transition — per env step (standard) or one accumulated-reward
+                # transition per K-step cycle (cycle-start obs), like real_sac_zop.py
+                if not args.K_step:
+                    obs_t = torch.as_tensor(obs, dtype=torch.float32)
+                    replay_buffer.put((obs_t, param_current.cpu().float(),
+                                       float(reward), obs_next_t, int(terminated)))
+                    is_rl_step = True
+                    rl_reward = reward
+                else:
+                    accumulated_reward += reward
+                    step_in_cycle += 1
+                    is_rl_step = (step_in_cycle == args.K or done)
+                    if is_rl_step:
+                        replay_buffer.put((obs_start_cycle, param_current.cpu().float(),
+                                           float(accumulated_reward), obs_next_t, int(terminated)))
+                        step_in_cycle = 0
+                    rl_reward = accumulated_reward
 
-                # step-level logging
-                if args.log_step_freq and abs_step_count % args.log_step_freq == 0:
-                    wandb.log({
-                        'step/u_force': u_force,
-                        'step/param': param_current.cpu().numpy().tolist()
-                        if param_current.dim() > 0 else param_current.item(),
-                        'step/x': float(obs_next[0]),
-                        'step/theta': float(obs_next[1]),
-                        'step/v': float(obs_next[2]),
-                        'step/thetadot': float(obs_next[3]),
-                        'step/reward': reward,
-                        'step/episode_step': episode_step_count,
-                    }, step=abs_step_count)
+                # everything below runs ONCE per RL step (every K-th env step in
+                # K-step mode): gradient updates, learning + step-level logging
+                if is_rl_step:
+                    rl_step_count += 1
+
+                    if abs_step_count >= args.train_start:
+                        for _ in range(args.updates_per_step):
+                            update_actor = (
+                                state_train['total_training_steps'] % args.actor_update_freq == 0
+                            )
+                            if single_update(update_actor):
+                                grad_steps_since_log += 1
+                        if grad_steps_since_log >= args.learn_log_freq:
+                            flush_learn_metrics(abs_step_count)
+                            grad_steps_since_log = 0
+
+                    if args.log_step_freq and rl_step_count % rl_log_every == 0:
+                        wandb.log({
+                            'step/u_force': u_force,
+                            'step/param': param_current.cpu().numpy().tolist()
+                            if param_current.dim() > 0 else param_current.item(),
+                            'step/x': float(obs_next[0]),
+                            'step/theta': float(obs_next[1]),
+                            'step/v': float(obs_next[2]),
+                            'step/thetadot': float(obs_next[3]),
+                            'step/reward': rl_reward,
+                            'step/episode_step': episode_step_count,
+                            'step/rl_step': rl_step_count,
+                            'terminations/total': num_terminations,
+                            'step/stabilized': int(stabilized_this_episode),
+                            'stabilization/stabilized_steps_total': num_stabilized_steps,
+                        }, step=abs_step_count)
 
                 obs = obs_next
 
@@ -412,6 +488,8 @@ def main():
                 'episode/max_force': max_force_perep,
                 'episode/stabilized': int(stabilized_this_episode),
                 'episode/steps_per_second': sps,
+                'episode/terminated': int(terminated),
+                'terminations/total': num_terminations,
             }
             if stabilized_at_step is not None:
                 ep_log['stabilization/achieved_at_step'] = stabilized_at_step

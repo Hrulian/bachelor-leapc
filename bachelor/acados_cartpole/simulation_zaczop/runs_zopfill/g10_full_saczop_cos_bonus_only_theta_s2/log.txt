@@ -1,0 +1,204 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g10_full_saczop_cos_bonus_only_theta_s2/wandb/run-20260718_152719-ufaq8yt3
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run g10_full_saczop_cos_bonus_only_theta_s2
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop/runs/ufaq8yt3
+wandb: uploading config.yaml
+wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:            episode/cumulative_reward ▃▂▃▃▂▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▄█▃▃▄▄▃▅▁
+wandb:               episode/episode_number ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▆▇▇▇▇▇▇██
+wandb:                   episode/fill_phase ███████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    episode/max_force █████████████████████████████▇▁████████▇
+wandb:                   episode/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁█▁▁▁
+wandb:                        episode/steps █▄█▇▅█▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▂▁▁▁▁▁▂▂▅▇▃▃▄▃▂▅▂
+wandb:             episode/steps_per_second █▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   episode/terminated ▁█▁██▁██████████████████████████████████
+wandb:                       learning/alpha ▅▄▄▄▄▃▂▁▁▁▁▁▂▃▄▅▅██▇▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▅▆█
+wandb:                     learning/entropy ▇▇█▄▅▇▇▇▇▆▄▄▄▄▄▂▁▂▄▅▆▅▄▄▄▅▅▄▅▄▅▄▅▃▄▄▄▄▄▄
+wandb:                     learning/pi_loss ██▇▇▇▅▅▅▅▄▃▂▂▂▂▂▂▄▄▄▄▄▄▄▄▃▃▃▃▃▂▂▂▂▁▁▁▁▁▁
+wandb:                       learning/q_avg ▁▁▂▂▃▃▄▄▄▅▆▆▆▆▆▆▇▇▇▇▇▇▆▆▆▆▆▆▆▆▆▇▇▇▇▇▇▇██
+wandb:                  learning/q_loss_avg ▁▁▂▂▂▃▂▂▃▃▂▁▂▃▂▃▅▇█▅▇▄▇█▇▆▇▄▃▄▆▅▅▅▆▆▇█▅▅
+wandb:                learning/q_target_avg ▁▁▁▂▂▃▃▃▄▄▅▅▅▆▆▆▆▇▇▆▆▆▆▆▆▆▆▆▆▆▆▆▇▇▇█████
+wandb:        learning/total_training_steps ▁▁▁▂▂▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▄▅▅▅▆▆▆▆▆▇▇▇▇▇▇▇▇█
+wandb:       stabilization/achieved_at_step █▁
+wandb: stabilization/stabilized_steps_total ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▅▅▅▅▅█████
+wandb:                    step/episode_step ▂▄▅▇█▄▂▄▅▇▂▄▅▇▂▅▂▃▅▆▂▁▁▁▁▃▅▂▃▅▇▂▂▂▃▃▂▂▃▁
+wandb:                      step/fill_phase █████████████████████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                          step/reward ▁▁▁▁▃▁▂▁▁▂▂▁▃▂▃▁▄▁▃▂▂▁▁▁▁▂█▅▂▆█▇█▇█████▁
+wandb:                      step/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁█▁▁▁▁
+wandb:                           step/theta █▁▇█▄▇▃▂▇▃▃█▄▃▄▇▅▇▅▃▃█▂▂█▃▅▄▃▄▄▄▅▅▄▅▅▅▄█
+wandb:                        step/thetadot ▁█▅▆▇▆▇▃▃▆▇▅▅▄▃▂▃▄▅▇▅▃▂▄▄▇▄▄▇▃▄▄▄▄▄▄▄▄▄▂
+wandb:                         step/u_force ▇▃█▇▇▅▅▃▆▄▆▆▁▃▃▅▇▅▇▇▇██▆▂▅▂▇▆▂▅▅▅▅▄▄▅▄▄▃
+wandb:                               step/v ▃▂▃▃▄▃▄▂█▃▄▄▃▁▃█▄▅▃▄▄▄▆▃▄▄▃▄▅▃▄▄▃▃▄▄▃▃▃▅
+wandb:                               step/x ▁▇▆▇▆▁▆▃▃▅▂▂▃▄▂▅▇▂▂▄▄▅▂▂▆▅▆▄▄▄█▆▃▂▆▇▂▄▃▅
+wandb:                   terminations/total ▁▁▁▁▁▁▁▁▁▂▂▂▂▂▂▃▄▄▄▅▅▅▅▅▆▆▆▆▆▆▆▇▇▇▇▇▇▇▇█
+wandb: 
+wandb: Run summary:
+wandb:            episode/cumulative_reward 49.58055
+wandb:               episode/episode_number 41
+wandb:                   episode/fill_phase 0
+wandb:                    episode/max_force 19.98112
+wandb:                   episode/stabilized 0
+wandb:                        episode/steps 106
+wandb:             episode/steps_per_second 7.38468
+wandb:                   episode/terminated 1
+wandb:                       learning/alpha 0.01371
+wandb:                     learning/entropy -0.15287
+wandb:                     learning/pi_loss -201.55455
+wandb:                       learning/q_avg 198.45343
+wandb:                  learning/q_loss_avg 14.21235
+wandb:                learning/q_target_avg 198.35716
+wandb:        learning/total_training_steps 172404
+wandb:       stabilization/achieved_at_step 288
+wandb: stabilization/stabilized_steps_total 689
+wandb:                    step/episode_step 6
+wandb:                      step/fill_phase 0
+wandb:                          step/reward 0.01457
+wandb:                      step/stabilized 0
+wandb:                           step/theta 2.89961
+wandb:                        step/thetadot -4.60478
+wandb:                         step/u_force -6.68675
+wandb:                               step/v 1.71875
+wandb:                               step/x 0.08827
+wandb:                   terminations/total 38
+wandb: 
+wandb: 🚀 View run g10_full_saczop_cos_bonus_only_theta_s2 at: https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop/runs/ufaq8yt3
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/exploration-saczop
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g10_full_saczop_cos_bonus_only_theta_s2/wandb/run-20260718_152719-ufaq8yt3/logs
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+============================================================
+Run: g10_full_saczop_cos_bonus_only_theta_s2 | reward: cos_bonus_only_theta | seed: 2
+Phase 1 (0..5000): fill = saczop (planner=full), + background SAC warm-up (UTD=20, from step 1000)
+Phase 2 (5000..200000): pure SAC driving + learning (warm agent)
+dt: 0.01s
+============================================================
+Ep 1 [fill]: reward = 512.25, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 1001 (211 steps/s)
+Ep 2 [fill]: reward = 188.47, steps = 401, max |F| = 20.0 N, stabilized = False, total steps = 1402 (24 steps/s)
+Ep 3 [fill]: reward = 524.50, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 2403 (12 steps/s)
+Ep 4 [fill]: reward = 485.37, steps = 853, max |F| = 20.0 N, stabilized = False, total steps = 3256 (10 steps/s)
+Ep 5 [fill]: reward = 396.95, steps = 620, max |F| = 20.0 N, stabilized = False, total steps = 3876 (9 steps/s)
+Ep 6 [fill]: reward = 582.91, steps = 1001, max |F| = 20.0 N, stabilized = False, total steps = 4877 (9 steps/s)
+Ep 7 [fill]: reward = 29.18, steps = 142, max |F| = 20.0 N, stabilized = False, total steps = 5019 (9 steps/s)
+Ep 8 [sac]: reward = 1.32, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5031 (8 steps/s)
+Ep 9 [sac]: reward = 1.23, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5043 (8 steps/s)
+Ep 10 [sac]: reward = 1.07, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 5054 (8 steps/s)
+Ep 11 [sac]: reward = 1.29, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5066 (8 steps/s)
+Ep 12 [sac]: reward = 1.26, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5078 (8 steps/s)
+Ep 13 [sac]: reward = 1.06, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 5089 (8 steps/s)
+Ep 14 [sac]: reward = 1.09, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 5100 (8 steps/s)
+Ep 15 [sac]: reward = 1.33, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5112 (8 steps/s)
+Ep 16 [sac]: reward = 1.36, steps = 12, max |F| = 20.0 N, stabilized = False, total steps = 5124 (8 steps/s)
+Ep 17 [sac]: reward = 1.53, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 5137 (8 steps/s)
+Ep 18 [sac]: reward = 1.34, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 5150 (8 steps/s)
+Ep 19 [sac]: reward = 1.31, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 5163 (8 steps/s)
+Ep 20 [sac]: reward = 1.46, steps = 14, max |F| = 20.0 N, stabilized = False, total steps = 5177 (8 steps/s)
+Ep 21 [sac]: reward = 1.83, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 5194 (8 steps/s)
+Ep 22 [sac]: reward = 4.01, steps = 80, max |F| = 20.0 N, stabilized = False, total steps = 5274 (8 steps/s)
+Ep 23 [sac]: reward = 8.10, steps = 107, max |F| = 20.0 N, stabilized = False, total steps = 5381 (8 steps/s)
+Ep 24 [sac]: reward = 22.17, steps = 85, max |F| = 20.0 N, stabilized = False, total steps = 5466 (8 steps/s)
+Ep 25 [sac]: reward = 3.04, steps = 29, max |F| = 20.0 N, stabilized = False, total steps = 5495 (8 steps/s)
+Ep 26 [sac]: reward = 2.78, steps = 28, max |F| = 20.0 N, stabilized = False, total steps = 5523 (8 steps/s)
+Ep 27 [sac]: reward = 3.79, steps = 29, max |F| = 20.0 N, stabilized = False, total steps = 5552 (8 steps/s)
+Ep 28 [sac]: reward = 2.32, steps = 30, max |F| = 20.0 N, stabilized = False, total steps = 5582 (8 steps/s)
+Ep 29 [sac]: reward = 2.17, steps = 32, max |F| = 20.0 N, stabilized = False, total steps = 5614 (8 steps/s)
+Ep 30 [sac]: reward = 195.49, steps = 160, max |F| = 20.0 N, stabilized = False, total steps = 5774 (8 steps/s)
+Ep 31 [sac]: reward = 111.50, steps = 119, max |F| = 19.8 N, stabilized = False, total steps = 5893 (8 steps/s)
+Ep 32 [sac]: reward = 982.02, steps = 590, max |F| = 20.0 N, stabilized = False, total steps = 6483 (8 steps/s)
+Ep 33 [sac]: reward = 2183.54, steps = 927, max |F| = 20.0 N, stabilized = True, total steps = 7410 (8 steps/s)
+Ep 34 [sac]: reward = 585.75, steps = 244, max |F| = 20.0 N, stabilized = False, total steps = 7654 (8 steps/s)
+Ep 35 [sac]: reward = 489.39, steps = 227, max |F| = 20.0 N, stabilized = False, total steps = 7881 (8 steps/s)
+Ep 36 [sac]: reward = 963.03, steps = 408, max |F| = 20.0 N, stabilized = False, total steps = 8289 (8 steps/s)
+Ep 37 [sac]: reward = 1048.93, steps = 346, max |F| = 20.0 N, stabilized = True, total steps = 8635 (8 steps/s)
+Ep 38 [sac]: reward = 564.30, steps = 217, max |F| = 20.0 N, stabilized = False, total steps = 8852 (7 steps/s)
+Ep 39 [sac]: reward = 1347.75, steps = 591, max |F| = 20.0 N, stabilized = False, total steps = 9443 (7 steps/s)
+Ep 40 [sac]: reward = 4.27, steps = 45, max |F| = 20.0 N, stabilized = False, total steps = 9488 (7 steps/s)
+Ep 41 [sac]: reward = 49.58, steps = 106, max |F| = 20.0 N, stabilized = False, total steps = 9594 (7 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_zopfill/g10_full_saczop_cos_bonus_only_theta_s2/checkpoints
+
+Done: 9620 env steps, 172404 gradient steps in 21.7 min (7 steps/s)
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 7.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 6.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 4.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 6.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.

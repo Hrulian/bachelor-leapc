@@ -1,0 +1,60 @@
+actor_mlp:
+  activation: relu
+  hidden_dims:
+  - 256
+  - 256
+  - 256
+  norm_layer: null
+  weight_init: orthogonal
+batch_size: 64
+buffer_size: 1000000
+ckpt_modus: best
+critic_mlp:
+  activation: relu
+  hidden_dims:
+  - 256
+  - 256
+  - 256
+  norm_layer: layer_norm
+  weight_init: orthogonal
+distribution_name: squashed_gaussian
+entropy_reward_bonus: true
+gamma: 0.99
+init_alpha: 0.01
+log:
+  csv_logger: true
+  interval: 1000
+  tensorboard_logger: false
+  verbose: false
+  wandb_init_kwargs:
+    config:
+      algo: sac_trainer
+      critic_layer_norm: true
+      dt: 0.01
+      max_ep_steps: 250
+      reward: default
+      seed: 0
+      steps: 1500
+    group: null
+    mode: disabled
+    name: sactr_default_s0_1781560780
+    project: cartpole-sac-trainer-sim
+  wandb_logger: false
+  window: 10000
+lr_alpha: 0.001
+lr_pi: 0.0001
+lr_q: 0.0001
+num_critics: 2
+seed: 0
+soft_update_freq: 1
+target_entropy: -2.0
+tau: 0.005
+train_start: 400
+train_steps: 1500
+update_freq: 1
+val_deterministic: true
+val_freq: 600
+val_num_render_rollouts: 0
+val_num_rollouts: 2
+val_render_mode: null
+val_report_score: cum

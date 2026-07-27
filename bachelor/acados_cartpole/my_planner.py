@@ -30,11 +30,11 @@ class CartPolePlannerConfig:
         param_interface: Determines the exposed parameter interface of the planner.
     """
     
-    
-    N_horizon: int = 8 # choosen so that the avg MPC call is less than 15ms 
-    T_horizon: float = 0.45 # choosen so that the avg MPC call is less than 15ms
+    # N = 5 , T = 0.25 works a bit worse than N = 5, T = 0.5
+    N_horizon: int = 5 # choosen so that the avg MPC call is less than 15ms 
+    T_horizon: float = 0.25 # choosen so that the avg MPC call is less than 15ms
     Fmax: float = 20.0 # -> choosen so that v is below 2 m/s. Faster is not possible for realworld cartpole
-    x_threshold: float = 0.39 # for realworld -> 0.45
+    x_threshold: float = 0.35 # for realworld -> 0.45
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"
