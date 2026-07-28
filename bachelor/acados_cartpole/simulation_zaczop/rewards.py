@@ -244,3 +244,6 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
                 * np.exp(-(thetadot / BALANCE_THETADOT_WIDTH) ** 2) * 3)
 
     return float(max(upright + balanced, 0.0))
+
+
+#cd /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop && ../../../.venv/bin/python run_parallel_sac.py --rewards cos_bonus_spin --seeds 0 1  --wandb-mode online --group r11
