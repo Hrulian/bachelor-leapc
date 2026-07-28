@@ -52,7 +52,7 @@ STABILIZATION_THRESHOLD = 0.15  # rad
 
 def parse_args():
     p = ArgumentParser(description="Pure SAC simulation training (MPC-free baseline)")
-    p.add_argument("--reward", type=str, default="default", choices=sorted(REWARDS),
+    p.add_argument("--reward", type=str, default="cos_bonus_spin", choices=sorted(REWARDS),
                    help="Reward function from rewards.py")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=200_000, help="Total env steps")

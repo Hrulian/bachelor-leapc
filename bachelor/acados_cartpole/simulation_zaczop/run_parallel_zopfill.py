@@ -60,7 +60,7 @@ def parse_args():
                    help="Phase-1 buffer fillers to sweep (e.g. 'saczop mpc random' for the ablation)")
     p.add_argument("--switch-step", type=int, default=10_000,
                    help="Env step at which each run switches from filling to pure-SAC learning")
-    p.add_argument("--rewards", nargs="+", default=["default"], choices=sorted(REWARDS))
+    p.add_argument("--rewards", nargs="+", default=["cos_bonus_spin"], choices=sorted(REWARDS))
     p.add_argument("--seeds", nargs="+", type=int, default=[0])
     p.add_argument("--steps", type=int, default=200_000)
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) // 2),

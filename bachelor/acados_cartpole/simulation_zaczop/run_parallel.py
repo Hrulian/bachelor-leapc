@@ -42,7 +42,7 @@ def parse_args():
     p = ArgumentParser(description="Parallel SAC-ZOP simulation sweep")
     p.add_argument("--planner", type=str, default=PLANNER, choices=sorted(PLANNER_REGISTRY),
                    help="Which planner/OCP to bind (default set by PLANNER at top of file)")
-    p.add_argument("--rewards", nargs="+", default=["default"], choices=sorted(REWARDS))
+    p.add_argument("--rewards", nargs="+", default=["cos_bonus_spin"], choices=sorted(REWARDS))
     p.add_argument("--seeds", nargs="+", type=int, default=[0])
     p.add_argument("--steps", type=int, default=200_000)
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) // 2),

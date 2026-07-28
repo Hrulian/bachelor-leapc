@@ -24,7 +24,7 @@ from bachelor.acados_cartpole.my_helpers import (
     compute_reward,
     done_eval,
     sac_state_to_tensor,
-    
+    X_TERM_M,
 )
 from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
 
@@ -202,7 +202,7 @@ theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta v
 stabilized_this_episode = False  # flag: was pole stabilized this episode
 
 # max steps per episode
-max_ep_steps = 1000  # Good balance between learning and hardware wear
+max_ep_steps = 200  # 10 s at the 50 ms control rate
 
 # device setup
 device = "cpu"
@@ -217,7 +217,10 @@ ctx = None
 # observation and action spaces
 # state is (x, theta, xdot, thetadot)
 # use planner config for reasonable x-bounds and clamp angle to [-pi, pi]
-_x_thr = getattr(cfg_planner, "x_threshold", None)
+# episode termination threshold - deliberately NOT cfg_planner.x_threshold: that value is
+# the MPC's own hard box constraint on x (my_acados_ocp.py), a controller design choice.
+# Termination is an environment property and is shared with real_sac.py via X_TERM_M.
+_x_thr = X_TERM_M
 _x_low = -float(_x_thr) # in meters
 _x_high = float(_x_thr) # in meters
 
@@ -951,12 +954,18 @@ def main():
                 
                 # increment cycle counter
                 step_in_cycle += 1
-                
+
+                # terminated = ended by a trip (safety flag or |x| > X_TERM_M). Reaching
+                # max_ep_steps is a truncation, not a termination: the value function must
+                # still bootstrap there, so this - not `done` - is the buffer's terminal
+                # flag (same as sim_sac_zop.py, which stores int(terminated)).
+                terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+
                 # store transition in buffer only at end of N-step cycle or if episode ends
                 if step_in_cycle == N or done:
                     # store accumulated N-step transition
                     param_t = param_current.to(replay_buffer.device).float()
-                    replay_buffer.put((obs_start_cycle, param_t, float(accumulated_reward), obs_next, int(done)))
+                    replay_buffer.put((obs_start_cycle, param_t, float(accumulated_reward), obs_next, int(terminated)))
                     
                     # notify background learner (counted for drain bookkeeping)
                     try:
@@ -970,9 +979,6 @@ def main():
                 # handle episode termination
                 if done:
                     talk_to_arduino(0, mode=1)
-                    # terminated = ended by a trip (safety flag or |x| > threshold);
-                    # otherwise the episode was truncated (max_ep_steps reached)
-                    terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
                     if terminated:
                         num_terminations += 1
                     elapsed = time.perf_counter() - t_start

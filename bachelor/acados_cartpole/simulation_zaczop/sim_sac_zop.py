@@ -63,7 +63,7 @@ def str2bool(v):
 
 def parse_args():
     p = ArgumentParser(description="SAC-ZOP simulation training (reward function testing)")
-    p.add_argument("--reward", type=str, default="default", choices=sorted(REWARDS),
+    p.add_argument("--reward", type=str, default="cos_bonus_spin", choices=sorted(REWARDS),
                    help="Reward function from rewards.py")
     p.add_argument("--seed", type=int, default=2)
     p.add_argument("--steps", type=int, default=200_000, help="Total env steps")

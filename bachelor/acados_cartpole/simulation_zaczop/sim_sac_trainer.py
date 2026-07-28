@@ -38,7 +38,7 @@ os.environ.setdefault('WANDB_API_KEY', 'fd053eb0471b83f999819cd4c4e4930ea28de0ea
 
 def parse_args():
     p = ArgumentParser(description="Pure SAC baseline via the canonical SacTrainer (my_sac.py)")
-    p.add_argument("--reward", type=str, default="default", choices=sorted(REWARDS),
+    p.add_argument("--reward", type=str, default="cos_bonus_spin", choices=sorted(REWARDS),
                    help="Reward function from rewards.py")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=200_000, help="Total env steps (train_steps)")

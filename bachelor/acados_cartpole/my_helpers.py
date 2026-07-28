@@ -1,6 +1,22 @@
 import numpy as np
 import torch
 
+from bachelor.acados_cartpole.simulation_zaczop.rewards import get_reward_fn
+
+# Reward used on hardware, by name from simulation_zaczop/rewards.py. Keep this in sync
+# with the --reward default of the sim scripts: delegating to the shared registry instead
+# of re-implementing the formula here is what stops sim and hardware from drifting apart
+# (they previously disagreed by a +0.5 upright bonus). "default" is the old formula.
+HARDWARE_REWARD = "cos_bonus_spin"
+_reward_fn = get_reward_fn(HARDWARE_REWARD)
+
+# Episode termination threshold [m], shared by all hardware scripts so they cannot drift
+# apart. The host ends the episode (and marks the transition terminal) at this position;
+# the Arduino's own safety trip stays at position_limit = 11000 counts = 0.430 m and is
+# only a backstop, i.e. `tripped` should never fire in normal operation. Margin between
+# the two: 0.050 m (1272 counts) ~ 2-3 control steps at full cart speed.
+X_TERM_M = 0.38
+
 
 def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
     """
@@ -161,41 +177,30 @@ def u_converted(t) -> float:
 # SACZOP specific helpers below
 def compute_reward(state, force) -> float:
     """
-    Computes the reward for the given state based on the specified mode.
+    Computes the reward for a hardware state, using the reward function named by
+    HARDWARE_REWARD in simulation_zaczop/rewards.py (currently "cos_bonus_spin").
+    Change HARDWARE_REWARD to switch; "default" is the original hand-written formula.
+
     Args:
-        state: A tuple containing the current state (x, theta, v, thetadot, tripped).
-        cfg_planner: Configuration object for the planner.
-        mode: The mode of operation, either "swingup" or "balance".
-        done: A boolean indicating whether the episode has terminated.
+        state: The state AFTER the step, as the Arduino reports it:
+            (x [counts], theta [rad], v [counts/s], thetadot [rad/s], tripped).
+        force: The commanded force [N].
     Returns:
         A float representing the computed reward.
     """
-    
+
     x, theta, v, thetadot, tripped = state
-    x = counts_to_meters(x)
 
-    # Swingup-Reward wie in CartPoleEnv.step
-    reward = abs(np.pi - abs(theta)) / (10.0 * np.pi)
-
-    # Position reward: positive in center, falling to zero at edges
-    # Assuming x_threshold is around 0.4m, we want max reward at x=0
-    # x_max = 0.39  # approximate track limit
-    # position_reward = 0.05 * max(0.0, 1.0 - abs(x) / x_max)
-    # reward += position_reward
-    reward -= 0.1 * (abs(x) / 0.39)
-
-    # targeting high angular velocities 
-    if abs(thetadot) > 12.0:
-        reward = 0  
-        
-    # targeting small cart thetadots near upright
-    if abs(theta) < 0.15 and abs(thetadot) < 1.5:
-        reward += 0.5
-    
-    if reward < 0.0:
-        reward = 0.0
-
-    return float(reward)
+    # the registry works in SI units; hardware frames carry x in encoder counts
+    # and v in counts/s
+    state_si = (
+        counts_to_meters(x),
+        theta,
+        countpersecond_to_meterspersecond(v),
+        thetadot,
+        tripped,
+    )
+    return float(_reward_fn(state_si, force))
 
 
 def reward_eval(x):
@@ -212,7 +217,7 @@ def reward_eval(x):
     return x_m 
 
 
-def done_eval(state: tuple, current_step: int, max_ep_steps: int, x_threshold: float) -> bool:
+def done_eval(state: tuple, current_step: int, max_ep_steps: int, x_threshold: float = X_TERM_M) -> bool:
     """
     Evaluates whether the episode should terminate based on the current state.
     Args:

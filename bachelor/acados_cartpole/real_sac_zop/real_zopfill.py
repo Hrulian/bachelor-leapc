@@ -54,6 +54,7 @@ from bachelor.acados_cartpole.my_helpers import (
     compute_reward,
     done_eval,
     sac_state_to_tensor,
+    X_TERM_M,
 )
 
 from leap_c.planner import ControllerFromPlanner
@@ -233,7 +234,7 @@ theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta v
 stabilized_this_episode = False  # flag: was pole stabilized this episode
 
 # max steps per episode
-max_ep_steps = 1000  # Good balance between learning and hardware wear
+max_ep_steps = 200  # 10 s at the 50 ms control rate
 
 # device setup
 device = "cpu"
@@ -248,7 +249,10 @@ ctx = None
 # observation space
 # state is (x, theta, xdot, thetadot)
 # use planner config for reasonable x-bounds and clamp angle to [-pi, pi]
-_x_thr = getattr(cfg_planner, "x_threshold", None)
+# episode termination threshold - deliberately NOT cfg_planner.x_threshold: that value is
+# the MPC's own hard box constraint on x (my_acados_ocp.py), a controller design choice.
+# Termination is an environment property and is shared with real_sac.py via X_TERM_M.
+_x_thr = X_TERM_M
 _x_low = -float(_x_thr) # in meters
 _x_high = float(_x_thr) # in meters
 
@@ -608,14 +612,17 @@ def _checkpoint_paths():
     }
 
 
-def store_transition(obs_start, u_force, reward, obs_next, done):
+def store_transition(obs_start, u_force, reward, obs_next, terminated):
     """Store a single-step FORCE transition (shape (1,)) and notify the learner.
 
     This is the zopfill buffer format: the action is ALWAYS the applied force, so
     the pure-SAC critic/actor can consume Phase-1 (SAC-ZOP) transitions too.
+
+    `terminated` must be the true termination flag (trip / |x| > X_TERM_M), NOT the
+    episode-`done` flag: a max_ep_steps truncation still has to bootstrap.
     """
     action_t = torch.tensor([float(u_force)], dtype=torch.float32).to(replay_buffer.device)
-    replay_buffer.put((obs_start, action_t, float(reward), obs_next, int(done)))
+    replay_buffer.put((obs_start, action_t, float(reward), obs_next, int(terminated)))
     try:
         _note_token_released()
     except Exception:
@@ -868,15 +875,17 @@ def main():
                 # check done
                 done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
 
+                # terminated = ended by a trip (safety flag or |x| > X_TERM_M). Reaching
+                # max_ep_steps is a truncation, not a termination: the value function must
+                # still bootstrap there, so this - not `done` - is the buffer's terminal flag.
+                terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+
                 # store SINGLE-STEP FORCE transition (both phases) + notify learner
-                store_transition(obs, u_force, reward, obs_next, done)
+                store_transition(obs, u_force, reward, obs_next, terminated)
 
                 # handle episode termination
                 if done:
                     talk_to_arduino(0, mode=1)
-                    # terminated = ended by a trip (safety flag or |x| > threshold);
-                    # otherwise the episode was truncated (max_ep_steps reached)
-                    terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
                     if terminated:
                         num_terminations += 1
                     elapsed = time.perf_counter() - t_start

@@ -32,7 +32,7 @@ def parse_args():
     p.add_argument("--script", type=str, default="sim_sac.py",
                    choices=["sim_sac.py", "sim_sac_trainer.py"],
                    help="Which training script to launch per run")
-    p.add_argument("--rewards", nargs="+", default=["default"], choices=sorted(REWARDS))
+    p.add_argument("--rewards", nargs="+", default=["cos_bonus_spin"], choices=sorted(REWARDS))
     p.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
     p.add_argument("--steps", type=int, default=200_000)
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 4) // 2),
