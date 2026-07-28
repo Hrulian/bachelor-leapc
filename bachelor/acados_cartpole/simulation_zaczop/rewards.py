@@ -194,7 +194,7 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
 
 
 
-@register("cos_bonus_spin2")
+@register("cos_bonus_spin3")
 def compute_reward_cos_bonus_spin2(state, force) -> float:
     """Wie cos_bonus_spin, aber die Drehzahl wird MULTIPLIKATIV nahe oben
     eingekoppelt statt nur einseitig ab 15 rad/s bestraft. Damit:
@@ -212,5 +212,35 @@ def compute_reward_cos_bonus_spin2(state, force) -> float:
     upright  = upright * (1.0 - near_top * (1.0 - calm))
 
     balanced = np.exp(-(theta / 0.35) ** 2) * np.exp(-(thetadot / 4.0) ** 2) * 3
+
+    return float(max(upright + balanced, 0.0))
+
+
+
+# Wie weit runter die Ruhe-Forderung reicht [rad]. Muss deutlich unter pi/2
+# bleiben, sonst wird der Aufschwung an der Seite mitgedaempft (=Energieverlust).
+# 0.7 rad (~40 deg) laesst theta=pi/2 praktisch unberuehrt.
+TOP_WIDTH = 0.7
+# Daempfungsbreite NUR im Top-Bereich [rad/s]. Kleiner = Helicopter oben wird
+# haerter abgewuergt. 7 statt 12, weil die Gate die Seiten ohnehin schuetzt.
+CALM_RAD_S = 7.0
+BALANCE_THETA_WIDTH = 0.35
+BALANCE_THETADOT_WIDTH = 3.0
+
+@register("cos_bonus_spin")
+def compute_reward_cos_bonus_spin(state, force) -> float:
+    """Helicopter-Daempfung NUR nahe oben (positionsgated), damit der Aufschwung
+    unten/seitlich volle Drehzahl (= Energie) behalten darf. Global calm bestrafte
+    schnelles Durchschwingen an der Seite und liess die Policy zu wenig pumpen.
+    """
+    x, theta, v, thetadot, tripped = state
+
+    upright  = 0.5 * (1.0 + np.cos(theta))                      # [0,1] dicht
+    near_top = np.exp(-(theta / TOP_WIDTH) ** 2)               # 1 oben -> ~0 seitlich
+    calm     = np.exp(-(thetadot / CALM_RAD_S) ** 2)
+    upright  = upright * (1.0 - near_top * (1.0 - calm))        # nur oben zaehlt Ruhe
+
+    balanced = (np.exp(-(theta / BALANCE_THETA_WIDTH) ** 2)
+                * np.exp(-(thetadot / BALANCE_THETADOT_WIDTH) ** 2) * 3)
 
     return float(max(upright + balanced, 0.0))

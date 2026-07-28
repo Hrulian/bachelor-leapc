@@ -194,7 +194,8 @@ LEARN_EVERY = 1
 device = "cpu"
 
 # observation and action spaces
-_x_thr = X_TERM_M  # episode ends at +-0.38 m; Arduino safety trip stays at 11000 counts
+_x_thr = X_TERM_M  # = Arduino's own position_limit (11000 counts): host termination and
+                    # hardware trip now coincide, no separate earlier threshold
 _x_low = -float(_x_thr)
 _x_high = float(_x_thr)
 

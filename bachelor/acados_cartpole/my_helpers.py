@@ -10,13 +10,6 @@ from bachelor.acados_cartpole.simulation_zaczop.rewards import get_reward_fn
 HARDWARE_REWARD = "cos_bonus_spin"
 _reward_fn = get_reward_fn(HARDWARE_REWARD)
 
-# Episode termination threshold [m], shared by all hardware scripts so they cannot drift
-# apart. The host ends the episode (and marks the transition terminal) at this position;
-# the Arduino's own safety trip stays at position_limit = 11000 counts = 0.430 m and is
-# only a backstop, i.e. `tripped` should never fire in normal operation. Margin between
-# the two: 0.050 m (1272 counts) ~ 2-3 control steps at full cart speed.
-X_TERM_M = 0.38
-
 
 def force_to_pwm(force: float, velocity: float, max_pwm_limit) -> int:
     """
@@ -91,11 +84,19 @@ def counts_to_meters(counts: int) -> float:
     Returns
     - position in meters [m].
     """
-    counts_per_revolution = 1024  
-    wheel_circumference = 0.04  
+    counts_per_revolution = 1024
+    wheel_circumference = 0.04
     revolutions = counts / counts_per_revolution
     position = revolutions * wheel_circumference
     return position
+
+
+# Arduino's own safety trip (saz_zop.ino: `constexpr uint32_t position_limit = 11000`).
+# The host uses this SAME threshold for episode termination (done_eval / terminated),
+# so a hardware trip and the terminal flag on the stored sample always coincide - there
+# is no separate, earlier host threshold anymore.
+ARDUINO_POSITION_LIMIT_COUNTS = 11000
+X_TERM_M = counts_to_meters(ARDUINO_POSITION_LIMIT_COUNTS)
 
 
 def countpersecond_to_meterspersecond(counts_per_second: int) -> float:
