@@ -188,13 +188,13 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
     upright  =  (1.0 + np.cos(theta))                                       # [0,1] dicht
     balanced = (np.exp(-(theta / BALANCE_THETA_WIDTH) ** 2)
                 * np.exp(-(thetadot / BALANCE_THETADOT_WIDTH) ** 2) * 3)  # [0,3] glatte Praemie, jetzt breiter
-    calm     = np.exp(-(thetadot / CALM_RAD_S) ** 2)                             # (0,1] Daempfung
+    #calm     = np.exp(-(thetadot / CALM_RAD_S) ** 2)                             # (0,1] Daempfung
 
     return float((upright + balanced) * calm)
 
 
 
-@register("cos_bonus_spin3")
+@register("cos_bonus_spin2")
 def compute_reward_cos_bonus_spin2(state, force) -> float:
     """Wie cos_bonus_spin, aber die Drehzahl wird MULTIPLIKATIV nahe oben
     eingekoppelt statt nur einseitig ab 15 rad/s bestraft. Damit:
@@ -223,11 +223,14 @@ def compute_reward_cos_bonus_spin2(state, force) -> float:
 TOP_WIDTH = 0.7
 # Daempfungsbreite NUR im Top-Bereich [rad/s]. Kleiner = Helicopter oben wird
 # haerter abgewuergt. 7 statt 12, weil die Gate die Seiten ohnehin schuetzt.
-CALM_RAD_S = 7.0
+CALM_RAD_S = 4.0
 BALANCE_THETA_WIDTH = 0.35
 BALANCE_THETADOT_WIDTH = 3.0
 
-@register("cos_bonus_spin")
+
+
+
+@register("cos_bonus_spin3")
 def compute_reward_cos_bonus_spin(state, force) -> float:
     """Helicopter-Daempfung NUR nahe oben (positionsgated), damit der Aufschwung
     unten/seitlich volle Drehzahl (= Energie) behalten darf. Global calm bestrafte
@@ -246,4 +249,4 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
     return float(max(upright + balanced, 0.0))
 
 
-#cd /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop && ../../../.venv/bin/python run_parallel_sac.py --rewards cos_bonus_spin --seeds 0 1  --wandb-mode online --group r11
+#cd /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop && ../../../.venv/bin/python run_parallel_sac.py --rewards cos_bonus_spin --seeds 0 1  --wandb-mode online --group r11cd /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop && ../../../.venv/bin/python run_parallel_sac.py --rewards cos_bonus_spin --seeds 0 1  --wandb-mode online --group r11

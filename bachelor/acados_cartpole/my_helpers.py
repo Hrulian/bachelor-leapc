@@ -7,7 +7,7 @@ from bachelor.acados_cartpole.simulation_zaczop.rewards import get_reward_fn
 # with the --reward default of the sim scripts: delegating to the shared registry instead
 # of re-implementing the formula here is what stops sim and hardware from drifting apart
 # (they previously disagreed by a +0.5 upright bonus). "default" is the old formula.
-HARDWARE_REWARD = "cos_bonus_spin"
+HARDWARE_REWARD = "cos_bonus_spin3"
 _reward_fn = get_reward_fn(HARDWARE_REWARD)
 
 
