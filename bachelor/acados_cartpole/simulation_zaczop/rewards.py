@@ -152,9 +152,6 @@ def compute_reward_cos_bonus(state, force) -> float:
     return float(reward)
 
 
-# Daempfungsbreite des Rotations-Terms [rad/s]. Kleiner = Rotation wird haerter
-# abgewertet. Bei |thetadot| = CALM_RAD_S bleibt noch 1/e ~ 37% des Rewards uebrig.
-CALM_RAD_S = 12.0
 
 # Halbwertsbreiten der "balanced"-Beule (Gauss-Breite in exp(-(x/w)^2)). Breiter heisst:
 # der dichte Bonus feuert schon bei groesseren Auslenkungen/Drehzahlen spuerbar, nicht
@@ -185,35 +182,13 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
     """
     x, theta, v, thetadot, tripped = state
 
-    upright  =  (1.0 + np.cos(theta))                                       # [0,1] dicht
+    upright  = 0.5 * (1.0 + np.cos(theta))                                    # [0,1] dicht
     balanced = (np.exp(-(theta / BALANCE_THETA_WIDTH) ** 2)
                 * np.exp(-(thetadot / BALANCE_THETADOT_WIDTH) ** 2) * 3)  # [0,3] glatte Praemie, jetzt breiter
-    #calm     = np.exp(-(thetadot / CALM_RAD_S) ** 2)                             # (0,1] Daempfung
+    if abs(thetadot) > 14.0:
+        return float(0.0)
 
-    return float((upright + balanced) * calm)
-
-
-
-@register("cos_bonus_spin2")
-def compute_reward_cos_bonus_spin2(state, force) -> float:
-    """Wie cos_bonus_spin, aber die Drehzahl wird MULTIPLIKATIV nahe oben
-    eingekoppelt statt nur einseitig ab 15 rad/s bestraft. Damit:
-      - faellt das Slow-Helicopter-Plateau von 0.50 auf ~0.32/Step,
-      - entsteht ein MONOTONER Gradient beim Abbremsen (12->0 rad/s),
-      - bleibt das Swingup-Signal unten (hohe thetadot) unangetastet,
-      - bleibt alles >= 0 (kein Anreiz zum Schienen-Suizid).
-    """
-    x, theta, v, thetadot, tripped = state
-
-    upright  = 0.5 * (1.0 + np.cos(theta))            # [0,1] dicht
-    near_top = np.exp(-(theta / 0.7) ** 2)            # 1 oben -> ~0 unten
-    calm     = np.exp(-(thetadot / 12.0) ** 2)         # BREIT: Gradient ueber ganze Drehzahl
-    # nur oben zahlt upright anteilig zur Ruhe; unten (swingup) voll erhalten:
-    upright  = upright * (1.0 - near_top * (1.0 - calm))
-
-    balanced = np.exp(-(theta / 0.35) ** 2) * np.exp(-(thetadot / 4.0) ** 2) * 3
-
-    return float(max(upright + balanced, 0.0))
+    return float((upright + balanced))
 
 
 
@@ -223,7 +198,7 @@ def compute_reward_cos_bonus_spin2(state, force) -> float:
 TOP_WIDTH = 0.7
 # Daempfungsbreite NUR im Top-Bereich [rad/s]. Kleiner = Helicopter oben wird
 # haerter abgewuergt. 7 statt 12, weil die Gate die Seiten ohnehin schuetzt.
-CALM_RAD_S = 4.0
+CALM_RAD_S = 2.0
 BALANCE_THETA_WIDTH = 0.35
 BALANCE_THETADOT_WIDTH = 3.0
 

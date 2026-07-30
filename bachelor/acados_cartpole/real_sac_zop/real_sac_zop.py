@@ -1,7 +1,3 @@
-#TODO: overlaying updates in thread and inbetween learning maybe just do it so that
-# the funktion only increases the tokens/waits untill tokens are empty
-
-
 
 import torch, threading, queue, serial, time, os, csv
 import numpy as np
@@ -12,10 +8,10 @@ from bachelor.acados_cartpole.real_sac_zop.my_sac import SacCritic
 from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import  MpcSacActor, SacZopTrainerConfig
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
 from bachelor.acados_cartpole.real_sac_zop.my_buffer import ReplayBuffer
-from bachelor.acados_cartpole.my_planner import (
-    CartPolePlannerConfig, 
-    CartPolePlanner, 
-    create_custom_cartpole_params
+from bachelor.acados_cartpole.my_planner_registry import (
+    make_planner,
+    planner_config_dict,
+    PLANNER_NAMES,
 )
 from bachelor.acados_cartpole.my_helpers import (
     force_to_pwm,
@@ -32,6 +28,30 @@ from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
 from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
 
+
+
+#PLANNER SELECTION#################################################################
+# Which OCP formulation the SAC-ZOP actor parameterizes. See my_planner_registry.py
+# for the list; change the default here or override per run without editing the file:
+#
+#     PLANNER=cart python -m bachelor.acados_cartpole.real_sac_zop.real_sac_zop
+#
+# Each variant exposes a different param_space, so the critic/actor shapes differ
+# and checkpoints are NOT interchangeable -> CHECKPOINT_DIR is per planner below.
+PLANNER_NAME = os.environ.get("PLANNER", "full")
+
+# Optional per-variant config overrides, e.g. {"tunable": {"M": 0.17444 * 8}} to
+# run the model-mismatch ablation. Empty = use each variant's own defaults.
+PLANNER_OVERRIDES: dict = {}
+
+# Run one deterministic, unlogged evaluation episode on Ctrl+C (see run_eval_episode).
+# Set to False (or PLANNER=... EVAL_ON_EXIT=0) to exit immediately instead.
+RUN_EVAL_ON_EXIT = os.environ.get("EVAL_ON_EXIT", "1") not in ("0", "false", "False")
+
+if PLANNER_NAME not in PLANNER_NAMES:
+    raise SystemExit(
+        f"Unknown PLANNER '{PLANNER_NAME}'. Available: {', '.join(PLANNER_NAMES)}"
+    )
 
 
 #COMMUNICATION#####################################################################
@@ -51,8 +71,12 @@ ser.reset_input_buffer()
 
 state_que = queue.Queue() # init que that stores states
 prev_sent_mode = None  # remembers last mode sent to Arduino for logging
-# checkpoint directory for models
-CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), "checkpoints")
+# checkpoint directory for models - per planner, because the param_space (and with
+# it the critic/actor input shapes) differs between OCP formulations. Sharing one
+# directory would make load_checkpoints() fail on a shape mismatch after a switch.
+CHECKPOINT_DIR = os.path.join(
+    os.path.dirname(__file__), "checkpoints", f"real_sac_zop_{PLANNER_NAME}"
+)
 
 # timing tracking for training step
 training_step_times = []  # list to store duration of each training call
@@ -178,6 +202,11 @@ def _note_token_processed():
         _drain_cond.notify_all()
 
 
+def _safe_mean(values):
+    """Mean of a list, returning nan on empty instead of warning."""
+    return float(np.mean(values)) if values else float('nan')
+
+
 # initialize counters
 episode_step_count = 0 # steps in current episode
 total_training_steps = 0  # einzelne training steps (critic + actor updates) - für soft_update_freq
@@ -196,21 +225,37 @@ num_terminations = 0  # cumulative episodes that ended in a trip (terminated, no
 num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
 
 # stabilization tracking
-STABILIZATION_BUFFER_SIZE = 200  # ~1 second at 10ms sample time
+STABILIZATION_BUFFER_SIZE = 40  # 2 s of balancing at the 50 ms control rate
 STABILIZATION_THRESHOLD = 0.15  # rad, ±0.15 rad around upright
 theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta values
 stabilized_this_episode = False  # flag: was pole stabilized this episode
+stabilized_at_step = None  # episode step at which the latch fired, None if it never did
+
+# longest run of consecutive steps within STABILIZATION_THRESHOLD in the current episode.
+# Same quantity the latch thresholds, but reported ungated: rotation tops out at a few
+# steps while real balancing reaches the full episode, so it separates "hopeless" from
+# "almost there" where the binary flag stays stuck at 0.
+upright_streak = 0
+longest_upright_steps = 0
+
+# Naming convention for every logged metric:
+#   *_s  -> one value per env step, meant to be plotted over the step axis
+#   *_e  -> one value per episode, meant to be plotted over episode/episode_number_e
+# Everything still goes to wandb at step=abs_step_count (wandb has a single step axis);
+# the suffix says which x-axis the metric is meant to be read on.
 
 # max steps per episode
 max_ep_steps = 200  # 10 s at the 50 ms control rate
 
 # device setup
 device = "cpu"
-# MPC Layer Setup
-cfg_planner = CartPolePlannerConfig()
-params = create_custom_cartpole_params("global", cfg_planner.N_horizon)
-planner = CartPolePlanner(cfg_planner, params)
+# MPC Layer Setup - the variant is chosen by PLANNER_NAME at the top of the file
+print(f"Building planner '{PLANNER_NAME}' ...")
+planner, cfg_planner = make_planner(
+    PLANNER_NAME, **PLANNER_OVERRIDES.get(PLANNER_NAME, {})
+)
 controller_wrapped = ControllerFromPlanner(planner)
+print(f"Planner '{PLANNER_NAME}' ready: {cfg_planner}")
 ctx = None
 
 
@@ -238,12 +283,16 @@ cfg_saczop = SacZopTrainerConfig()
 # Enable layer normalization for critic only
 cfg_saczop.critic_mlp.norm_layer = "layer_norm"
 
+# collect this many env steps before the first gradient step (same as real_sac.py).
+# With train_start=0 the first updates run on a handful of near-identical transitions
+# from a single episode start, which the critic overfits hard at this UTD.
+cfg_saczop.train_start = 200
+
 # Replay Buffer init
 replay_buffer = ReplayBuffer(buffer_limit=cfg_saczop.buffer_size, device=device)
 
 
 # critic init
-# TODO: really no idea what that it. Check later
 extractor_cls = get_extractor_cls("identity")
 
 critic = SacCritic(
@@ -291,7 +340,9 @@ alpha_optimizer = (
 param_dim = int(np.prod(action_space.shape))
 action_dim = 1
 entropy_norm = param_dim / action_dim
-target_entropy = -action_dim if cfg_saczop.target_entropy is None else cfg_saczop.target_entropy
+# standard SAC heuristic for a 1-D action (= -1.0), matching real_sac.py and
+# sim_sac_zop.py rather than the -2.0 in SacTrainerConfig
+target_entropy = -float(action_dim)
 
 
 # initializing optimizers
@@ -348,17 +399,18 @@ def sac_zop_update_step(batch_size, train_start):
             if learning_step % LOG_FREQ == 0:
                 try:
                     wandb.log({
-                        'learning/training_block_time_ms': block_elapsed_time * 1000,
-                        'learning/block_step': learning_step,
-                        'learning/total_training_steps': total_training_steps,
+                        'learning/training_block_time_ms_s': block_elapsed_time * 1000,
+                        'learning/block_step_s': learning_step,
+                        'learning/total_training_steps_s': total_training_steps,
                         # backlog: tokens released but not yet processed (lock-free read)
-                        'learning/pending_tokens': _tokens_released - _tokens_processed,
-                        'learning/q_loss_avg': np.mean(metrics_accumulator['q_losses']),
-                        'learning/pi_loss': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
-                        'learning/alpha': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
-                        'learning/q_avg': np.mean(metrics_accumulator['q_values']),
-                        'learning/q_target_avg': np.mean(metrics_accumulator['q_targets']),
-                        'learning/entropy': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
+                        'learning/pending_tokens_s': _tokens_released - _tokens_processed,
+                        'learning/buffer_size_s': len(replay_buffer),
+                        'learning/q_loss_avg_s': _safe_mean(metrics_accumulator['q_losses']),
+                        'learning/pi_loss_s': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
+                        'learning/alpha_s': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
+                        'learning/q_avg_s': _safe_mean(metrics_accumulator['q_values']),
+                        'learning/q_target_avg_s': _safe_mean(metrics_accumulator['q_targets']),
+                        'learning/entropy_s': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
                     }, step=abs_step_count)
                 except Exception:
                     pass
@@ -602,14 +654,246 @@ def _checkpoint_paths():
     }
 
 
+# ---- final evaluation episode -------------------------------------------------
+# Steps of the closing eval episode. Kept at max_ep_steps so the episodic return is
+# directly comparable to the training episodes; raise it to watch the policy hold
+# the pole for longer than it ever had to during training.
+EVAL_MAX_STEPS = max_ep_steps
+
+# How often the actor is queried during eval. Mirrors the training loop's N so the
+# evaluated controller is the one that was trained, not a different k-step variant.
+EVAL_N = 1
+
+# Number of repeated closing eval episodes (same frozen policy, independent physical
+# trials on hardware) run on exit.
+NUM_EVAL_RUNS = 5
+
+
+def _fmt_param(param_t):
+    """Format a parameter tensor as one CSV field (';'-joined if multi-dimensional)."""
+    values = param_t.detach().cpu().numpy().reshape(-1)
+    return values[0] if values.size == 1 else ';'.join(f'{v:.6g}' for v in values)
+
+
+def run_eval_episode(
+    max_steps: int = EVAL_MAX_STEPS,
+    n_cycle: int = EVAL_N,
+    eval_run: int = 1,
+    seed: int = 0,
+):
+    """Run one final, noise-free episode and dump the full trajectory to a CSV.
+
+    Deliberately different from a training episode:
+      - the actor is queried with `deterministic=True`, so the squashed Gaussian
+        returns its mode instead of a sample: this measures the learned policy,
+        not the exploration policy wrapped around it
+      - nothing is written to the replay buffer and no learner token is released,
+        so the networks stay frozen for the whole episode
+      - nothing goes to wandb: the run's step axis has already been closed out by
+        the training loop, and back-filling it would corrupt the curves
+
+    The CSV is written incrementally (so an abort still leaves usable data) and the
+    summary is appended as '#'-prefixed trailer lines, which `pandas.read_csv(...,
+    comment='#')` skips.
+
+    Args:
+        eval_run: Index of this eval run (1-based), used in the CSV filename to
+            distinguish repeated trials of the same frozen policy.
+        seed: Training seed, used in the CSV filename to identify which trained
+            run this eval trial belongs to.
+
+    Returns:
+        The path of the written CSV, or None if the episode could not be started.
+    """
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    csv_path = os.path.join(
+        CHECKPOINT_DIR, f"eval_{PLANNER_NAME}_run{eval_run}_seed{seed}.csv"
+    )
+
+    print("\n" + "=" * 60)
+    print(f"FINAL EVAL EPISODE (deterministic, no wandb) -> {csv_path}")
+    print("Reset the pole to hanging; the run starts once it has settled.")
+    print("=" * 60)
+
+    # bring the cart back to a defined start state, then re-arm the Arduino
+    reset_env()
+    talk_to_arduino(0, mode=0)
+
+    # take the freshest state the listener has
+    with state_que.mutex:
+        state_que.queue.clear()
+    state = state_que.get()
+    x, theta, v, thetadot, tripped = state
+    thetadot = np.clip(thetadot, -20.0, 20.0)
+    state = (x, theta, v, thetadot, tripped)
+
+    # warm up the solver on the real state, exactly like a training episode does
+    obs_init_batch = sac_state_to_tensor(state, batch=False).to(device).unsqueeze(0)
+    with torch.no_grad():
+        ctx_planner, _, _, _, _ = planner(obs_init_batch, ctx=None)
+        pi_out_init = actor(obs_init_batch, ctx_planner, deterministic=True)
+        ctx_current = pi_out_init.ctx
+
+    step = 0
+    cum_reward = 0.0
+    step_in_cycle = 0
+    param_current = None
+    max_force = 0.0
+    upright_streak = 0
+    longest_upright = 0
+    stabilized = False
+    stabilized_at = None
+    eval_theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)
+    solve_times, successes = [], []
+    terminated = False
+
+    columns = [
+        'step', 'time_s', 'x_counts', 'x_m', 'theta_rad', 'v_counts_s', 'v_m_s',
+        'thetadot_rad_s', 'tripped', 'param', 'u_force_N', 'u_pwm', 'reward',
+        'cum_reward', 'upright', 'actor_called', 'solve_success', 'solve_retry',
+        'solve_time_ms',
+    ]
+
+    done = done_eval(state, step, max_steps, x_threshold=_x_thr)
+    t0 = time.perf_counter()
+    f = open(csv_path, 'w', newline='')
+    writer = csv.writer(f)
+    writer.writerow(columns)
+
+    try:
+        while not done:
+            step += 1
+            obs_batch = sac_state_to_tensor(state, batch=False).to(device).unsqueeze(0)
+
+            if step_in_cycle == 0:
+                with torch.no_grad():
+                    # deterministic=True -> mode of the distribution, no action noise
+                    pi_out = actor(obs_batch, ctx_current, deterministic=True)
+                param_current = pi_out.param[0].detach()
+                ctx_current = pi_out.ctx
+                u_force = float(pi_out.action[0].cpu().numpy().squeeze())
+                actor_called = True
+                stats = pi_out.stats if getattr(pi_out, 'stats', None) else {}
+            else:
+                with torch.no_grad():
+                    # ctx passed by keyword: the positional form would land in the
+                    # planner's `action` slot and silently drop the warm start
+                    ctx_current, action, _, _, _ = planner(
+                        obs_batch, param=param_current.unsqueeze(0), ctx=ctx_current
+                    )
+                u_force = float(action[0].cpu().numpy().squeeze())
+                actor_called = False
+                stats = ctx_current.log if getattr(ctx_current, 'log', None) else {}
+
+            u_pwm = force_to_pwm(
+                u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150
+            )
+            max_force = max(max_force, abs(u_force))
+            talk_to_arduino(u_pwm, mode=0)
+
+            # pre-step values, paired below with the reward they produced
+            row_pre = [
+                step, time.perf_counter() - t0, x, counts_to_meters(x), theta,
+                v, countpersecond_to_meterspersecond(v), thetadot, int(tripped),
+                _fmt_param(param_current), u_force, u_pwm,
+            ]
+
+            # wait for the next frame and drain to the freshest one
+            state = state_que.get()
+            while True:
+                try:
+                    state = state_que.get_nowait()
+                except queue.Empty:
+                    break
+
+            x, theta, v, thetadot, tripped = state
+            thetadot = np.clip(thetadot, -20.0, 20.0)
+            state = (x, theta, v, thetadot, tripped)
+
+            reward = compute_reward(state, u_force)
+            cum_reward += reward
+
+            theta_normalized = ((theta + np.pi) % (2 * np.pi)) - np.pi
+            eval_theta_buffer.append(theta_normalized)
+            is_upright = abs(theta_normalized) <= STABILIZATION_THRESHOLD
+            if is_upright:
+                upright_streak += 1
+                longest_upright = max(longest_upright, upright_streak)
+            else:
+                upright_streak = 0
+            if not stabilized and len(eval_theta_buffer) == STABILIZATION_BUFFER_SIZE:
+                if all(abs(t) <= STABILIZATION_THRESHOLD for t in eval_theta_buffer):
+                    stabilized = True
+                    stabilized_at = step
+
+            success = float(stats.get('success_rate', float('nan')))
+            retry = float(stats.get('retry_rate', float('nan')))
+            solve_ms = float(stats.get('solving_time', float('nan'))) * 1000.0
+            if not np.isnan(solve_ms):
+                solve_times.append(solve_ms)
+            if not np.isnan(success):
+                successes.append(success)
+
+            writer.writerow(row_pre + [
+                reward, cum_reward, int(is_upright), int(actor_called),
+                success, retry, solve_ms,
+            ])
+            f.flush()  # crash/abort safe
+
+            done = done_eval(state, step, max_steps, x_threshold=_x_thr)
+            terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+
+            step_in_cycle += 1
+            if step_in_cycle == n_cycle:
+                step_in_cycle = 0
+
+    except KeyboardInterrupt:
+        print("\nEval episode aborted by user - partial trajectory kept.")
+    finally:
+        try:
+            talk_to_arduino(0, mode=1)
+        except Exception:
+            pass
+        trailer = {
+            'planner': PLANNER_NAME,
+            'eval_run': eval_run,
+            'seed': seed,
+            'deterministic': True,
+            'steps': step,
+            'max_steps': max_steps,
+            'n_cycle': n_cycle,
+            'episodic_return': round(cum_reward, 4),
+            'mean_reward_per_step': round(cum_reward / step, 4) if step else float('nan'),
+            'terminated_by_trip': int(terminated),
+            'stabilized': int(stabilized),
+            'stabilized_at_step': stabilized_at,
+            'longest_upright_steps': longest_upright,
+            'upright_fraction': round(longest_upright / step, 4) if step else float('nan'),
+            'max_force_N': round(max_force, 4),
+            'mean_solve_time_ms': round(float(np.mean(solve_times)), 4) if solve_times else float('nan'),
+            'solver_success_rate': round(float(np.mean(successes)), 4) if successes else float('nan'),
+            'episode_count_at_eval': episode_count,
+            'abs_step_count_at_eval': abs_step_count,
+        }
+        for key, value in trailer.items():
+            f.write(f"# {key}: {value}\n")
+        f.close()
+
+    print("-" * 60)
+    for key, value in trailer.items():
+        print(f"  {key}: {value}")
+    print(f"Trajectory written to {csv_path}")
+    print("-" * 60)
+    return csv_path
+
 
 def main():
     # seeding
-    # seed = 2  
-    # torch.manual_seed(seed)
-    # torch.cuda.manual_seed(seed)
-    # torch.cuda.manual_seed_all(seed)  
-    # np.random.seed(seed)
+    seed = 3
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  
+    np.random.seed(seed)
     
     
     # torch.backends.cudnn.deterministic = True
@@ -622,44 +906,41 @@ def main():
 
     # initialize wandb (resume if we have a run_id, else create new)
     global wandb_run_id
+
+    # shared config for both branches; the planner/* keys record which OCP
+    # formulation produced the run, so variants stay comparable after the fact
+    wandb_config = {
+        "buffer_size": cfg_saczop.buffer_size,
+        "batch_size": cfg_saczop.batch_size,
+        "lr_q": cfg_saczop.lr_q,
+        "lr_pi": cfg_saczop.lr_pi,
+        "lr_alpha": cfg_saczop.lr_alpha,
+        "gamma": cfg_saczop.gamma,
+        "tau": cfg_saczop.tau,
+        "max_ep_steps": max_ep_steps,
+        **planner_config_dict(PLANNER_NAME, cfg_planner),
+    }
+
     if wandb_run_id:
         print(f"Resuming wandb run: {wandb_run_id}")
         wandb.init(
             project="cartpole-sac-zop-1",
             id=wandb_run_id,
             resume="allow",
-            config={
-                "buffer_size": cfg_saczop.buffer_size,
-                "batch_size": cfg_saczop.batch_size,
-                "lr_q": cfg_saczop.lr_q,
-                "lr_pi": cfg_saczop.lr_pi,
-                "lr_alpha": cfg_saczop.lr_alpha,
-                "gamma": cfg_saczop.gamma,
-                "tau": cfg_saczop.tau,
-                "max_ep_steps": max_ep_steps,
-            }
+            config=wandb_config,
         )
     else:
         print("Starting new wandb run")
         run = wandb.init(
-            project="cartpole-sac-zop-1",
-            name=f"real_hardware_run_{int(time.time())}",
-            config={
-                "buffer_size": cfg_saczop.buffer_size,
-                "batch_size": cfg_saczop.batch_size,
-                "lr_q": cfg_saczop.lr_q,
-                "lr_pi": cfg_saczop.lr_pi,
-                "lr_alpha": cfg_saczop.lr_alpha,
-                "gamma": cfg_saczop.gamma,
-                "tau": cfg_saczop.tau,
-                "max_ep_steps": max_ep_steps,
-            }
+            project="Paper-Real_SAC-ZOP",
+            name=f"{PLANNER_NAME}_ocp_s{int(seed)}",
+            config=wandb_config,
         )
         wandb_run_id = run.id
         print(f"New wandb run ID: {wandb_run_id}")
     
     # ensures we reference the module-level variables
-    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps
+    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps, upright_streak, longest_upright_steps, stabilized_at_step
 
     # env-throughput timing (for episode/steps_per_second, like the sim scripts)
     t_start = time.perf_counter()
@@ -710,7 +991,10 @@ def main():
             # reset stabilization tracking
             theta_buffer.clear()
             stabilized_this_episode = False
-            
+            stabilized_at_step = None
+            upright_streak = 0
+            longest_upright_steps = 0
+
             # per-episode bookkeeping
             episode_count += 1
             
@@ -798,7 +1082,7 @@ def main():
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
             # variables for N-step buffering
-            N = 5  # call actor every N steps
+            N = 1  # call actor every N steps
             step_in_cycle = 0  # tracks position within N-step cycle
             accumulated_reward = 0.0  # accumulates reward over N steps
             obs_start_cycle = None  # observation at start of N-step cycle
@@ -834,68 +1118,48 @@ def main():
                     
                     # get action (force) from pi_out
                     u_force = float(pi_out.action[0].cpu().numpy().squeeze())
-                    
-                    # log actor stats
-                    try:
-                        step_stats = {
-                            'step/u_force': u_force,
-                            'step/param': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
-                            'step/x': x,
-                            'step/theta': theta,
-                            'step/v': v,
-                            'step/thetadot': thetadot,
-                            'step/episode_step': episode_step_count,
-                            'step/cycle_step': step_in_cycle,
-                            'step/actor_called': True,
-                            'step/stabilized': int(stabilized_this_episode),
-                            'stabilization/stabilized_steps_total': num_stabilized_steps,
-                            'terminations/total': num_terminations,
-                        }
+                    actor_called = True
+                    pi_stats = pi_out.stats if (hasattr(pi_out, 'stats') and pi_out.stats) else None
 
-                        if hasattr(pi_out, 'stats') and pi_out.stats:
-                            for key, val in pi_out.stats.items():
-                                step_stats[f'step/pi_{key}'] = val
-                        wandb.log(step_stats, step=abs_step_count)
-                    except Exception:
-                        pass
-                
                 else:
                     # intermediate step: use saved params with MPC planner
                     with torch.no_grad():
                         # call planner with saved params
                         ctx_current, action, _, _, _ = planner(obs_batch, ctx_current, param_current.unsqueeze(0))
-                    
+
                     # get force from planner output
                     u_force = float(action[0].cpu().numpy().squeeze())
-                    
-                    # log planner stats
-                    try:
-                        step_stats = {
-                            'step/u_force': u_force,
-                            'step/param': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
-                            'step/x': x,
-                            'step/theta': theta,
-                            'step/v': v,
-                            'step/thetadot': thetadot,
-                            'step/episode_step': episode_step_count,
-                            'step/cycle_step': step_in_cycle,
-                            'step/actor_called': False,
-                            'step/stabilized': int(stabilized_this_episode),
-                            'stabilization/stabilized_steps_total': num_stabilized_steps,
-                            'terminations/total': num_terminations,
-                        }
-                        wandb.log(step_stats, step=abs_step_count)
-                    except Exception:
-                        pass
-                
+                    actor_called = False
+                    pi_stats = None
+
                 # convert force to PWM
                 u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
-                
+
                 # track maximum absolute force
                 max_force_perep = max(max_force_perep, abs(u_force))
-                
-                # send PWM control to arduino
+
+                # actuate first, then log: keeps wandb work out of the
+                # observe -> act latency path
                 talk_to_arduino(u_pwm, mode=0)
+
+                # collect per-step statistics (pre-step state/action), logged in a
+                # single wandb.log at the end of the iteration together with the reward
+                step_stats = {
+                    'step/u_force_s': u_force,
+                    'step/u_pwm_s': u_pwm,
+                    'step/param_s': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
+                    'step/x_s': x,
+                    'step/theta_s': theta,
+                    'step/v_s': v,
+                    'step/thetadot_s': thetadot,
+                    'step/episode_step_s': episode_step_count,
+                    'step/abs_step_s': abs_step_count,
+                    'step/cycle_step_s': step_in_cycle,
+                    'step/actor_called_s': int(actor_called),
+                }
+                if pi_stats:
+                    for key, val in pi_stats.items():
+                        step_stats[f'step/pi_{key}_s'] = val
                 
                 # wait for next state and drain queue to freshest
                 state = state_que.get()
@@ -927,25 +1191,31 @@ def main():
                 theta_normalized = ((theta + np.pi) % (2 * np.pi)) - np.pi
                 theta_buffer.append(theta_normalized)
                 
+                theta_abs = abs(theta_normalized)
+                is_upright = theta_abs <= STABILIZATION_THRESHOLD
+
+                # longest consecutive upright run: the ungated version of the latch below
+                if is_upright:
+                    upright_streak += 1
+                    longest_upright_steps = max(longest_upright_steps, upright_streak)
+                else:
+                    upright_streak = 0
+
                 # check if pole is stabilized (all recent theta values within threshold)
                 if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
                     if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
                         stabilized_this_episode = True
-                        num_stabilized_steps += STABILIZATION_BUFFER_SIZE  # retroactively credit the 200-step balanced window
-                        # log stabilization event
-                        try:
-                            wandb.log({
-                                'stabilization/achieved_at_step': episode_step_count,
-                                'stabilization/achieved_at_abs_step': abs_step_count,
-                            }, step=abs_step_count)
-                        except Exception:
-                            pass
-                elif stabilized_this_episode:
-                    num_stabilized_steps += 1  # latched: every step after achievement counts as stabilized
-                
-                # log reward to wandb
+                        # kept for the episode log below, so it lands on the episode axis
+                        stabilized_at_step = episode_step_count
+
+                # one wandb.log per env step (reward + state/action)
                 try:
-                    wandb.log({'step/reward': reward}, step=abs_step_count)
+                    step_stats['step/reward_s'] = reward
+                    step_stats['step/stabilized_s'] = int(stabilized_this_episode)
+                    # raw 0/1 signal, unsmoothed: averaging it in wandb over any window
+                    # gives the "fraction of time upright" curve
+                    step_stats['step/upright_s'] = int(is_upright)
+                    wandb.log(step_stats, step=abs_step_count)
                 except Exception:
                     pass
                 
@@ -981,8 +1251,11 @@ def main():
                     talk_to_arduino(0, mode=1)
                     if terminated:
                         num_terminations += 1
-                    elapsed = time.perf_counter() - t_start
-                    sps = abs_step_count / max(elapsed, 1e-9)
+                    # every step of a stabilized episode counts as stabilized (not just
+                    # the ones after the latch fired). wandb steps that are already
+                    # written cannot be revised, so the credit is applied here in one go.
+                    if stabilized_this_episode:
+                        num_stabilized_steps += episode_step_count
                     episode_rewards.append({
                         'episode': episode_count,
                         'cumulative_reward': current_episode_reward,
@@ -991,16 +1264,29 @@ def main():
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
 
                     try:
-                        wandb.log({
-                            'episode/episode_number': episode_count,
-                            'episode/cumulative_reward': current_episode_reward,
-                            'episode/steps': episode_step_count,
-                            'episode/max_force': max_force_perep,
-                            'episode/stabilized': int(stabilized_this_episode),  # 1 if stabilized, 0 otherwise
-                            'episode/steps_per_second': sps,
-                            'episode/terminated': int(terminated),
-                            'terminations/total': num_terminations,
-                        }, step=abs_step_count)
+                        ep_log = {
+                            # episode counter: pick this as the panel x-axis in wandb to
+                            # plot any *_e metric over episodes instead of env steps
+                            'episode/episode_number_e': episode_count,
+                            # undiscounted sum of rewards over the episode = episodic return
+                            'episode/cumulative_reward_e': current_episode_reward,
+                            'episode/steps_e': episode_step_count,
+                            'episode/max_force_e': max_force_perep,
+                            # 1 if the pole was balanced for STABILIZATION_BUFFER_SIZE
+                            # consecutive steps anywhere in this episode, else 0
+                            'episode/stabilized_e': int(stabilized_this_episode),
+                            'terminations/total_e': num_terminations,
+                            'episode/learning_step_e': learning_step,
+                            # graded version of `stabilized` - see longest_upright_steps
+                            'episode/longest_upright_steps_e': longest_upright_steps,
+                            # all steps of a stabilized episode, 0 otherwise
+                            'episode/stabilized_steps_e': episode_step_count if stabilized_this_episode else 0,
+                            'perf/stabilized_steps_total_e': num_stabilized_steps,
+                        }
+                        # only defined for episodes that actually stabilized
+                        if stabilized_at_step is not None:
+                            ep_log['stabilization/achieved_at_step_e'] = stabilized_at_step
+                        wandb.log(ep_log, step=abs_step_count)
                     except Exception:
                         pass
 
@@ -1024,6 +1310,22 @@ def main():
             save_checkpoints()
         except Exception:
             pass
+
+        # closing evaluation of the final policy: deterministic, unlogged, dumped
+        # to CSV, repeated NUM_EVAL_RUNS times as independent physical trials of the
+        # same frozen policy. Runs after save_checkpoints() so the weights on disk
+        # are exactly the ones being evaluated. A further Ctrl+C aborts all
+        # remaining eval runs.
+        if RUN_EVAL_ON_EXIT:
+            try:
+                for eval_run in range(1, NUM_EVAL_RUNS + 1):
+                    print(f"\n>>> Eval run {eval_run}/{NUM_EVAL_RUNS} (seed={seed})")
+                    run_eval_episode(eval_run=eval_run, seed=seed)
+            except KeyboardInterrupt:
+                print("Remaining eval runs skipped.")
+            except Exception as e:
+                print(f"Final eval episode failed: {e}")
+
         # finish wandb run
         # try:
         #     wandb.finish()

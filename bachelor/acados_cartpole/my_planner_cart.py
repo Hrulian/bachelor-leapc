@@ -38,10 +38,10 @@ class CartOnlyPlannerConfig:
     each field.
     """
 
-    N_horizon: int = 5
-    T_horizon: float = 0.25
+    N_horizon: int = 8
+    T_horizon: float = 0.45
     Fmax: float = 20.0
-    x_threshold: float = 0.4
+    x_threshold: float = 0.37
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"

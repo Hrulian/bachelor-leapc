@@ -26,7 +26,7 @@ os.environ['WANDB_API_KEY'] = 'fd053eb0471b83f999819cd4c4e4930ea28de0ea'
 # serial communication parameters
 PORT = "/dev/ttyACM0"
 BAUD = 115200
-FRAME_TIMEOUT_S = 0.05
+FRAME_TIMEOUT_S = 0.1
 MAX_PAYLOAD_LEN = 64
 READ_TIMEOUT_S = 0.002
 
@@ -172,16 +172,36 @@ wandb_run_id = None
 
 # metrics mirrored from the sim scripts (sim_sac / sim_sac_zop / sim_sac_zopfill)
 num_terminations = 0  # cumulative episodes that ended in a trip (terminated, not truncated)
-num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
+# cumulative steps credited as stabilized: an episode in which the latch ever fired
+# contributes ALL of its steps, not just the ones after the latch
+num_stabilized_steps = 0
 
 # stabilization tracking
-STABILIZATION_BUFFER_SIZE = 40
+STABILIZATION_BUFFER_SIZE = 40  # 2 s of balancing at the 50 ms control rate
 STABILIZATION_THRESHOLD = 0.15
 theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)
 stabilized_this_episode = False
+stabilized_at_step = None  # episode step at which the latch fired, None if it never did
+
+# longest run of consecutive steps within STABILIZATION_THRESHOLD in the current episode.
+# Same quantity the latch thresholds, but reported ungated: rotation tops out at a few
+# steps while real balancing reaches the full episode, so it separates "hopeless" from
+# "almost there" where the binary flag stays stuck at 0.
+upright_streak = 0
+longest_upright_steps = 0
+
+# deliberately no pre-averaged metrics here: the raw per-step signals (step/reward_s,
+# step/theta_s, step/upright_s) are logged unsmoothed and averaged in the wandb UI instead.
+#
+# Naming convention for every logged metric:
+#   *_s  -> one value per env step, meant to be plotted over the step axis
+#   *_e  -> one value per episode, meant to be plotted over episode/episode_number_e
+# Everything still goes to wandb at step=abs_step_count (wandb has a single step axis);
+# the suffix says which x-axis the metric is meant to be read on. To get the episode
+# axis, pick episode/episode_number_e as the panel's x-axis in the wandb UI.
 
 # max steps per episode
-max_ep_steps = 200  # 10 s at the 50 ms control rate
+max_ep_steps = 200  # 15 s at the 50 ms control rate
 
 # learner tokens: release one every LEARN_EVERY stored transitions. SAC-ZOP stores one
 # N-step transition per N=5-step MPC cycle and releases one token per store, i.e. one
@@ -326,18 +346,18 @@ def sac_update_step(batch_size, train_start):
             if learning_step % LOG_FREQ == 0:
                 try:
                     wandb.log({
-                        'learning/training_block_time_ms': block_elapsed_time * 1000,
-                        'learning/block_step': learning_step,
-                        'learning/total_training_steps': total_training_steps,
+                        'learning/training_block_time_ms_s': block_elapsed_time * 1000,
+                        'learning/block_step_s': learning_step,
+                        'learning/total_training_steps_s': total_training_steps,
                         # backlog: tokens released but not yet processed (lock-free read)
-                        'learning/pending_tokens': _tokens_released - _tokens_processed,
-                        'learning/buffer_size': len(replay_buffer),
-                        'learning/q_loss_avg': _safe_mean(metrics_accumulator['q_losses']),
-                        'learning/pi_loss': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
-                        'learning/alpha': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
-                        'learning/q_avg': _safe_mean(metrics_accumulator['q_values']),
-                        'learning/q_target_avg': _safe_mean(metrics_accumulator['q_targets']),
-                        'learning/entropy': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
+                        'learning/pending_tokens_s': _tokens_released - _tokens_processed,
+                        'learning/buffer_size_s': len(replay_buffer),
+                        'learning/q_loss_avg_s': _safe_mean(metrics_accumulator['q_losses']),
+                        'learning/pi_loss_s': metrics_accumulator['pi_losses'][0] if metrics_accumulator['pi_losses'] else float('nan'),
+                        'learning/alpha_s': metrics_accumulator['alphas'][0] if metrics_accumulator['alphas'] else float('nan'),
+                        'learning/q_avg_s': _safe_mean(metrics_accumulator['q_values']),
+                        'learning/q_target_avg_s': _safe_mean(metrics_accumulator['q_targets']),
+                        'learning/entropy_s': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
                     }, step=abs_step_count)
                 except Exception:
                     pass
@@ -567,7 +587,7 @@ def _checkpoint_paths():
 
 def main():
     # seeding (same as SAC-ZOP)
-    seed = 1  
+    seed = 3  
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
@@ -613,9 +633,9 @@ def main():
         wandb_run_id = run.id
         print(f"New wandb run ID: {wandb_run_id}")
     
-    global episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps
+    global episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps, upright_streak, longest_upright_steps, stabilized_at_step
 
-    # env-throughput timing (for episode/steps_per_second, like the sim scripts)
+    # wall-clock reference for the run (used by the timing summary on exit)
     t_start = time.perf_counter()
 
     # start the background receiver task
@@ -653,6 +673,9 @@ def main():
             # reset stabilization tracking
             theta_buffer.clear()
             stabilized_this_episode = False
+            stabilized_at_step = None
+            upright_streak = 0
+            longest_upright_steps = 0
             
             episode_count += 1
             
@@ -752,18 +775,18 @@ def main():
                 # collect per-step statistics (pre-step state/action), logged in a
                 # single wandb.log at the end of the iteration together with the reward
                 step_stats = {
-                    'step/u_force': u_force,
-                    'step/u_pwm': u_pwm,
-                    'step/x': x,
-                    'step/theta': theta,
-                    'step/v': v,
-                    'step/thetadot': thetadot,
-                    'step/episode_step': episode_step_count,
-                    'step/abs_step': abs_step_count,
+                    'step/u_force_s': u_force,
+                    'step/u_pwm_s': u_pwm,
+                    'step/x_s': x,
+                    'step/theta_s': theta,
+                    'step/v_s': v,
+                    'step/thetadot_s': thetadot,
+                    'step/episode_step_s': episode_step_count,
+                    'step/abs_step_s': abs_step_count,
                 }
                 if stats:
                     for key, val in stats.items():
-                        step_stats[f'step/actor_{key}'] = val
+                        step_stats[f'step/actor_{key}_s'] = val
 
                 state = state_que.get()
                 while True:
@@ -786,23 +809,30 @@ def main():
                 # track stabilization (same as SAC-ZOP)
                 theta_normalized = ((theta + np.pi) % (2 * np.pi)) - np.pi
                 theta_buffer.append(theta_normalized)
-                
+
+                theta_abs = abs(theta_normalized)
+                is_upright = theta_abs <= STABILIZATION_THRESHOLD
+
+                # longest consecutive upright run: the ungated version of the latch below
+                if is_upright:
+                    upright_streak += 1
+                    longest_upright_steps = max(longest_upright_steps, upright_streak)
+                else:
+                    upright_streak = 0
+
                 if not stabilized_this_episode and len(theta_buffer) == STABILIZATION_BUFFER_SIZE:
                     if all(abs(t) <= STABILIZATION_THRESHOLD for t in theta_buffer):
                         stabilized_this_episode = True
-                        num_stabilized_steps += STABILIZATION_BUFFER_SIZE  # retroactively credit the 200-step balanced window
-                        step_stats['stabilization/achieved_at_step'] = episode_step_count
-                        step_stats['stabilization/achieved_at_abs_step'] = abs_step_count
-                        step_stats['stabilization/episode'] = episode_count
-                elif stabilized_this_episode:
-                    num_stabilized_steps += 1  # latched: every step after achievement counts as stabilized
+                        # kept for the episode log below, so it lands on the episode axis
+                        stabilized_at_step = episode_step_count
 
                 # one wandb.log per env step (reward + state/action + counters)
                 try:
-                    step_stats['step/reward'] = reward
-                    step_stats['step/stabilized'] = int(stabilized_this_episode)
-                    step_stats['stabilization/stabilized_steps_total'] = num_stabilized_steps
-                    step_stats['terminations/total'] = num_terminations
+                    step_stats['step/reward_s'] = reward
+                    step_stats['step/stabilized_s'] = int(stabilized_this_episode)
+                    # raw 0/1 signal, unsmoothed: averaging it in wandb over any window
+                    # gives the "fraction of time upright" curve
+                    step_stats['step/upright_s'] = int(is_upright)
                     wandb.log(step_stats, step=abs_step_count)
                 except Exception:
                     pass
@@ -819,8 +849,11 @@ def main():
                     talk_to_arduino(0, mode=1)
                     if terminated:
                         num_terminations += 1
-                    elapsed = time.perf_counter() - t_start
-                    sps = abs_step_count / max(elapsed, 1e-9)
+                    # every step of a stabilized episode counts as stabilized (not just
+                    # the ones after the latch fired). wandb steps that are already
+                    # written cannot be revised, so the credit is applied here in one go.
+                    if stabilized_this_episode:
+                        num_stabilized_steps += episode_step_count
                     episode_rewards.append({
                         'episode': episode_count,
                         'cumulative_reward': current_episode_reward,
@@ -829,18 +862,29 @@ def main():
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
 
                     try:
-                        wandb.log({
-                            'episode/episode_number': episode_count,
-                            'episode/cumulative_reward': current_episode_reward,
-                            'episode/steps': episode_step_count,
-                            'episode/max_force': max_force_perep,
-                            'episode/stabilized': int(stabilized_this_episode),
-                            'episode/steps_per_second': sps,
-                            'episode/terminated': int(terminated),
-                            'terminations/total': num_terminations,
-                            'episode/learning_step': learning_step,
-                            'episode/abs_step': abs_step_count,
-                        }, step=abs_step_count)
+                        ep_log = {
+                            # episode counter: pick this as the panel x-axis in wandb to
+                            # plot any *_e metric over episodes instead of env steps
+                            'episode/episode_number_e': episode_count,
+                            # undiscounted sum of rewards over the episode = episodic return
+                            'episode/cumulative_reward_e': current_episode_reward,
+                            'episode/steps_e': episode_step_count,
+                            'episode/max_force_e': max_force_perep,
+                            # 1 if the pole was balanced for STABILIZATION_BUFFER_SIZE
+                            # consecutive steps anywhere in this episode, else 0
+                            'episode/stabilized_e': int(stabilized_this_episode),
+                            'terminations/total_e': num_terminations,
+                            'episode/learning_step_e': learning_step,
+                            # graded version of `stabilized` - see longest_upright_steps
+                            'episode/longest_upright_steps_e': longest_upright_steps,
+                            # all steps of a stabilized episode, 0 otherwise
+                            'episode/stabilized_steps_e': episode_step_count if stabilized_this_episode else 0,
+                            'perf/stabilized_steps_total_e': num_stabilized_steps,
+                        }
+                        # only defined for episodes that actually stabilized
+                        if stabilized_at_step is not None:
+                            ep_log['stabilization/achieved_at_step_e'] = stabilized_at_step
+                        wandb.log(ep_log, step=abs_step_count)
                     except Exception:
                         pass
 

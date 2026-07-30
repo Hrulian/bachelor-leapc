@@ -1,0 +1,33 @@
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_sac/r13_cos_bonus_spin_s0/wandb/run-20260729_141236-oswhhgjc
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run r13_cos_bonus_spin_s0
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim/runs/oswhhgjc
+wandb: uploading output.log; uploading wandb-summary.json
+wandb:                                                                                
+wandb: 🚀 View run r13_cos_bonus_spin_s0 at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim/runs/oswhhgjc
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-sac-pure-sim
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./runs_sac/r13_cos_bonus_spin_s0/wandb/run-20260729_141236-oswhhgjc/logs
+============================================================
+Run: r13_cos_bonus_spin_s0 | reward: cos_bonus_spin | seed: 0 | algo: pure SAC
+Steps: 200000 | dt: 0.01s
+============================================================
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs_sac/r13_cos_bonus_spin_s0/checkpoints
+
+Done: 1 env steps, 0 gradient steps in 0.0 min (129 steps/s)
+Traceback (most recent call last):
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac.py", line 423, in <module>
+    main()
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_sac.py", line 325, in main
+    obs_next, reward, terminated, truncated, info = env.step(a_np)
+                                                    ^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/sim_env.py", line 133, in step
+    reward = float(self.reward_fn(state, force))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/rewards.py", line 193, in compute_reward_cos_bonus_spin
+    return float((upright + balanced) * calm)
+                                        ^^^^
+NameError: name 'calm' is not defined
