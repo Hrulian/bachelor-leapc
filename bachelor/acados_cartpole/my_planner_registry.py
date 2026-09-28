@@ -17,8 +17,19 @@ Which name maps to which file:
     cart        my_planner_cart.py        CartOnlyPlanner       cart only [x, v]
     fullcart    my_planner_fullcart.py    FullCartRefPlanner    full cart+pole,
                                                                 ref = cart position
+    du0         my_planner_du0.py         GradPertPlanner       full cart+pole,
+                                                                no learnable ref,
+                                                                cost perturbation
+                                                                d^T u_0 instead
     tunable     my_planner_tunable.py     TunablePlanner        full cart+pole,
                                                                 every knob exposed
+    gz          my_planner_gz.py          GZPlanner             full cart+pole,
+                                                                ref = pole angle
+                                                                LEARNED, plus a
+                                                                SAMPLED d_u0
+                                                                disturbance for
+                                                                exploration
+                                                                (Gros & Zanon)
 
 `full` is the plain `my_planner.py` planner - the default everywhere, and the one
 real_sac_zop.py used before this registry existed. It is also reachable under the
@@ -60,10 +71,20 @@ _REGISTRY: dict[str, tuple[str, str, str]] = {
         "FullCartRefPlannerConfig",
         "FullCartRefPlanner",
     ),
+    "du0": (
+        "bachelor.acados_cartpole.my_planner_du0",
+        "GradPertPlannerConfig",
+        "GradPertPlanner",
+    ),
     "tunable": (
         "bachelor.acados_cartpole.my_planner_tunable",
         "TunablePlannerConfig",
         "TunablePlanner",
+    ),
+    "gz": (
+        "bachelor.acados_cartpole.my_planner_gz",
+        "GZPlannerConfig",
+        "GZPlanner",
     ),
 }
 
@@ -73,6 +94,9 @@ _ALIASES: dict[str, str] = {
     "my_planner": "full",
     "my_planner_cart": "cart",
     "my_planner_fullcart": "fullcart",
+    "my_planner_du0": "du0",
+    "gradpert": "du0",
+    "d_u0": "du0",
     "my_planner_tunable": "tunable",
     "cartpole": "full",
 }

@@ -41,7 +41,12 @@ PLANNER = "full"
 def parse_args():
     p = ArgumentParser(description="Parallel SAC-ZOP simulation sweep")
     p.add_argument("--planner", type=str, default=PLANNER, choices=sorted(PLANNER_REGISTRY),
-                   help="Which planner/OCP to bind (default set by PLANNER at top of file)")
+                   help="Which planner/OCP to bind (default set by PLANNER at top of file). "
+                        "Ignored by workers that bind their planner themselves (sim_sac_gz.py), "
+                        "but still used to name the runs.")
+    p.add_argument("--script", type=str, default="sim_sac_zop.py",
+                   help="Worker script in this folder, e.g. sim_sac_gz.py for the "
+                        "Gros & Zanon-style learned-reference / sampled-disturbance setup")
     p.add_argument("--rewards", nargs="+", default=["cos_bonus_spin"], choices=sorted(REWARDS))
     p.add_argument("--seeds", nargs="+", type=int, default=[0])
     p.add_argument("--steps", type=int, default=200_000)
@@ -65,14 +70,20 @@ def parse_args():
 def main():
     args = parse_args()
     group = args.group or f"sweep_{int(time.time())}"
-    script = Path(__file__).parent / "sim_sac_zop.py"
+    script = Path(__file__).parent / args.script
+    if not script.is_file():
+        raise SystemExit(f"worker script not found: {script}")
+    # sim_sac_gz.py binds the 'gz' planner itself and takes no --planner flag.
+    # Match the argparse registration, not a bare "--planner": the worker
+    # docstrings mention other planners in prose and would false-positive.
+    takes_planner = 'add_argument("--planner"' in script.read_text()
 
     jobs = []
     for reward, seed in product(args.rewards, args.seeds):
         run_name = f"{group}_{args.planner}_{reward}_s{seed}"
         cmd = [
             sys.executable, str(script),
-            "--planner", args.planner,
+            *(["--planner", args.planner] if takes_planner else []),
             "--reward", reward,
             "--seed", str(seed),
             "--steps", str(args.steps),

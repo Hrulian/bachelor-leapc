@@ -1283,9 +1283,126 @@ def plot_critic_heatmap(
         plt.show()
     else:
         plt.close()
-    
+
     print("\n✓ Critic heatmap generation complete!")
     return critic_full_grid
+
+
+def plot_eval_episode_log(
+    path: str,
+    plt_show: bool = False,
+    save_path: str | None = None,
+    title: str | None = None,
+    x_limit: float | None = None,
+    upright_threshold: float | None = 0.15,
+):
+    """Plot one eval-episode CSV in the shared eval schema.
+
+    Reads the per-step trajectories written by `real_acados/MPC_REAL.py` and
+    `real_sac_zop.run_eval_episode`: `time_s, x_m, theta_rad, v_m_s,
+    thetadot_rad_s, u_force_N, u_pwm, cum_reward` (+ optional `theta_unwrapped`).
+    Columns that are absent are simply left out of the figure, so the same call
+    works for both writers even though only one of them logs `param` / only one
+    logs the unwrapped angle. Trailer lines (the '#'-prefixed summary appended
+    after the last row) are skipped.
+
+    Args:
+        path: Path to the eval CSV.
+        plt_show: Show the figure interactively. Default False - a blocking
+            `plt.show()` between hardware runs would stall the next episode.
+        save_path: Where to write the figure. Defaults to the CSV path with a
+            '.png' suffix.
+        title: Figure title. Defaults to the CSV file stem.
+        x_limit: If given, draw the +-position limit as dashed lines on the x panel.
+        upright_threshold: If given, shade +-threshold [rad] on the angle panel.
+
+    Returns:
+        The path the figure was written to, or None if nothing could be plotted.
+    """
+    rows: dict[str, list[float]] = {}
+    try:
+        with open(path, newline='') as fh:
+            # drop the '#'-prefixed trailer before the CSV parser sees it
+            reader = csv.DictReader(line for line in fh if not line.startswith('#'))
+            fieldnames = reader.fieldnames or []
+            rows = {name: [] for name in fieldnames}
+            for row in reader:
+                for name in fieldnames:
+                    try:
+                        rows[name].append(float(row.get(name, '') or 'nan'))
+                    except ValueError:
+                        # non-numeric cells (e.g. a ';'-joined multi-dim param)
+                        rows[name].append(float('nan'))
+    except Exception as e:
+        print('Could not read eval log:', e)
+        return None
+
+    if not rows or not rows.get('x_m'):
+        print('Eval log has no data rows:', path)
+        return None
+
+    n_steps = len(rows['x_m'])
+    times = rows.get('time_s') or list(range(n_steps))
+
+    def has(name):
+        return name in rows and len(rows[name]) == n_steps
+
+    # (column, y-label, colour) - only the columns actually present are drawn
+    panels = [
+        ('x_m', 'x (m)', '-b'),
+        ('theta_rad', 'theta (rad)', '-r'),
+        ('v_m_s', 'v (m/s)', '-g'),
+        ('thetadot_rad_s', 'thetadot (rad/s)', '-c'),
+        ('u_force_N', 'u_force (N)', '-m'),
+        ('u_pwm', 'u (PWM)', '-k'),
+        ('cum_reward', 'cumulative reward', '-y'),
+    ]
+    panels = [p for p in panels if has(p[0])]
+    if not panels:
+        print('Eval log has none of the expected columns:', path)
+        return None
+
+    fig, axes = plt.subplots(
+        len(panels), 1, sharex=True, figsize=(10, 1.6 * len(panels))
+    )
+    axes = np.atleast_1d(axes)
+
+    for ax, (column, label, style) in zip(axes, panels):
+        ax.plot(times, rows[column], style, linewidth=1.2)
+        ax.set_ylabel(label, fontsize=10)
+        ax.grid(True, alpha=0.3)
+
+        if column == 'x_m' and x_limit is not None:
+            for sign in (-1.0, 1.0):
+                ax.axhline(sign * x_limit, color='r', linestyle='--',
+                           alpha=0.5, linewidth=0.8)
+        if column == 'theta_rad':
+            # the unwrapped angle makes swing-ups readable (no +-pi jumps)
+            if has('theta_unwrapped'):
+                ax.plot(times, rows['theta_unwrapped'], '--', color='0.5',
+                        linewidth=1.0, label='unwrapped')
+                ax.legend(fontsize=8, loc='upper right')
+            if upright_threshold is not None:
+                ax.axhspan(-upright_threshold, upright_threshold,
+                           color='g', alpha=0.12)
+            ax.axhline(0.0, color='k', linestyle='--', alpha=0.3, linewidth=0.8)
+
+    axes[-1].set_xlabel('time (s)', fontsize=10)
+    fig.suptitle(title or Path(path).stem, fontsize=12, fontweight='bold')
+    plt.tight_layout(rect=[0, 0.02, 1, 0.97])
+
+    save_target = save_path if save_path is not None else str(Path(path).with_suffix('.png'))
+    try:
+        fig.savefig(save_target, bbox_inches='tight', dpi=150)
+        print('Saved plot to', save_target)
+    except Exception as e:
+        print('Failed to save plot to', save_target, ':', e)
+        save_target = None
+
+    if plt_show:
+        plt.show()
+    plt.close(fig)
+    return save_target
 
 
 

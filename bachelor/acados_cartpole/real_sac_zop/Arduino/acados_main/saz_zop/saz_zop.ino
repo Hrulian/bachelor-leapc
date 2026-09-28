@@ -41,7 +41,14 @@ volatile float thetadot = 0.0f;
 
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
-constexpr unsigned long COMMUNICATION_TIME_MS = 50;
+// Frame send interval = the host's control period. The Python scripts are purely
+// frame-paced (they block on state_que.get()), so THIS constant sets the control
+// rate, not anything on the host. Changing it invalidates every step-counted
+// constant on the host side (max_ep_steps, STABILIZATION_BUFFER_SIZE,
+// train_start, FRAME_TIMEOUT_S) - scale them by the same factor.
+// At 10 ms a state frame (~32 B) needs ~2.8 ms at 115200 baud = ~28% of the
+// period; raise BAUDRATE if that margin gets tight.
+constexpr unsigned long COMMUNICATION_TIME_MS = 10;
 constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 constexpr long X_CENTER_COUNTS = 0;      // ceter position in counts

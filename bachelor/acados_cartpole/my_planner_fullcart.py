@@ -30,10 +30,10 @@ class FullCartRefPlannerConfig:
     meaning of each field.
     """
 
-    N_horizon: int = 5  # chosen so that the avg MPC call is less than 15ms
-    T_horizon: float = 0.25  # chosen so that the avg MPC call is less than 15ms
+    N_horizon: int = 8  # chosen so that the avg MPC call is less than 15ms
+    T_horizon: float = 0.45  # chosen so that the avg MPC call is less than 15ms
     Fmax: float = 20.0  # chosen so that v is below 2 m/s
-    x_threshold: float = 0.4
+    x_threshold: float = 0.37
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"

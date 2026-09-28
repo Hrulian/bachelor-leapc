@@ -198,7 +198,7 @@ def compute_reward_cos_bonus_spin(state, force) -> float:
 TOP_WIDTH = 0.7
 # Daempfungsbreite NUR im Top-Bereich [rad/s]. Kleiner = Helicopter oben wird
 # haerter abgewuergt. 7 statt 12, weil die Gate die Seiten ohnehin schuetzt.
-CALM_RAD_S = 2.0
+CALM_RAD_S = 4.0
 BALANCE_THETA_WIDTH = 0.35
 BALANCE_THETADOT_WIDTH = 3.0
 

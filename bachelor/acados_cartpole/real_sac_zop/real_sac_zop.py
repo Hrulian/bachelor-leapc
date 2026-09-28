@@ -61,21 +61,35 @@ os.environ['WANDB_API_KEY'] = 'fd053eb0471b83f999819cd4c4e4930ea28de0ea'
 # serial communication parameters
 PORT = "/dev/ttyACM0"
 BAUD = 115200
-FRAME_TIMEOUT_S = 0.05   #if for 50 ms nothing arrived discard this frame
+FRAME_TIMEOUT_S = 0.01   # partial-frame watchdog: ~1 control period (10 ms), still
+                         # ~3.5x the ~2.8 ms a frame needs on the wire at 115200 baud
 MAX_PAYLOAD_LEN = 64
 READ_TIMEOUT_S = 0.002
 
 ser = serial.Serial(PORT, BAUD, timeout=READ_TIMEOUT_S)
-time.sleep(2)                 
-ser.reset_input_buffer()  
+time.sleep(2)
+ser.reset_input_buffer()
 
 state_que = queue.Queue() # init que that stores states
 prev_sent_mode = None  # remembers last mode sent to Arduino for logging
-# checkpoint directory for models - per planner, because the param_space (and with
-# it the critic/actor input shapes) differs between OCP formulations. Sharing one
-# directory would make load_checkpoints() fail on a shape mismatch after a switch.
+
+# Tag for the Arduino control period this script's constants assume (see
+# COMMUNICATION_TIME_MS in saz_zop.ino, FRAME_TIMEOUT_S above, max_ep_steps,
+# STABILIZATION_BUFFER_SIZE and train_start below - all hard-coded for 10 ms,
+# unlike real_acados/MPC_REAL.py, which measures the rate off the wire). Folded
+# into CHECKPOINT_DIR so a 50 ms checkpoint/actor/critic set is never silently
+# loaded into a 10 ms run (shape-compatible, but trained on a different timescale
+# - see N_STEP below) or overwritten by one.
+CONTROL_RATE_TAG = "10ms"
+
+# checkpoint directory for models - per planner AND per control rate, because the
+# param_space (and with it the critic/actor input shapes) differs between OCP
+# formulations, while the control rate changes what the SAME shapes were trained
+# on. Sharing a directory across either would make load_checkpoints() either fail
+# on a shape mismatch or silently resume into the wrong timescale.
 CHECKPOINT_DIR = os.path.join(
-    os.path.dirname(__file__), "checkpoints", f"real_sac_zop_{PLANNER_NAME}"
+    os.path.dirname(__file__), "checkpoints",
+    f"real_sac_zop_{PLANNER_NAME}_{CONTROL_RATE_TAG}",
 )
 
 # timing tracking for training step
@@ -212,7 +226,10 @@ episode_step_count = 0 # steps in current episode
 total_training_steps = 0  # einzelne training steps (critic + actor updates) - für soft_update_freq
 learning_step = 0   # blocks (20-step blocks) - für logging und tracking
 episode_count = 0   # total episodes completed
-abs_step_count = 0  # total steps across all episodes
+abs_step_count = 0  # total ENV steps (Arduino frames) across all episodes
+# total RL steps (= completed N-step cycles) across all episodes. THIS is the wandb
+# step axis - see the naming-convention block below for why.
+rl_step_count = 0
 
 # episode reward tracking
 episode_rewards = []  # list of cumulative rewards per episode
@@ -225,7 +242,7 @@ num_terminations = 0  # cumulative episodes that ended in a trip (terminated, no
 num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
 
 # stabilization tracking
-STABILIZATION_BUFFER_SIZE = 40  # 2 s of balancing at the 50 ms control rate
+STABILIZATION_BUFFER_SIZE = 200  # 2 s of balancing at the 10 ms control rate
 STABILIZATION_THRESHOLD = 0.15  # rad, ±0.15 rad around upright
 theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta values
 stabilized_this_episode = False  # flag: was pole stabilized this episode
@@ -238,14 +255,61 @@ stabilized_at_step = None  # episode step at which the latch fired, None if it n
 upright_streak = 0
 longest_upright_steps = 0
 
+# THE WANDB STEP AXIS IS THE RL STEP, NOT THE ENV STEP.
+#
+# One RL step = one N_STEP cycle = one actor decision = one buffer transition.
+# At 10 ms with N_STEP=5 that is 50 ms of wall clock; at the old 50 ms rate with
+# N_STEP=1 it was also 50 ms - and there abs_step_count and rl_step_count were the
+# same number, which is exactly why this axis makes the two sets of runs overlay.
+# Logging on abs_step_count instead would stretch every 10 ms curve 5x along x and
+# make it incomparable with everything recorded before.
+#
+# Consequence: there is ONE wandb row per cycle, not per env step. Per-step
+# quantities are therefore folded into the cycle:
+#   - state / action  -> the value at the cycle start, i.e. what the ACTOR saw and
+#                        chose. At N=1 this is identical to the old per-step value.
+#   - reward          -> the cycle MEAN (= the macro reward that enters the buffer),
+#                        which is what a single 50 ms sample estimated before.
+#   - upright         -> the FRACTION of the cycle spent upright. At N=1 that is
+#                        the same 0/1 signal as before, so averaging it in the
+#                        wandb UI still gives "fraction of time upright".
+#   - solver stats    -> mean over the cycle, so the N-1 held steps are represented
+#                        too rather than only the actor step.
+#
+# The metric NAMES are unchanged from the pre-K-step runs on purpose: same keys,
+# same panels, just folded onto the RL axis. Nothing new is introduced, so an old
+# and a new run can be dropped into one wandb chart without touching the config.
+#
 # Naming convention for every logged metric:
-#   *_s  -> one value per env step, meant to be plotted over the step axis
+#   *_s  -> one value per RL step, meant to be plotted over the step axis
 #   *_e  -> one value per episode, meant to be plotted over episode/episode_number_e
-# Everything still goes to wandb at step=abs_step_count (wandb has a single step axis);
+# Everything goes to wandb at step=rl_step_count (wandb has a single step axis);
 # the suffix says which x-axis the metric is meant to be read on.
 
-# max steps per episode
-max_ep_steps = 200  # 10 s at the 50 ms control rate
+# max steps per episode (env steps, i.e. Arduino frames - NOT RL decisions)
+max_ep_steps = 1000  # 10 s at the 10 ms control rate
+
+# N-step (zero-order-hold) cycle length: the actor picks an MPC parameter every
+# N env steps, the MPC re-solves every step with that HELD param, and ONE
+# accumulated-reward transition per cycle goes into the buffer. N=1 degenerates to
+# "actor every step". Consequences of N>1, all of them intended:
+#   - update-to-data ratio: one learner token per cycle, so 20 gradient steps per
+#     N env steps (N=5 -> 4 per env step instead of 20). To keep real_sac.py
+#     comparable, set its LEARN_EVERY to the same N.
+#   - the buffer holds macro-transitions (obs at cycle start, held param, MEAN
+#     reward over the cycle, obs at cycle end). The critic target bootstraps with
+#     plain `gamma`, i.e. gamma discounts per MACRO-step, not per env step.
+#     NOTE: simulation_zaczop/sim_sac_zop.py sums instead of averaging in its
+#     --K_step path; that is a constant factor N, so the optimal policy is the
+#     same, but its Q values run N x larger than the ones here.
+#
+# N x control period = the RL decision period, and THAT is what gamma discounts.
+# At the 10 ms control rate, N=5 keeps the macro-step at 50 ms, i.e. exactly the
+# RL rate of the earlier 50 ms / N=1 runs: same effective horizon at gamma=0.99,
+# same tokens/s, same gradient-steps/s, and - because the macro reward is the mean
+# rather than the sum - the same reward scale. What actually changes is that the
+# MPC re-solves 5x per hold instead of once, which is the point of the exercise.
+N_STEP = 5
 
 # device setup
 device = "cpu"
@@ -286,7 +350,10 @@ cfg_saczop.critic_mlp.norm_layer = "layer_norm"
 # collect this many env steps before the first gradient step (same as real_sac.py).
 # With train_start=0 the first updates run on a handful of near-identical transitions
 # from a single episode start, which the critic overfits hard at this UTD.
-cfg_saczop.train_start = 200
+# 1000 env steps = 10 s of hardware data at the 10 ms control rate = 200 buffered
+# N-step transitions, comfortably above batch_size (64), so the first block after
+# the gate actually trains instead of running 20 no-ops.
+cfg_saczop.train_start = 1000
 
 # Replay Buffer init
 replay_buffer = ReplayBuffer(buffer_limit=cfg_saczop.buffer_size, device=device)
@@ -357,7 +424,7 @@ def sac_zop_update_step(batch_size, train_start):
     1 semaphore token = 1 block. If tokens pile up (training slower than sampling)
     the thread runs back-to-back without waiting, using all available time.
     """
-    global abs_step_count, learning_step, total_training_steps
+    global abs_step_count, learning_step, total_training_steps, rl_step_count
     timeout_s = 1.0
     actor_update_freq = 20
     LOG_FREQ = 10
@@ -411,7 +478,7 @@ def sac_zop_update_step(batch_size, train_start):
                         'learning/q_avg_s': _safe_mean(metrics_accumulator['q_values']),
                         'learning/q_target_avg_s': _safe_mean(metrics_accumulator['q_targets']),
                         'learning/entropy_s': metrics_accumulator['entropies'][0] if metrics_accumulator['entropies'] else float('nan'),
-                    }, step=abs_step_count)
+                    }, step=rl_step_count)
                 except Exception:
                     pass
 
@@ -578,6 +645,7 @@ def load_checkpoints():
     `learning_step` from the meta file if available.
     """
     global episode_count, learning_step, episode_rewards, wandb_run_id, abs_step_count
+    global rl_step_count
     paths = _checkpoint_paths()
     required = [paths['critic'], paths['target_critic'], paths['actor'], paths['log_alpha'], paths['meta']]
 
@@ -613,6 +681,9 @@ def load_checkpoints():
         episode_count = int(meta.get('episode_count', episode_count))
         learning_step = int(meta.get('learning_step', learning_step))
         abs_step_count = int(meta.get('abs_step_count', abs_step_count))
+        # wandb refuses a step lower than one already written, so a resumed run must
+        # continue the RL axis where it left off, not restart it at 0
+        rl_step_count = int(meta.get('rl_step_count', rl_step_count))
         episode_rewards = meta.get('episode_rewards', [])
         wandb_run_id = meta.get('wandb_run_id', None)
         print(f"Restored meta: episode_count={episode_count}, learning_step={learning_step}, abs_step_count={abs_step_count}, episodes_logged={len(episode_rewards)}, wandb_run_id={wandb_run_id}")
@@ -635,6 +706,7 @@ def save_checkpoints():
             'episode_count': episode_count, 
             'learning_step': learning_step,
             'abs_step_count': abs_step_count,
+            'rl_step_count': rl_step_count,
             'episode_rewards': episode_rewards,
             'wandb_run_id': wandb_run_id
         }
@@ -662,11 +734,11 @@ EVAL_MAX_STEPS = max_ep_steps
 
 # How often the actor is queried during eval. Mirrors the training loop's N so the
 # evaluated controller is the one that was trained, not a different k-step variant.
-EVAL_N = 1
+EVAL_N = N_STEP
 
 # Number of repeated closing eval episodes (same frozen policy, independent physical
 # trials on hardware) run on exit.
-NUM_EVAL_RUNS = 5
+NUM_EVAL_RUNS = 20
 
 
 def _fmt_param(param_t):
@@ -889,7 +961,7 @@ def run_eval_episode(
 
 def main():
     # seeding
-    seed = 3
+    seed = 2
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
@@ -940,7 +1012,7 @@ def main():
         print(f"New wandb run ID: {wandb_run_id}")
     
     # ensures we reference the module-level variables
-    global ctx, episode_step_count, episode_count, abs_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps, upright_streak, longest_upright_steps, stabilized_at_step
+    global ctx, episode_step_count, episode_count, abs_step_count, rl_step_count, learning_step, current_episode_reward, episode_rewards, max_force_perep, theta_buffer, stabilized_this_episode, num_terminations, num_stabilized_steps, upright_streak, longest_upright_steps, stabilized_at_step
 
     # env-throughput timing (for episode/steps_per_second, like the sim scripts)
     t_start = time.perf_counter()
@@ -984,6 +1056,11 @@ def main():
             
             # reset episode reward
             current_episode_reward = 0.0
+
+            # episodic return on the RL (macro-step) axis: sum of the per-cycle MEAN
+            # rewards. Directly comparable to the 50 ms / N=1 runs' cumulative_reward,
+            # whereas current_episode_reward now sums N x more env steps and is ~N x larger.
+            current_episode_rl_return = 0.0
             
             # reset max force tracker
             max_force_perep = 0  # Fixed variable name
@@ -1082,8 +1159,12 @@ def main():
             done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
             
             # variables for N-step buffering
-            N = 1  # call actor every N steps
+            N = N_STEP  # call actor every N steps (see N_STEP at the top)
             step_in_cycle = 0  # tracks position within N-step cycle
+            episode_rl_step = 0  # completed cycles in this episode = RL steps
+            cycle_stats = {}     # wandb row for the cycle in progress
+            cycle_upright = 0
+            cycle_pi_stats = {}
             accumulated_reward = 0.0  # accumulates reward over N steps
             obs_start_cycle = None  # observation at start of N-step cycle
             param_current = None  # current parameter to use for MPC
@@ -1122,15 +1203,23 @@ def main():
                     pi_stats = pi_out.stats if (hasattr(pi_out, 'stats') and pi_out.stats) else None
 
                 else:
-                    # intermediate step: use saved params with MPC planner
+                    # intermediate step: re-solve the MPC on the CURRENT state with
+                    # the param held from the cycle start.
                     with torch.no_grad():
-                        # call planner with saved params
-                        ctx_current, action, _, _, _ = planner(obs_batch, ctx_current, param_current.unsqueeze(0))
+                        # param/ctx passed by keyword: planner.forward is
+                        # (obs, action=None, param=None, ctx=None), so the positional
+                        # form would put ctx in the `action` slot and silently drop
+                        # the warm start (same fix as in run_eval_episode)
+                        ctx_current, action, _, _, _ = planner(
+                            obs_batch, param=param_current.unsqueeze(0), ctx=ctx_current
+                        )
 
                     # get force from planner output
                     u_force = float(action[0].cpu().numpy().squeeze())
                     actor_called = False
-                    pi_stats = None
+                    # solver stats live on the planner ctx on non-actor steps; without
+                    # this, N-1 of every N steps would log no solver diagnostics
+                    pi_stats = ctx_current.log if getattr(ctx_current, 'log', None) else None
 
                 # convert force to PWM
                 u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
@@ -1142,25 +1231,32 @@ def main():
                 # observe -> act latency path
                 talk_to_arduino(u_pwm, mode=0)
 
-                # collect per-step statistics (pre-step state/action), logged in a
-                # single wandb.log at the end of the iteration together with the reward
-                step_stats = {
-                    'step/u_force_s': u_force,
-                    'step/u_pwm_s': u_pwm,
-                    'step/param_s': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
-                    'step/x_s': x,
-                    'step/theta_s': theta,
-                    'step/v_s': v,
-                    'step/thetadot_s': thetadot,
-                    'step/episode_step_s': episode_step_count,
-                    'step/abs_step_s': abs_step_count,
-                    'step/cycle_step_s': step_in_cycle,
-                    'step/actor_called_s': int(actor_called),
-                }
+                # Open a new wandb row at the cycle start. The state/action captured
+                # here is what the ACTOR conditioned on and chose - at N=1 exactly
+                # the value the old per-env-step logging recorded.
+                if step_in_cycle == 0:
+                    cycle_stats = {
+                        'step/u_force_s': u_force,
+                        'step/u_pwm_s': u_pwm,
+                        'step/param_s': param_current.cpu().numpy().tolist() if param_current.dim() > 0 else param_current.item(),
+                        'step/x_s': x,
+                        'step/theta_s': theta,
+                        'step/v_s': v,
+                        'step/thetadot_s': thetadot,
+                    }
+                    cycle_upright = 0    # env steps spent upright in this cycle
+                    cycle_pi_stats = {}  # solver stat name -> values over the cycle
+
+                # Solver stats from every env step of the cycle, actor step or not,
+                # collected under their original names so they land in the same
+                # step/pi_*_s metrics as before - averaged instead of one-per-step.
                 if pi_stats:
                     for key, val in pi_stats.items():
-                        step_stats[f'step/pi_{key}_s'] = val
-                
+                        try:
+                            cycle_pi_stats.setdefault(key, []).append(float(val))
+                        except (TypeError, ValueError):
+                            pass
+
                 # wait for next state and drain queue to freshest
                 state = state_que.get()
                 while True:
@@ -1198,6 +1294,7 @@ def main():
                 if is_upright:
                     upright_streak += 1
                     longest_upright_steps = max(longest_upright_steps, upright_streak)
+                    cycle_upright += 1
                 else:
                     upright_streak = 0
 
@@ -1208,18 +1305,7 @@ def main():
                         # kept for the episode log below, so it lands on the episode axis
                         stabilized_at_step = episode_step_count
 
-                # one wandb.log per env step (reward + state/action)
-                try:
-                    step_stats['step/reward_s'] = reward
-                    step_stats['step/stabilized_s'] = int(stabilized_this_episode)
-                    # raw 0/1 signal, unsmoothed: averaging it in wandb over any window
-                    # gives the "fraction of time upright" curve
-                    step_stats['step/upright_s'] = int(is_upright)
-                    wandb.log(step_stats, step=abs_step_count)
-                except Exception:
-                    pass
-                
-                # check done 
+                # check done
                 done = done_eval(state, episode_step_count, max_ep_steps, x_threshold=_x_thr)
                 
                 # increment cycle counter
@@ -1233,9 +1319,50 @@ def main():
 
                 # store transition in buffer only at end of N-step cycle or if episode ends
                 if step_in_cycle == N or done:
+                    # MEAN over the cycle, not the sum: this is the reward RATE over
+                    # the macro-step, which is exactly what a single 50 ms sample
+                    # estimated in the old N=1 runs - so Q magnitudes, lr_q and the
+                    # alpha/Q balance stay in their tuned range and old return curves
+                    # remain on the same axis. Scaling by 1/N is a constant factor, so
+                    # the optimal policy is identical to the summed version.
+                    # Deliberately NOT "reward of the last step only": with thetadot up
+                    # to 20 rad/s the pole turns up to 1 rad per macro-step, so a single
+                    # boundary sample aliases the narrow `balanced` bonus away entirely
+                    # (see compute_reward_cos_bonus_spin). Averaging all N samples has
+                    # the same scale but ~N x lower variance and no aliasing.
+                    # Divide by step_in_cycle, not N: a mid-cycle `done` ends the cycle
+                    # early, and those cycles hold fewer than N accumulated rewards.
+                    macro_reward = accumulated_reward / step_in_cycle
+                    current_episode_rl_return += macro_reward
+
+                    # this cycle IS one RL step: advance the wandb step axis
+                    rl_step_count += 1
+                    episode_rl_step += 1
+
+                    # close the wandb row opened at the cycle start
+                    try:
+                        cycle_stats['step/reward_s'] = macro_reward
+                        cycle_stats['step/stabilized_s'] = int(stabilized_this_episode)
+                        # fraction of the cycle spent upright. At N=1 this is the same
+                        # raw 0/1 signal as before, so averaging it in the wandb UI
+                        # still gives the "fraction of time upright" curve.
+                        cycle_stats['step/upright_s'] = cycle_upright / step_in_cycle
+                        cycle_stats['step/episode_step_s'] = episode_rl_step
+                        cycle_stats['step/abs_step_s'] = rl_step_count
+                        # env steps folded into this row (N, or fewer on a cycle cut
+                        # short by `done`)
+                        cycle_stats['step/cycle_step_s'] = step_in_cycle
+                        # the row always represents the actor step of the cycle
+                        cycle_stats['step/actor_called_s'] = 1
+                        for key, vals in cycle_pi_stats.items():
+                            cycle_stats[f'step/pi_{key}_s'] = _safe_mean(vals)
+                        wandb.log(cycle_stats, step=rl_step_count)
+                    except Exception:
+                        pass
+
                     # store accumulated N-step transition
                     param_t = param_current.to(replay_buffer.device).float()
-                    replay_buffer.put((obs_start_cycle, param_t, float(accumulated_reward), obs_next, int(terminated)))
+                    replay_buffer.put((obs_start_cycle, param_t, float(macro_reward), obs_next, int(terminated)))
                     
                     # notify background learner (counted for drain bookkeeping)
                     try:
@@ -1254,12 +1381,14 @@ def main():
                     # every step of a stabilized episode counts as stabilized (not just
                     # the ones after the latch fired). wandb steps that are already
                     # written cannot be revised, so the credit is applied here in one go.
+                    # credited in RL steps, so the total stays on the same scale as
+                    # the 50 ms / N=1 runs
                     if stabilized_this_episode:
-                        num_stabilized_steps += episode_step_count
+                        num_stabilized_steps += episode_rl_step
                     episode_rewards.append({
                         'episode': episode_count,
-                        'cumulative_reward': current_episode_reward,
-                        'steps': episode_step_count
+                        'cumulative_reward': current_episode_rl_return,
+                        'steps': episode_rl_step
                     })
                     print(f"Episode {episode_count} finished: Total Reward = {current_episode_reward:.2f}, Steps = {episode_step_count}, Max Force = {max_force_perep}, Stabilized = {stabilized_this_episode}")
 
@@ -1268,25 +1397,32 @@ def main():
                             # episode counter: pick this as the panel x-axis in wandb to
                             # plot any *_e metric over episodes instead of env steps
                             'episode/episode_number_e': episode_count,
-                            # undiscounted sum of rewards over the episode = episodic return
-                            'episode/cumulative_reward_e': current_episode_reward,
-                            'episode/steps_e': episode_step_count,
+                            # episodic return on the RL axis: the sum of the per-cycle
+                            # MEAN rewards, which is what a 50 ms / N=1 run measured by
+                            # summing one reward per step. Directly overlayable on those.
+                            'episode/cumulative_reward_e': current_episode_rl_return,
+                            # RL steps, i.e. actor decisions - 200 for a 10 s episode at
+                            # either control rate
+                            'episode/steps_e': episode_rl_step,
                             'episode/max_force_e': max_force_perep,
                             # 1 if the pole was balanced for STABILIZATION_BUFFER_SIZE
                             # consecutive steps anywhere in this episode, else 0
                             'episode/stabilized_e': int(stabilized_this_episode),
                             'terminations/total_e': num_terminations,
                             'episode/learning_step_e': learning_step,
-                            # graded version of `stabilized` - see longest_upright_steps
-                            'episode/longest_upright_steps_e': longest_upright_steps,
-                            # all steps of a stabilized episode, 0 otherwise
-                            'episode/stabilized_steps_e': episode_step_count if stabilized_this_episode else 0,
+                            # graded version of `stabilized` - see longest_upright_steps.
+                            # Converted from env steps to RL steps so the number means the
+                            # same thing it did at 50 ms / N=1.
+                            'episode/longest_upright_steps_e': longest_upright_steps / N,
+                            # all RL steps of a stabilized episode, 0 otherwise
+                            'episode/stabilized_steps_e': episode_rl_step if stabilized_this_episode else 0,
                             'perf/stabilized_steps_total_e': num_stabilized_steps,
                         }
-                        # only defined for episodes that actually stabilized
+                        # only defined for episodes that actually stabilized. Converted
+                        # to RL steps for the same reason as longest_upright_steps_e.
                         if stabilized_at_step is not None:
-                            ep_log['stabilization/achieved_at_step_e'] = stabilized_at_step
-                        wandb.log(ep_log, step=abs_step_count)
+                            ep_log['stabilization/achieved_at_step_e'] = stabilized_at_step / N
+                        wandb.log(ep_log, step=rl_step_count)
                     except Exception:
                         pass
 

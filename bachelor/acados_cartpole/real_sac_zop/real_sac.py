@@ -26,7 +26,7 @@ os.environ['WANDB_API_KEY'] = 'fd053eb0471b83f999819cd4c4e4930ea28de0ea'
 # serial communication parameters
 PORT = "/dev/ttyACM0"
 BAUD = 115200
-FRAME_TIMEOUT_S = 0.1
+FRAME_TIMEOUT_S = 0.05
 MAX_PAYLOAD_LEN = 64
 READ_TIMEOUT_S = 0.002
 
@@ -584,10 +584,182 @@ def _checkpoint_paths():
     }
 
 
+# ---- final evaluation episode -------------------------------------------------
+# Run deterministic, unlogged evaluation episodes on Ctrl+C (see run_eval_episode).
+# Set to False (or EVAL_ON_EXIT=0) to exit immediately instead.
+RUN_EVAL_ON_EXIT = os.environ.get("EVAL_ON_EXIT", "1") not in ("0", "false", "False")
+
+# Steps of the closing eval episode. Kept at max_ep_steps so the episodic return is
+# directly comparable to the training episodes; raise it to watch the policy hold
+# the pole for longer than it ever had to during training.
+EVAL_MAX_STEPS = max_ep_steps
+
+# Number of repeated closing eval episodes (same frozen policy, independent physical
+# trials on hardware) run on exit.
+NUM_EVAL_RUNS = 5
+
+
+def run_eval_episode(max_steps: int = EVAL_MAX_STEPS, eval_run: int = 1, seed: int = 0):
+    """Run one final, noise-free episode and dump the full trajectory to a CSV.
+
+    Deliberately different from a training episode:
+      - the actor is queried with `deterministic=True`, so the squashed Gaussian
+        returns its mode instead of a sample: this measures the learned policy,
+        not the exploration policy wrapped around it
+      - nothing is written to the replay buffer and no learner token is released,
+        so the networks stay frozen for the whole episode
+      - nothing goes to wandb: the run's step axis has already been closed out by
+        the training loop, and back-filling it would corrupt the curves
+
+    The CSV is written incrementally (so an abort still leaves usable data) and the
+    summary is appended as '#'-prefixed trailer lines, which `pandas.read_csv(...,
+    comment='#')` skips.
+
+    Args:
+        eval_run: Index of this eval run (1-based), used in the CSV filename to
+            distinguish repeated trials of the same frozen policy.
+        seed: Training seed, used in the CSV filename to identify which trained
+            run this eval trial belongs to.
+
+    Returns:
+        The path of the written CSV, or None if the episode could not be started.
+    """
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    csv_path = os.path.join(CHECKPOINT_DIR, f"eval_sac_run{eval_run}_seed{seed}.csv")
+
+    print("\n" + "=" * 60)
+    print(f"FINAL EVAL EPISODE (deterministic, no wandb) -> {csv_path}")
+    print("Reset the pole to hanging; the run starts once it has settled.")
+    print("=" * 60)
+
+    # bring the cart back to a defined start state, then re-arm the Arduino
+    reset_env()
+    talk_to_arduino(0, mode=0)
+
+    # take the freshest state the listener has
+    with state_que.mutex:
+        state_que.queue.clear()
+    state = state_que.get()
+    x, theta, v, thetadot, tripped = state
+    thetadot = np.clip(thetadot, -20.0, 20.0)
+    state = (x, theta, v, thetadot, tripped)
+
+    step = 0
+    cum_reward = 0.0
+    max_force = 0.0
+    upright_streak = 0
+    longest_upright = 0
+    stabilized = False
+    stabilized_at = None
+    eval_theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)
+    terminated = False
+
+    columns = [
+        'step', 'time_s', 'x_counts', 'x_m', 'theta_rad', 'v_counts_s', 'v_m_s',
+        'thetadot_rad_s', 'tripped', 'u_force_N', 'u_pwm', 'reward',
+        'cum_reward', 'upright',
+    ]
+
+    done = done_eval(state, step, max_steps, x_threshold=_x_thr)
+    t0 = time.perf_counter()
+    f = open(csv_path, 'w', newline='')
+    writer = csv.writer(f)
+    writer.writerow(columns)
+
+    try:
+        while not done:
+            step += 1
+            obs_batch = sac_state_to_tensor(state, batch=False).to(device).unsqueeze(0)
+
+            with torch.no_grad():
+                # deterministic=True -> mode of the distribution, no action noise
+                action, _, _ = actor(obs_batch, deterministic=True)
+            u_force = float(action[0].cpu().numpy().squeeze())
+
+            u_pwm = force_to_pwm(u_force, countpersecond_to_meterspersecond(v), max_pwm_limit=150)
+            max_force = max(max_force, abs(u_force))
+            talk_to_arduino(u_pwm, mode=0)
+
+            # pre-step values, paired below with the reward they produced
+            row_pre = [
+                step, time.perf_counter() - t0, x, counts_to_meters(x), theta,
+                v, countpersecond_to_meterspersecond(v), thetadot, int(tripped),
+                u_force, u_pwm,
+            ]
+
+            # wait for the next frame and drain to the freshest one
+            state = state_que.get()
+            while True:
+                try:
+                    state = state_que.get_nowait()
+                except queue.Empty:
+                    break
+
+            x, theta, v, thetadot, tripped = state
+            thetadot = np.clip(thetadot, -20.0, 20.0)
+            state = (x, theta, v, thetadot, tripped)
+
+            reward = compute_reward(state, u_force)
+            cum_reward += reward
+
+            theta_normalized = ((theta + np.pi) % (2 * np.pi)) - np.pi
+            eval_theta_buffer.append(theta_normalized)
+            is_upright = abs(theta_normalized) <= STABILIZATION_THRESHOLD
+            if is_upright:
+                upright_streak += 1
+                longest_upright = max(longest_upright, upright_streak)
+            else:
+                upright_streak = 0
+            if not stabilized and len(eval_theta_buffer) == STABILIZATION_BUFFER_SIZE:
+                if all(abs(t) <= STABILIZATION_THRESHOLD for t in eval_theta_buffer):
+                    stabilized = True
+                    stabilized_at = step
+
+            writer.writerow(row_pre + [reward, cum_reward, int(is_upright)])
+            f.flush()  # crash/abort safe
+
+            done = done_eval(state, step, max_steps, x_threshold=_x_thr)
+            terminated = bool(tripped) or abs(counts_to_meters(x)) > float(_x_thr)
+
+    except KeyboardInterrupt:
+        print("\nEval episode aborted by user - partial trajectory kept.")
+    finally:
+        try:
+            talk_to_arduino(0, mode=1)
+        except Exception:
+            pass
+        trailer = {
+            'eval_run': eval_run,
+            'seed': seed,
+            'deterministic': True,
+            'steps': step,
+            'max_steps': max_steps,
+            'episodic_return': round(cum_reward, 4),
+            'mean_reward_per_step': round(cum_reward / step, 4) if step else float('nan'),
+            'terminated_by_trip': int(terminated),
+            'stabilized': int(stabilized),
+            'stabilized_at_step': stabilized_at,
+            'longest_upright_steps': longest_upright,
+            'upright_fraction': round(longest_upright / step, 4) if step else float('nan'),
+            'max_force_N': round(max_force, 4),
+            'episode_count_at_eval': episode_count,
+            'abs_step_count_at_eval': abs_step_count,
+        }
+        for key, value in trailer.items():
+            f.write(f"# {key}: {value}\n")
+        f.close()
+
+    print("-" * 60)
+    for key, value in trailer.items():
+        print(f"  {key}: {value}")
+    print(f"Trajectory written to {csv_path}")
+    print("-" * 60)
+    return csv_path
+
 
 def main():
     # seeding (same as SAC-ZOP)
-    seed = 3  
+    seed = 4  
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
@@ -618,7 +790,7 @@ def main():
         print("Starting new wandb run")
         run = wandb.init(
             project="Paper-Real-SAC",
-            name=f"real_hardware_run_2_{int(seed)}",
+            name=f"SAC_{int(seed)}",
             config={
                 "buffer_size": cfg_sac.buffer_size,
                 "batch_size": cfg_sac.batch_size,
@@ -922,6 +1094,22 @@ def main():
             save_checkpoints()
         except Exception:
             pass
+
+        # closing evaluation of the final policy: deterministic, unlogged, dumped
+        # to CSV, repeated NUM_EVAL_RUNS times as independent physical trials of the
+        # same frozen policy. Runs after save_checkpoints() so the weights on disk
+        # are exactly the ones being evaluated. A further Ctrl+C aborts all
+        # remaining eval runs.
+        if RUN_EVAL_ON_EXIT:
+            try:
+                for eval_run in range(1, NUM_EVAL_RUNS + 1):
+                    print(f"\n>>> Eval run {eval_run}/{NUM_EVAL_RUNS} (seed={seed})")
+                    run_eval_episode(eval_run=eval_run, seed=seed)
+            except KeyboardInterrupt:
+                print("Remaining eval runs skipped.")
+            except Exception as e:
+                print(f"Final eval episode failed: {e}")
+
         try:
             wandb.finish()
         except Exception:

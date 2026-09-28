@@ -19,7 +19,7 @@ constexpr uint8_t PIN_B = 3;
 
 constexpr long cpr_ghh60 = 1024; 
 constexpr float TAU_V = 0.005f;  // 10 ms
-constexpr uint32_t position_limit = 11200;
+constexpr uint32_t position_limit = 11000;
 
 volatile bool tripped = false; // flag that indicates whether we exceeded the position limit
 volatile long x = 0; // cartpostion in coutns
@@ -42,7 +42,7 @@ volatile float thetadot = 0.0f;
 //communication and hyperparameters
 constexpr long BAUDRATE = 115200;
 constexpr unsigned long COMMUNICATION_TIME_MS = 10;
-constexpr uint32_t STATE_UPDATE_US = 1000;
+constexpr uint32_t STATE_UPDATE_US = 5000;
 constexpr byte NUM_CHARS = 32;
 
 volatile bool new_data = false; // if u has been send to motor -> false
