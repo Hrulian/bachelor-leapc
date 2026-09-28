@@ -1,0 +1,712 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+rm -f libacados_ocp_solver_cartpole_gz.so
+rm -f cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_grad_p.o ./cartpole_gz_p_global_precompute_fun.o acados_solver_cartpole_gz.o
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_grad_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_p_global_precompute_fun.o cartpole_gz_p_global_precompute_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o acados_solver_cartpole_gz.o acados_solver_cartpole_gz.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac_hess.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac_hess.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_model/cartpole_gz_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_jac_p_hess_xu_p.c
+cc -fPIC -std=c99   -O2 -fopenmp -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/acados -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/blasfeo/include -I/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/include/hpipm/include  -c -o cartpole_gz_model/cartpole_gz_dyn_disc_phi_adj_p.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_adj_p.c
+cc -shared cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_0_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_grad_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac_hess.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_fun_jac.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_hess_xu_p.o cartpole_gz_cost/cartpole_gz_cost_ext_cost_e_grad_p.o cartpole_gz_p_global_precompute_fun.o acados_solver_cartpole_gz.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_fun_jac_hess.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_jac_p_hess_xu_p.o cartpole_gz_model/cartpole_gz_dyn_disc_phi_adj_p.o -o libacados_ocp_solver_cartpole_gz.so -L/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/lib -fopenmp -lacados -lhpipm -lblasfeo -lm \
+-L -l
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: creating run
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/21_gz_cos_bonus_spin3_s1/wandb/run-20260819_172126-3134h8pc
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run 21_gz_cos_bonus_spin3_s1
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim/runs/3134h8pc
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 8.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 7.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteratioWARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+================================================================
+Run: 21_gz_cos_bonus_spin3_s1 | reward: cos_bonus_spin3 | seed: 1
+Steps: 10000 | dt: 0.05s | planner: gz (learn xref1, sample d_u0)
+Exploration: d ~ N(0, 50.0^2) | d box +-300.0
+================================================================
+Ep 1: reward = 20.09, steps = 61, max |F| = 20.0 N, stabilized = False, total steps = 61 (92 steps/s)
+Ep 2: reward = 5.86, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 76 (95 steps/s)
+Ep 3: reward = 9.49, steps = 31, max |F| = 20.0 N, stabilized = False, total steps = 107 (111 steps/s)
+Ep 4: reward = 3.20, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 115 (109 steps/s)
+Ep 5: reward = 31.61, steps = 79, max |F| = 20.0 N, stabilized = False, total steps = 194 (91 steps/s)
+Ep 6: reward = 1.52, steps = 5, max |F| = 20.0 N, stabilized = False, total steps = 199 (92 steps/s)
+Ep 7: reward = 1.81, steps = 6, max |F| = 20.0 N, stabilized = False, total steps = 205 (94 steps/s)
+Ep 8: reward = 7.33, steps = 24, max |F| = 20.0 N, stabilized = False, total steps = 229 (90 steps/s)
+Ep 9: reward = 12.49, steps = 34, max |F| = 20.0 N, stabilized = False, total steps = 263 (88 steps/s)
+Ep 10: reward = 26.09, steps = 66, max |F| = 20.0 N, stabilized = False, total steps = 329 (91 steps/s)
+Ep 11: reward = 1.06, steps = 3, max |F| = 20.0 N, stabilized = False, total steps = 332 (91 steps/s)
+Ep 12: reward = 19.51, steps = 57, max |F| = 20.0 N, stabilized = False, total steps = 389 (97 steps/s)
+Ep 13: reward = 3.93, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 397 (97 steps/s)
+Ep 14: reward = 2.37, steps = 6, max |F| = 20.0 N, stabilized = False, total steps = 403 (98 steps/s)
+Ep 15: reward = 2.59, steps = 7, max |F| = 20.0 N, stabilized = False, total steps = 410 (99 steps/s)
+Ep 16: reward = 28.02, steps = 70, max |F| = 20.0 N, stabilized = False, total steps = 480 (105 steps/s)
+Ep 17: reward = 21.47, steps = 64, max |F| = 20.0 N, stabilized = False, total steps = 544 (113 steps/s)
+Ep 18: reward = 5.59, steps = 18, max |F| = 20.0 N, stabilized = False, total steps = 562 (115 steps/s)
+Ep 19: reward = 21.67, steps = 54, max |F| = 20.0 N, stabilized = False, total steps = 616 (121 steps/s)
+Ep 20: reward = 2.42, steps = 7, max |F| = 20.0 N, stabilized = False, total steps = 623 (118 steps/s)
+Ep 21: reward = 31.30, steps = 64, max |F| = 20.0 N, stabilized = False, total steps = 687 (92 steps/s)
+Ep 22: reward = 3.71, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 695 (93 steps/s)
+Ep 23: reward = 1.77, steps = 6, max |F| = 20.0 N, stabilized = False, total steps = 701 (93 steps/s)
+Ep 24: reward = 32.74, steps = 80, max |F| = 20.0 N, stabilized = False, total steps = 781 (99 steps/s)
+Ep 25: reward = 3.62, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 792 (99 steps/s)
+Ep 26: reward = 18.11, steps = 36, max |F| = 20.0 N, stabilized = False, total steps = 828 (101 steps/s)
+Ep 27: reward = 5.17, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 841 (102 steps/s)
+Ep 28: reward = 6.86, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 858 (103 steps/s)
+Ep 29: reward = 21.65, steps = 54, max |F| = 20.0 N, stabilized = False, total steps = 912 (106 steps/s)
+Ep 30: reward = 3.49, steps = 7, max |F| = 20.0 N, stabilized = False, total steps = 919 (107 steps/s)
+Ep 31: reward = 34.62, steps = 80, max |F| = 20.0 N, stabilized = False, total steps = 999 (112 steps/s)
+Ep 32: reward = 8.50, steps = 24, max |F| = 20.0 N, stabilized = False, total steps = 1023 (85 steps/s)
+Ep 33: reward = 11.35, steps = 34, max |F| = 20.0 N, stabilized = False, total steps = 1057 (64 steps/s)
+Ep 34: reward = 23.65, steps = 102, max |F| = 20.0 N, stabilized = False, total steps = 1159 (39 steps/s)
+Ep 35: reward = 2.49, steps = 7, max |F| = 20.0 N, stabilized = False, total steps = 1166 (38 steps/s)
+Ep 36: reward = 2.94, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 1174 (37 steps/s)
+Ep 37: reward = 18.63, steps = 78, max |F| = 20.0 N, stabilized = False, total steps = 1252 (30 steps/s)
+Ep 38: reward = 2.44, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 1260 (29 steps/s)
+Ep 39: reward = 5.04, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 1275 (28 steps/s)
+Ep 40: reward = 11.61, steps = 43, max |F| = 20.0 N, stabilized = False, total steps = 1318 (26 steps/s)
+Ep 41: reward = 17.77, steps = 67, max |F| = 20.0 N, stabilized = False, total steps = 1385 (23 steps/s)
+Ep 42: reward = 24.55, steps = 71, max |F| = 20.0 N, stabilized = False, total steps = 1456 (21 steps/s)
+Ep 43: reward = 60.88, steps = 188, max |F| = 20.0 N, stabilized = False, total steps = 1644 (17 steps/s)
+Ep 44: reward = 27.72, steps = 108, max |F| = 20.0 N, stabilized = False, total steps = 1752 (16 steps/s)
+Ep 45: reward = 37.69, steps = 127, max |F| = 20.0 N, stabilized = False, total steps = 1879 (15 steps/s)
+Ep 46: reward = 4.13, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 1892 (14 steps/s)
+Ep 47: reward = 4.42, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 1905 (14 steps/s)
+Ep 48: reward = 18.84, steps = 66, max |F| = 20.0 N, stabilized = False, total steps = 1971 (14 steps/s)
+Ep 49: reward = 1.67, steps = 6, max |F| = 20.0 N, stabilized = False, total steps = 1977 (14 steps/s)
+Ep 50: reward = 2.50, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 1985 (14 steps/s)
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/21_gz_cos_bonus_spin3_s1/checkpoints
+Ep 51: reward = 26.30, steps = 76, max |F| = 20.0 N, stabilized = False, total steps = 2061 (13 steps/s)
+Ep 52: reward = 13.78, steps = 53, max |F| = 20.0 N, stabilized = False, total steps = 2114 (13 steps/s)
+Ep 53: reward = 4.12, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 2125 (13 steps/s)
+Ep 54: reward = 6.73, steps = 20, max |F| = 20.0 N, stabilized = False, total steps = 2145 (13 steps/s)
+Ep 55: reward = 8.58, steps = 27, max |F| = 20.0 N, stabilized = False, total steps = 2172 (13 steps/s)
+Ep 56: reward = 17.53, steps = 49, max |F| = 20.0 N, stabilized = False, total steps = 2221 (13 steps/s)
+Ep 57: reward = 15.29, steps = 68, max |F| = 20.0 N, stabilized = False, total steps = 2289 (12 steps/s)
+Ep 58: reward = 10.54, steps = 41, max |F| = 20.0 N, stabilized = False, total steps = 2330 (12 steps/s)
+Ep 59: reward = 2.51, steps = 8, max |F| = 20.0 N, stabilized = False, total steps = 2338 (12 steps/s)
+Ep 60: reward = 33.23, steps = 118, max |F| = 20.0 N, stabilized = False, total steps = 2456 (12 steps/s)
+Ep 61: reward = 2.79, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 2465 (12 steps/s)
+Ep 62: reward = 37.92, steps = 126, max |F| = 20.0 N, stabilized = False, total steps = 2591 (11 steps/s)
+Ep 63: reward = 4.69, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 2604 (11 steps/s)
+Ep 64: reward = 11.14, steps = 42, max |F| = 20.0 N, stabilized = False, total steps = 2646 (11 steps/s)
+Ep 65: reward = 25.10, steps = 76, max |F| = 20.0 N, stabilized = False, total steps = 2722 (11 steps/s)
+Ep 66: reward = 13.10, steps = 49, max |F| = 20.0 N, stabilized = False, total steps = 2771 (11 steps/s)
+Ep 67: reward = 38.46, steps = 121, max |F| = 20.0 N, stabilized = False, total steps = 2892 (11 steps/s)n 7, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQPwandb: uploading history steps 367-375, summary, console lines 88-94
+wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:            episode/cumulative_reward ▂▆▁▂▅▁▁▅▄▂▆▁▄▂▂▁▂▅▁▄▂▄▇▁▁▁▂▄▃▁▅▃▁▂▁▇▁█▂▂
+wandb:               episode/episode_number ▁▁▁▂▂▂▃▃▃▃▃▃▃▄▄▄▄▄▄▄▅▅▅▅▅▆▆▆▆▆▆▇▇▇▇▇▇███
+wandb:                    episode/max_force ████████████████████████████████▁███████
+wandb:                   episode/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                        episode/steps ▂▃▅▁▂▁▄▁▁▅▂▄▄▁▁▁▅▂▃▇▂▅▇█▂▄▁▂▃▁▃▅▄▁▂█▁▂▆▃
+wandb:             episode/steps_per_second ▇▆▆▆▇▇██▆▆▇▇▇▇▆▃▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                   episode/terminated ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                     learning/pi_loss █▇▇▆▆▅▅▄▄▄▃▃▃▃▃▂▂▁▁▁▁▁▁▁▁▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂
+wandb:                       learning/q_avg ▁▃▃▄▄▄▄▅▆▆▇▇█████████████▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+wandb:                  learning/q_loss_avg ▁▁▁▁▂▂▅▅▆▆▆▆▇▆▆▆▇▇▇█▇▇▇▇▇▇▇▇▇▇▇▇▆▆▆▆▆▆▆▆
+wandb:                learning/q_target_avg ▁▁▂▄▄▆▆▆▆▇▇▇███████████████▇▇▇▇▇▇▇▇▇▇▇▇▇
+wandb:        learning/total_training_steps ▁▁▁▂▂▃▃▃▃▃▃▃▃▃▃▄▄▄▄▄▄▄▄▄▅▅▅▅▅▅▆▇▇▇▇▇████
+wandb: stabilization/stabilized_steps_total ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                        step/d_sample ▂▇▁▅▆█▃▇▄▆▆▅▄▅▃▃█▃
+wandb:                    step/episode_step ▁▁▃▁▁▂▂█▃▂▂▄▁▂▆▄▅▁
+wandb:                          step/reward ▂▄▃▄▂▄█▆▅█▃▆▂▇▁▁▄▂
+wandb:                         step/sigma_d ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                      step/stabilized ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                           step/theta ▇▄▇▆▇▇▄▂▆▁▇▆▂▄██▄▇
+wandb:                       step/theta_ref ▄▆▅█▄▁▂█▃█▇███▇▇█▂
+wandb:                        step/thetadot ▂▃▃▃▂▄▄▁▄▄▇█▃▃▄▄▇▂
+wandb:                         step/u_force █▄█▁██▃▂█▅▂▄▅▃█▇▄█
+wandb:                               step/v █▃▂▂██▂▁▇▄▄▂▄▂▆▅▅█
+wandb:                               step/x ▇█▃▃▇▆▂▃▄▁▅▃▁▄▁▂▆▇
+wandb:                   terminations/total ▁▁▂▂▂▃▃▃▃▃▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▇▇▇▇▇▇▇▇█████
+wandb: 
+wandb: Run summary:
+wandb:            episode/cumulative_reward 14.27379
+wandb:               episode/episode_number 84
+wandb:                    episode/max_force 20
+wandb:                   episode/stabilized 0
+wandb:                        episode/steps 42
+wandb:             episode/steps_per_second 9.13037
+wandb:                   episode/terminated 1
+wandb:                     learning/pi_loss -11.58598
+wandb:                       learning/q_avg 11.7363
+wandb:                  learning/q_loss_avg 1.71691
+wandb:                learning/q_target_avg 11.73264
+wandb:        learning/total_training_steps 55950
+wandb: stabilization/stabilized_steps_total 0
+wandb:                        step/d_sample -48.08896
+wandb:                    step/episode_step 1
+wandb:                          step/reward 0.1373
+wandb:                         step/sigma_d 50
+wandb:                      step/stabilized 0
+wandb:                           step/theta 2.3824
+wandb:                       step/theta_ref -0.90854
+wandb:                        step/thetadot -27.99371
+wandb:                         step/u_force 19.99926
+wandb:                               step/v 5.55757
+wandb:                               step/x 0.14186
+wandb:                   terminations/total 84
+wandb: 
+wandb: 🚀 View run 21_gz_cos_bonus_spin3_s1 at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim/runs/3134h8pc
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./bachelor/acados_cartpole/simulation_zaczop/runs/21_gz_cos_bonus_spin3_s1/wandb/run-20260819_172126-3134h8pc/logs
+
+Ep 68: reward = 4.47, steps = 11, max |F| = 20.0 N, stabilized = False, total steps = 2903 (11 steps/s)
+Ep 69: reward = 31.99, steps = 105, max |F| = 20.0 N, stabilized = False, total steps = 3008 (10 steps/s)
+Ep 70: reward = 8.12, steps = 27, max |F| = 20.0 N, stabilized = False, total steps = 3035 (10 steps/s)
+Ep 71: reward = 6.11, steps = 17, max |F| = 20.0 N, stabilized = False, total steps = 3052 (10 steps/s)
+Ep 72: reward = 2.49, steps = 7, max |F| = 20.0 N, stabilized = False, total steps = 3059 (10 steps/s)
+Ep 73: reward = 21.90, steps = 51, max |F| = 20.0 N, stabilized = False, total steps = 3110 (10 steps/s)
+Ep 74: reward = 7.17, steps = 29, max |F| = 20.0 N, stabilized = False, total steps = 3139 (10 steps/s)
+Ep 75: reward = 34.70, steps = 129, max |F| = 20.0 N, stabilized = False, total steps = 3268 (10 steps/s)
+Ep 76: reward = 16.96, steps = 58, max |F| = 20.0 N, stabilized = False, total steps = 3326 (10 steps/s)
+Ep 77: reward = 35.36, steps = 125, max |F| = 20.0 N, stabilized = False, total steps = 3451 (10 steps/s)
+Ep 78: reward = 2.38, steps = 9, max |F| = 20.0 N, stabilized = False, total steps = 3460 (10 steps/s)
+Ep 79: reward = 44.16, steps = 139, max |F| = 20.0 N, stabilized = False, total steps = 3599 (9 steps/s)
+Ep 80: reward = 6.39, steps = 15, max |F| = 20.0 N, stabilized = False, total steps = 3614 (9 steps/s)
+Ep 81: reward = 6.01, steps = 21, max |F| = 20.0 N, stabilized = False, total steps = 3635 (9 steps/s)
+Ep 82: reward = 29.04, steps = 93, max |F| = 20.0 N, stabilized = False, total steps = 3728 (9 steps/s)
+Ep 83: reward = 6.12, steps = 13, max |F| = 20.0 N, stabilized = False, total steps = 3741 (9 steps/s)
+Ep 84: reward = 14.27, steps = 42, max |F| = 20.0 N, stabilized = False, total steps = 3783 (9 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/21_gz_cos_bonus_spin3_s1/checkpoints
+
+Done: 3797 env steps, 55950 gradient steps in 6.9 min (9 steps/s)
+ iteration 10, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 19.
