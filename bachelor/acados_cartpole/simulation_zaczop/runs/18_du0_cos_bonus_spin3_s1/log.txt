@@ -1,0 +1,214 @@
+/media/julian/Shared/UniAktuell/leap-2/leap-c/external/acados/interfaces/acados_template/acados_template/acados_ocp.py:1154: UserWarning: Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.
+  warnings.warn("Parametric sensitivities with condensing should be used with qp_solver_cond_ric_alg=0, as otherwise the full space Hessian needs to be factorized and the algorithm cannot handle indefinite ones.")
+wandb: Currently logged in as: julianwurm (julianwurm-universit-t-freiburg) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.20.1
+wandb: Run data is saved locally in /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/18_du0_cos_bonus_spin3_s1/wandb/run-20260819_100520-utb6j09l
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run 18_du0_cos_bonus_spin3_s1
+wandb: ⭐️ View project at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim
+wandb: 🚀 View run at https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim/runs/utb6j09l
+wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:            episode/cumulative_reward ▁▃▇████
+wandb:               episode/episode_number ▁▂▃▅▆▇█
+wandb:                    episode/max_force ███▁▁█▁
+wandb:                   episode/stabilized ▁▁▁▁▁▁▁
+wandb:                        episode/steps ▁▁▁▁▁▁▁
+wandb:             episode/steps_per_second █▁▁▁▁▁▁
+wandb:                   episode/terminated ▁▁▁▁▁▁▁
+wandb:                       learning/alpha ██▆▆▆▆▅▄▄▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                     learning/entropy ██▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▁▁▁▁▁▂▁▁
+wandb:                     learning/pi_loss █▇▇▇▆▅▄▄▄▄▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                       learning/q_avg ▁▁▁▄▄▅▅▆▆▆▆▆▆▆▇▇▇███████████████████████
+wandb:                  learning/q_loss_avg ▁▁▁▁▂▂▁▃█▆█▅▄▄▂▂▂▁▂▂▁▁▂▂▁▂▂▂▁▁▂▂▁▂▂▁▁▁▂▁
+wandb:                learning/q_target_avg ▁▁▂▂▃▄▄▅▅▆▆▆▆▇▇▇▇▇▇▇▇▇▇▇████████████████
+wandb:        learning/total_training_steps ▁▁▁▁▂▂▂▂▂▂▂▂▂▂▃▃▃▃▄▄▄▄▄▅▅▅▅▆▆▆▆▇▇▇▇▇████
+wandb:       stabilization/achieved_at_step █▃▃▂▁▁▁
+wandb: stabilization/stabilized_steps_total ▁▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▆▆▆▇▇▇▇▇███
+wandb:                    step/episode_step ▁▃▅▆█▁▃▅▆█▁▃▅▆█▁▃▅▆█▁▃▄▆█▁▃▄▆█▁▃▄▆█▁▃
+wandb:                          step/reward ▅▅▆▇▄▄▆██▁▇██████████████████████████
+wandb:                      step/stabilized ▁▁▁██▁████▁████▁████▁████▁████▁████▁█
+wandb:                           step/theta ▁▁▁▁▁▁▁▁▂█▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                        step/thetadot ▇▄▄▆██▄▆▆▁▆▅▆▆▆▅▆▆▅▆▆▆▆▆▆▆▅▆▆▆▆▅▆▆▅▆▆
+wandb:                         step/u_force ▆▁▁▇▆▆▂▄▃█▃▃▃▄▄▃▃▃▃▃▄▄▃▄▄▄▃▃▄▄▄▃▄▃▃▄▄
+wandb:                               step/v ▆▁▁▄▆▇▂▄▃█▅▃▄▄▄▄▄▃▃▄▄▄▃▄▄▄▃▄▄▄▄▃▄▄▃▄▃
+wandb:                               step/x ▁▅▇▅▆█▆▅▄▂▅▅▄▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅▅
+wandb:                   terminations/total ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:            episode/cumulative_reward 3809.47731
+wandb:               episode/episode_number 7
+wandb:                    episode/max_force 19.42276
+wandb:                   episode/stabilized 1
+wandb:                        episode/steps 1001
+wandb:             episode/steps_per_second 2.72034
+wandb:                   episode/terminated 0
+wandb:                       learning/alpha 0.00037
+wandb:                     learning/entropy 2.14437
+wandb:                     learning/pi_loss -386.80726
+wandb:                       learning/q_avg 386.42487
+wandb:                  learning/q_loss_avg 0.99957
+wandb:                learning/q_target_avg 386.42782
+wandb:        learning/total_training_steps 131560
+wandb:       stabilization/achieved_at_step 248
+wandb: stabilization/stabilized_steps_total 6152
+wandb:                    step/episode_step 393
+wandb:                          step/reward 3.99532
+wandb:                      step/stabilized 1
+wandb:                           step/theta -0.00687
+wandb:                        step/thetadot -0.09417
+wandb:                         step/u_force 0.30576
+wandb:                               step/v -0.01506
+wandb:                               step/x -0.05001
+wandb:                   terminations/total 0
+wandb: 
+wandb: 🚀 View run 18_du0_cos_bonus_spin3_s1 at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim/runs/utb6j09l
+wandb: ⭐️ View project at: https://wandb.ai/julianwurm-universit-t-freiburg/cartpole-planner-ablation-sim
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./bachelor/acados_cartpole/simulation_zaczop/runs/18_du0_cos_bonus_spin3_s1/wandb/run-20260819_100520-utb6j09l/logs
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+WARNING: Warmstarting the first QP is not enabled. We will enable it for our initialization strategies to work properly.
+acados was compiled with OpenMP.
+Note: Please make sure that the acados shared library is compiled with the number of threads set to 1,
+i.e. with the flags -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1.
+See https://github.com/acados/acados/pull/1089 for more details.
+============================================================
+Run: 18_du0_cos_bonus_spin3_s1 | reward: cos_bonus_spin3 | seed: 1
+Steps: 10000 | dt: 0.01s
+Entropy: box_adjust=False | target=-1.000 | log_prob_offset=0
+============================================================
+Ep 1: reward = 2133.97, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 1001 (23 steps/s)
+Ep 2: reward = 2736.98, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 2002 (4 steps/s)
+Ep 3: reward = 3515.38, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 3003 (3 steps/s)
+Ep 4: reward = 3731.14, steps = 1001, max |F| = 19.4 N, stabilized = True, total steps = 4004 (3 steps/s)
+Ep 5: reward = 3833.42, steps = 1001, max |F| = 19.4 N, stabilized = True, total steps = 5005 (3 steps/s)
+Ep 6: reward = 3776.37, steps = 1001, max |F| = 20.0 N, stabilized = True, total steps = 6006 (3 steps/s)
+Ep 7: reward = 3809.48, steps = 1001, max |F| = 19.4 N, stabilized = True, total steps = 7007 (3 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/18_du0_cos_bonus_spin3_s1/checkpoints
+
+Done: 7578 env steps, 131560 gradient steps in 46.6 min (3 steps/s)
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+6 steps/s)
+Ep 16: reward = 26.39, steps = 60, max |F| = 20.0 N, stabilized = False, total steps = 1641 (16 steps/s)
+Ep 17: reward = 24.72, steps = 55, max |F| = 20.0 N, stabilized = False, total steps = 1696 (15 steps/s)
+Ep 18: reward = 8.03, steps = 24, max |F| = 20.0 N, stabilized = False, total steps = 1720 (15 steps/s)
+Ep 19: reward = 12.91, steps = 35, max |F| = 20.0 N, stabilized = False, total steps = 1755 (14 steps/s)
+Ep 20: reward = 43.26, steps = 105, max |F| = 20.0 N, stabilized = False, total steps = 1860 (12 steps/s)
+Ep 21: reward = 89.76, steps = 208, max |F| = 20.0 N, stabilized = False, total steps = 2068 (7 steps/s)
+Ep 22: reward = 59.61, steps = 155, max |F| = 20.0 N, stabilized = False, total steps = 2223 (6 steps/s)
+
+Interrupted — saving checkpoints...
+Saved checkpoints to /media/julian/Shared/UniAktuell/leap-2/leap-c/bachelor/acados_cartpole/simulation_zaczop/runs/18_du0_cos_bonus_spin3_s1/checkpoints
+
+Done: 2257 env steps, 25143 gradient steps in 6.3 min (6 steps/s)
+ion 19.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 9.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 16.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 7, QP iteration 10.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 13.
+
+QP solver returned error status 3 in SQP iteration 4, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 8.
+
+QP solver returned error status 3 in SQP iteration 5, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 7.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 11.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 12.
+
+QP solver returned error status 3 in SQP iteration 10, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 1, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 19.
+
+QP solver returned error status 3 in SQP iteration 6, QP iteration 15.
+
+QP solver returned error status 3 in SQP iteration 2, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 3, QP iteration 17.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 18.
+
+QP solver returned error status 3 in SQP iteration 9, QP iteration 14.
+
+QP solver returned error status 3 in SQP iteration 8, QP iteration 13.
