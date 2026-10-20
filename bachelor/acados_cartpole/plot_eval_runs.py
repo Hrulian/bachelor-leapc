@@ -2,8 +2,8 @@
 
 Scans the SAC-ZOP checkpoint directories (`real_sac_zop/checkpoints/*`) and the
 MPC eval directories (`real_acados/eval_logs/*`) and writes ONE stacked figure
-per controller/interface: every run of every seed as a thin trace, plus their
-mean across runs as a bold line with a +-1 sigma band.
+per controller/interface: every run of every seed as a thin trace. With `--mean`,
+also their mean across runs as a bold line with a +-1 sigma band.
 
 One figure per controller, all seeds pooled
 --------------------------------------------
@@ -21,6 +21,12 @@ seed of the same run.
     python -m bachelor.acados_cartpole.plot_eval_runs                  # everything
     python -m bachelor.acados_cartpole.plot_eval_runs --out figures --format pdf
     python -m bachelor.acados_cartpole.plot_eval_runs --dirs path/to/one_dir
+
+With more than one group, an extra `controller_comparison` figure shows only the
+mean of every group in one stacked plot, and `controller_comparison_10ms` /
+`controller_comparison_50ms` do the same for the groups of one control rate
+only, without the theta, u_force and sum |u_force| panels (skip all three
+with `--no-compare`).
 
 Which runs are plotted
 ----------------------
@@ -87,6 +93,15 @@ UPRIGHT_THRESHOLD = 0.15  # rad, the band real_sac_zop/MPC_REAL call "upright"
 # Sample period the running sums are expressed in. 50 ms is the RL decision
 # period of the 50 ms sessions, so their curves are left essentially unchanged.
 DEFAULT_CUM_REF_DT = 0.05
+
+# Groups with a measured control period below this go into the 10 ms comparison,
+# the rest into the 50 ms one.
+RATE_SPLIT_DT = 0.02
+
+# Panels left out of the per-rate comparisons: the mean of the wrapped angle and
+# of the signed force are not informative across controllers (see module
+# docstring), and sum |u_force| duplicates sum |u_pwm|.
+RATE_COMPARISON_EXCLUDE = ("theta_rad", "u_force_N", "u_force_cumsum")
 
 
 @dataclass(frozen=True)
@@ -332,8 +347,9 @@ def plot_group(
     formats: tuple[str, ...] = ("png",),
     min_runs: int = 2,
     show: bool = False,
+    show_mean: bool = False,
 ) -> list[Path]:
-    """Write one stacked figure with every run of a variant plus their mean."""
+    """Write one stacked figure with every run of a variant, optionally plus their mean."""
     n_runs = len(series)
     panels = available_panels(series)
     if not panels:
@@ -359,12 +375,14 @@ def plot_group(
         ])
 
         for row, color in zip(stack, colors):
-            ax.plot(grid, row, color=color, linewidth=0.7, alpha=0.45)
+            ax.plot(grid, row, color=color, linewidth=0.7,
+                    alpha=0.45 if show_mean else 0.9)
 
-        mean, std, _ = mean_across_runs(stack, min_runs, circular=panel.circular)
-        ax.fill_between(grid, mean - std, mean + std, color=panel.color, alpha=0.18,
-                        linewidth=0)
-        ax.plot(grid, mean, color=panel.color, linewidth=2.0)
+        if show_mean:
+            mean, std, _ = mean_across_runs(stack, min_runs, circular=panel.circular)
+            ax.fill_between(grid, mean - std, mean + std, color=panel.color, alpha=0.18,
+                            linewidth=0)
+            ax.plot(grid, mean, color=panel.color, linewidth=2.0)
 
         ax.set_ylabel(panel.label, fontsize=9)
         ax.grid(True, alpha=0.3)
@@ -385,15 +403,18 @@ def plot_group(
     handles = [
         plt.Line2D([], [], color=colors[len(colors) // 2], linewidth=0.9, alpha=0.6,
                    label=f"individual runs (n={n_runs})"),
-        plt.Line2D([], [], color="k", linewidth=2.0,
-                   label=f"mean (>= {min_runs} run{'s' if min_runs > 1 else ''})"),
-        plt.Line2D([], [], color="k", linewidth=6, alpha=0.18, label="+-1 sigma"),
     ]
+    if show_mean:
+        handles += [
+            plt.Line2D([], [], color="k", linewidth=2.0,
+                       label=f"mean (>= {min_runs} run{'s' if min_runs > 1 else ''})"),
+            plt.Line2D([], [], color="k", linewidth=6, alpha=0.18, label="+-1 sigma"),
+        ]
 
     fig.suptitle(
         f"{name} - {n_runs} complete eval runs\n"
         f"{summary_line(trailers, cum_scale(series, cum_ref_dt), cum_ref_dt)}\n"
-        f"{method_line(series, n_dropped, cum_ref_dt)}",
+        f"{method_line(series, n_dropped, cum_ref_dt, show_mean)}",
         fontsize=12, fontweight="bold", y=0.998,
     )
     plt.tight_layout(rect=[0, 0.01, 1, 0.94])
@@ -404,6 +425,99 @@ def plot_group(
     written = []
     for fmt in formats:
         target = out_dir / f"{name}_eval_overview.{fmt}"
+        fig.savefig(target, bbox_inches="tight", dpi=150)
+        written.append(target)
+        print(f"  wrote {target}")
+
+    if show:
+        plt.show()
+    plt.close(fig)
+    return written
+
+
+def plot_comparison(
+    groups: list[tuple[str, list[pd.DataFrame]]],
+    out_dir: Path,
+    cum_ref_dt: float = DEFAULT_CUM_REF_DT,
+    formats: tuple[str, ...] = ("png",),
+    min_runs: int = 2,
+    show: bool = False,
+    name: str = "controller_comparison",
+    title: str = "Controller comparison",
+    exclude: tuple[str, ...] = (),
+) -> list[Path]:
+    """Write one stacked figure with the mean of every controller/interface.
+
+    Each group is averaged on its own grid (the control periods differ between
+    groups), exactly as in `plot_group`. A panel is drawn whenever at least one
+    group has the data for it; groups without that column are simply absent from
+    that row. Panels whose key is in `exclude` are left out entirely.
+    """
+    group_panels = [set(p.key for p in available_panels(series)) for _, series in groups]
+    panels = tuple(
+        p for p in PANELS
+        if p.key not in exclude and any(p.key in keys for keys in group_panels)
+    )
+    if not panels:
+        print("  no plottable columns - comparison skipped")
+        return []
+
+    colors = plt.cm.tab10(np.arange(len(groups)) % 10)
+    fig, axes = plt.subplots(len(panels), 1, sharex=True, figsize=(11, 1.75 * len(panels)))
+    axes = np.atleast_1d(axes)
+
+    for ax, panel in zip(axes, panels):
+        for (_, series), keys, color in zip(groups, group_panels, colors):
+            if panel.key not in keys:
+                continue
+            grid = common_grid(series)
+            stack = np.vstack([
+                resample(
+                    s["time_s"].to_numpy(), s[panel.key].to_numpy(), grid, panel.cumulative
+                )
+                for s in series
+            ])
+            mean, _, _ = mean_across_runs(
+                stack, max(1, min(min_runs, len(series))), circular=panel.circular
+            )
+            ax.plot(grid, mean, color=color, linewidth=1.6)
+
+        ax.set_ylabel(panel.label, fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.margins(x=0)
+
+        if panel.key == "x_m":
+            for sign in (-1.0, 1.0):
+                ax.axhline(sign * float(X_TERM_M), color="r", linestyle="--",
+                           alpha=0.5, linewidth=0.8)
+        if panel.key in ("theta_rad", "theta_abs"):
+            ax.axhspan(-UPRIGHT_THRESHOLD, UPRIGHT_THRESHOLD, color="g", alpha=0.12)
+            ax.axhline(0.0, color="k", linestyle="--", alpha=0.3, linewidth=0.8)
+
+    axes[-1].set_xlabel("time (s)", fontsize=10)
+
+    handles = [
+        plt.Line2D([], [], color=color, linewidth=2.0,
+                   label=f"{group} (n={len(series)})")
+        for (group, series), color in zip(groups, colors)
+    ]
+    notes = [f"cumulative panels per {cum_ref_dt * 1000:.0f} ms" if cum_ref_dt > 0
+             else "cumulative panels: raw sums"]
+    if any(p.circular for p in panels):
+        notes.append("theta: circular mean")
+    fig.suptitle(
+        f"{title} - mean over complete eval runs\n"
+        f"{'   '.join(notes)}",
+        fontsize=12, fontweight="bold", y=0.998,
+    )
+    plt.tight_layout(rect=[0, 0.01, 1, 0.93])
+    fig.legend(handles=handles, fontsize=9, loc="upper center",
+               bbox_to_anchor=(0.5, 0.955), ncol=min(3, len(handles)), framealpha=0.0)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = []
+    for fmt in formats:
+        target = out_dir / f"{name}.{fmt}"
         fig.savefig(target, bbox_inches="tight", dpi=150)
         written.append(target)
         print(f"  wrote {target}")
@@ -455,7 +569,8 @@ def cum_scale(series: list[pd.DataFrame], cum_ref_dt: float) -> float:
     return dt / cum_ref_dt if np.isfinite(dt) else 1.0
 
 
-def method_line(series: list[pd.DataFrame], n_dropped: int, cum_ref_dt: float) -> str:
+def method_line(series: list[pd.DataFrame], n_dropped: int, cum_ref_dt: float,
+                show_mean: bool = False) -> str:
     """Second context line: what was dropped and how the panels were scaled."""
     dt = float(np.median([run_dt(s) for s in series]))
     parts = [f"dt = {dt * 1000:.1f} ms"]
@@ -463,7 +578,8 @@ def method_line(series: list[pd.DataFrame], n_dropped: int, cum_ref_dt: float) -
         parts.append(f"{n_dropped} incomplete run(s) dropped")
     if cum_ref_dt > 0:
         parts.append(f"cumulative panels x {dt / cum_ref_dt:.2f} (per {cum_ref_dt * 1000:.0f} ms)")
-    parts.append("theta: circular mean")
+    if show_mean:
+        parts.append("theta: circular mean")
     return "   ".join(parts)
 
 
@@ -557,7 +673,16 @@ def main() -> None:
     parser.add_argument(
         "--min-runs", type=int, default=2,
         help="Draw the mean only where at least this many runs are still "
-             "running (default: 2).",
+             "running (default: 2). Only relevant with --mean.",
+    )
+    parser.add_argument(
+        "--mean", action="store_true",
+        help="Also draw the mean across runs with a +-1 sigma band.",
+    )
+    parser.add_argument(
+        "--no-compare", action="store_true",
+        help="Skip the controller comparison figure (means of all groups in one "
+             "plot, written to --out or next to this script).",
     )
     parser.add_argument("--show", action="store_true", help="Show each figure.")
     args = parser.parse_args()
@@ -567,6 +692,7 @@ def main() -> None:
         raise SystemExit("No eval directories with eval_*.csv found.")
 
     summary: list[tuple[str, list[dict], int, float, float]] = []
+    groups: list[tuple[str, list[pd.DataFrame]]] = []
     for directory in directories:
         name = group_name(directory)
         print(f"\n{name}  ({directory})")
@@ -590,12 +716,43 @@ def main() -> None:
             formats=tuple(args.format),
             min_runs=args.min_runs,
             show=args.show,
+            show_mean=args.mean,
         )
         summary.append((
             name, trailers, len(dropped),
             float(np.median([run_dt(s) for s in series])),
             cum_scale(series, args.cum_ref_dt),
         ))
+        groups.append((name, series))
+
+    if not args.no_compare:
+        # split by the measured control period, not by the directory name
+        by_rate = {"10ms": [], "50ms": []}
+        for group, series in groups:
+            dt = float(np.median([run_dt(s) for s in series]))
+            by_rate["10ms" if dt < RATE_SPLIT_DT else "50ms"].append((group, series))
+
+        comparisons = [("controller_comparison", "Controller comparison", groups, ())]
+        comparisons += [
+            (f"controller_comparison_{rate}", f"Controller comparison ({rate[:-2]} ms)",
+             members, RATE_COMPARISON_EXCLUDE)
+            for rate, members in by_rate.items()
+        ]
+        for name, title, members, exclude in comparisons:
+            if len(members) < 2:
+                continue
+            print(f"\n{title}")
+            plot_comparison(
+                groups=members,
+                out_dir=args.out if args.out else HERE,
+                cum_ref_dt=args.cum_ref_dt,
+                formats=tuple(args.format),
+                min_runs=args.min_runs,
+                show=args.show,
+                name=name,
+                title=title,
+                exclude=exclude,
+            )
 
     print_table(summary)
 
