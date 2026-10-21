@@ -12,7 +12,7 @@ logs) plus the per-seed training logs (`meta.pth`) and writes two figures:
    are drawn as horizontal references.
 
     python -m bachelor.acados_cartpole.plot_paper
-    python -m bachelor.acados_cartpole.plot_paper --out figures --format pdf png
+    python -m bachelor.acados_cartpole.plot_paper --out figures --format png pdf
 
 Eval returns are per-sample sums, so they are scaled by `dt / 50 ms` like the
 cumulative panels of `plot_eval_runs` - a 10 ms run and a 50 ms run with the
@@ -249,7 +249,7 @@ def main() -> None:
                         help="Eval directories. Default: everything `plot_eval_runs` finds.")
     parser.add_argument("--out", type=Path, default=HERE / "paper_plots",
                         help="Output directory (default: paper_plots/ next to this script).")
-    parser.add_argument("--format", nargs="+", default=["png"],
+    parser.add_argument("--format", nargs="+", default=["pdf"],
                         choices=["png", "pdf", "svg"], help="Output formats.")
     parser.add_argument("--smooth", type=int, default=5,
                         help="Episodes in the learning-curve moving average (default: 5).")
