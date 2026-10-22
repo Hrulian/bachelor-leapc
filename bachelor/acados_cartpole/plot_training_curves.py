@@ -91,8 +91,8 @@ COLORS = {label: plt.cm.tab10(i) for label, i in [
 # MPC eval references: legend name, eval directory, nominal control period (s), colour.
 # Colours match the MPC lines in learning_curves.png.
 MPC_REFS = [
-    ("MPC (10 ms)", "mpc_full_10ms_dt10", 0.01, plt.cm.tab10(0)),
-    ("MPC (50 ms)", "mpc_full_49ms_dt50", 0.05, plt.cm.tab10(1)),
+    ("MPC eval (10 ms)", "mpc_full_10ms_dt10", 0.01, plt.cm.tab10(0)),
+    ("MPC eval (50 ms)", "mpc_full_49ms_dt50", 0.05, plt.cm.tab10(1)),
 ]
 
 EPISODE_KEYS = [
@@ -381,6 +381,36 @@ def plot_single(groups: list[Group], refs: dict, args, band: str,
         save(fig, args.out / "training", f"{name}_{band}", formats)
 
 
+# side-by-side figures for the paper: file name -> (left metric, right metric)
+PAIRS = {
+    "training_return_stabilization": ("episode/cumulative_reward_e", "episode/stabilized_e"),
+    "training_violations_solver": ("terminations/total_e", "step/pi_success_rate_s"),
+}
+
+
+def plot_pairs(groups: list[Group], refs: dict, args, band: str,
+               formats: tuple[str, ...]) -> None:
+    by_key = {m.key: m for m in METRICS}
+    for name, keys in PAIRS.items():
+        fig, axes = plt.subplots(1, 2, figsize=(10.0, 3.8))
+        for ax, key, letter in zip(axes, keys, "ab"):
+            draw(ax, groups, by_key[key], args, refs, band)
+            ax.set_title(f"({letter}) {by_key[key].title}", fontsize=11, fontweight="bold")
+            if key == "terminations/total_e":
+                # SAC ends near 70, the SAC-ZOP variants stay below ~15
+                ax.set_yscale("symlog", linthresh=1)
+                ax.set_ylim(bottom=0)
+        # union of both panels: plain SAC has no solver curve, violations no MPC line
+        legend = {}
+        for ax in axes:
+            for handle, label in zip(*ax.get_legend_handles_labels()):
+                legend.setdefault(label, handle)
+        fig.legend(legend.values(), legend.keys(), loc="lower center", ncol=4, fontsize=9,
+                   bbox_to_anchor=(0.5, -0.02))
+        fig.tight_layout(rect=(0, 0.12, 1, 1))
+        save(fig, args.out, f"{name}_{band}", formats)
+
+
 # ENTRY POINT ##################################################################
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -414,9 +444,10 @@ def main() -> None:
     refs = {} if args.no_mpc else mpc_references(args.achieved)
     formats = tuple(args.format)
     for band in BANDS:
-        print(f"\n{band}: overview + single panels")
+        print(f"\n{band}: overview + single panels + pairs")
         plot_overview(groups, refs, args, band, formats)
         plot_single(groups, refs, args, band, formats)
+        plot_pairs(groups, refs, args, band, formats)
 
 
 if __name__ == "__main__":

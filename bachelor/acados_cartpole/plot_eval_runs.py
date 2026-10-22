@@ -23,7 +23,7 @@ seed of the same run.
     python -m bachelor.acados_cartpole.plot_eval_runs --dirs path/to/one_dir
 
 With more than one group, an extra `controller_comparison` figure shows only the
-mean of every group in one stacked plot, and `controller_comparison_10ms` /
+mean of every group (with a faint +-1 sigma band behind it) in one stacked plot, and `controller_comparison_10ms` /
 `controller_comparison_50ms` do the same for the groups of one control rate
 only, without the theta, u_force and sum |u_force| panels (skip all three
 with `--no-compare`).
@@ -43,7 +43,23 @@ SAC-ZOP logs `param`/`actor_called`, MPC_REAL logs `theta_unwrapped`/
 `host_solve_ms`). Only the columns a directory actually has are plotted; panels
 whose source column is missing from any run of that directory are skipped with a
 note, so a new writer with a different header still produces a figure. `x_m` is
-derived from the encoder counts and `cum_reward` from `reward` where absent.
+derived from the encoder counts where absent.
+
+Evaluation reward
+-----------------
+The logged `reward` column (and the `episodic_return` trailer) is the TRAINING
+reward, shaped for fast learning (dense bonuses, helicopter damping, ...) and
+not the same across variants. It is ignored here. Every run is instead scored
+with one simple, linear, symmetric reward computed from the logged angle and
+cart position:
+
+    r = 1 - W_THETA * |theta| / pi - W_X * |x| / x_limit
+
+theta is wrapped to [-pi, pi] (0 = upright), x_limit is the rail limit
+`X_TERM_M`, and the weights are W_THETA = 0.75, W_X = 0.25. So r = 1 for an
+upright pole at the rail centre, and 0 for a hanging pole at the rail end;
+linear in between and identical for left and right. The `reward`/`cum_reward`
+panels, the return in the titles and the terminal table all use this reward.
 
 Averaging across runs
 ---------------------
@@ -94,6 +110,18 @@ UPRIGHT_THRESHOLD = 0.15  # rad, the band real_sac_zop/MPC_REAL call "upright"
 # period of the 50 ms sessions, so their curves are left essentially unchanged.
 DEFAULT_CUM_REF_DT = 0.05
 
+
+# Weights of the evaluation reward; they sum to 1, so r stays in [0, 1] inside the rails.
+W_THETA = 0.75
+W_X = 0.25
+
+
+def eval_reward(theta: np.ndarray, x_m: np.ndarray) -> np.ndarray:
+    """Linear symmetric evaluation reward: 1 upright and centred (see docstring)."""
+    wrapped = np.arctan2(np.sin(theta), np.cos(theta))
+    return 1.0 - W_THETA * np.abs(wrapped) / np.pi - W_X * np.abs(x_m) / float(X_TERM_M)
+
+
 # Groups with a measured control period below this go into the 10 ms comparison,
 # the rest into the 50 ms one.
 RATE_SPLIT_DT = 0.02
@@ -132,8 +160,8 @@ PANELS: tuple[Panel, ...] = (
     Panel("theta_abs", "|theta| (rad)", "tab:orange"),
     Panel("theta_abs_cumsum", "sum |theta| (rad)", "tab:brown", cumulative=True),
     Panel("u_force_N", "u_force (N)", "tab:purple"),
-    Panel("reward", "reward", "tab:green"),
-    Panel("cum_reward", "cumulative reward", "tab:olive", cumulative=True),
+    Panel("reward", "eval reward", "tab:green"),
+    Panel("cum_reward", "cum. eval reward", "tab:olive", cumulative=True),
     Panel("u_force_cumsum", "sum |u_force| (N)", "tab:pink", cumulative=True),
     Panel("u_pwm_cumsum", "sum |u_pwm|", "dimgray", cumulative=True),
 )
@@ -162,8 +190,9 @@ def build_series(df: pd.DataFrame, cum_scale: float = 1.0) -> pd.DataFrame:
 
     Every quantity whose source column is missing is simply left out - the
     directory's panel list is intersected over its runs afterwards. `x_m` is
-    reconstructed from the encoder counts and `cum_reward` from the per-step
-    reward where a writer did not log them.
+    reconstructed from the encoder counts where a writer did not log it. The
+    logged training reward is ignored: `reward`/`cum_reward` are recomputed
+    from theta with `eval_reward`.
 
     Args:
         df: One run as read from its CSV.
@@ -185,6 +214,9 @@ def build_series(df: pd.DataFrame, cum_scale: float = 1.0) -> pd.DataFrame:
         # the pole accumulate away from upright" curve
         out["theta_abs"] = theta.abs()
         out["theta_abs_cumsum"] = out["theta_abs"].cumsum() * cum_scale
+        if "x_m" in out:
+            out["reward"] = eval_reward(theta.to_numpy(), out["x_m"].to_numpy())
+            out["cum_reward"] = out["reward"].cumsum() * cum_scale
 
     if "u_force_N" in df:
         out["u_force_N"] = df["u_force_N"].astype(float)
@@ -194,13 +226,6 @@ def build_series(df: pd.DataFrame, cum_scale: float = 1.0) -> pd.DataFrame:
 
     if "u_pwm" in df:
         out["u_pwm_cumsum"] = df["u_pwm"].astype(float).abs().cumsum() * cum_scale
-
-    if "reward" in df:
-        out["reward"] = df["reward"].astype(float)
-    if "cum_reward" in df:
-        out["cum_reward"] = df["cum_reward"].astype(float) * cum_scale
-    elif "reward" in df:
-        out["cum_reward"] = out["reward"].cumsum() * cum_scale
 
     return out
 
@@ -413,7 +438,7 @@ def plot_group(
 
     fig.suptitle(
         f"{name} - {n_runs} complete eval runs\n"
-        f"{summary_line(trailers, cum_scale(series, cum_ref_dt), cum_ref_dt)}\n"
+        f"{summary_line(series, trailers, cum_ref_dt)}\n"
         f"{method_line(series, n_dropped, cum_ref_dt, show_mean)}",
         fontsize=12, fontweight="bold", y=0.998,
     )
@@ -446,7 +471,7 @@ def plot_comparison(
     title: str = "Controller comparison",
     exclude: tuple[str, ...] = (),
 ) -> list[Path]:
-    """Write one stacked figure with the mean of every controller/interface.
+    """Write one stacked figure with the mean (+-1 sigma band) of every controller/interface.
 
     Each group is averaged on its own grid (the control periods differ between
     groups), exactly as in `plot_group`. A panel is drawn whenever at least one
@@ -477,10 +502,13 @@ def plot_comparison(
                 )
                 for s in series
             ])
-            mean, _, _ = mean_across_runs(
+            mean, std, _ = mean_across_runs(
                 stack, max(1, min(min_runs, len(series))), circular=panel.circular
             )
-            ax.plot(grid, mean, color=color, linewidth=1.6)
+            # spread across runs as a faint band behind the means
+            ax.fill_between(grid, mean - std, mean + std, color=color, alpha=0.12,
+                            linewidth=0, zorder=1)
+            ax.plot(grid, mean, color=color, linewidth=1.6, zorder=3)
 
         ax.set_ylabel(panel.label, fontsize=9)
         ax.grid(True, alpha=0.3)
@@ -501,6 +529,7 @@ def plot_comparison(
                    label=f"{group} (n={len(series)})")
         for (group, series), color in zip(groups, colors)
     ]
+    handles.append(plt.Line2D([], [], color="k", linewidth=6, alpha=0.12, label="+-1 sigma"))
     notes = [f"cumulative panels per {cum_ref_dt * 1000:.0f} ms" if cum_ref_dt > 0
              else "cumulative panels: raw sums"]
     if any(p.circular for p in panels):
@@ -512,7 +541,7 @@ def plot_comparison(
     )
     plt.tight_layout(rect=[0, 0.01, 1, 0.93])
     fig.legend(handles=handles, fontsize=9, loc="upper center",
-               bbox_to_anchor=(0.5, 0.955), ncol=min(3, len(handles)), framealpha=0.0)
+               bbox_to_anchor=(0.5, 0.955), ncol=min(4, len(handles)), framealpha=0.0)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
@@ -539,18 +568,23 @@ def _floats(trailers: list[dict], key: str) -> np.ndarray:
     return np.asarray(values, dtype=float)
 
 
-def summary_line(trailers: list[dict], cum_scale: float = 1.0,
-                 cum_ref_dt: float = DEFAULT_CUM_REF_DT) -> str:
-    """Context line under the title: return and how many runs stabilized.
+def eval_returns(series: list[pd.DataFrame]) -> np.ndarray:
+    """Final `cum_reward` of every run, i.e. the rate-normalized eval return."""
+    return np.asarray([float(s["cum_reward"].iloc[-1]) for s in series
+                       if "cum_reward" in s and len(s)], dtype=float)
 
-    `episodic_return` in the trailers is a per-env-step sum, so it carries the
-    same rate dependence as the cumulative panels and is scaled the same way -
-    otherwise the number in the title would contradict the curve below it.
+
+def summary_line(series: list[pd.DataFrame], trailers: list[dict],
+                 cum_ref_dt: float = DEFAULT_CUM_REF_DT) -> str:
+    """Context line under the title: eval return and how many runs stabilized.
+
+    The return is the final value of the `cum_reward` curve, so it carries the
+    same rate normalization and the title cannot contradict the curve below it.
     """
     parts = []
-    returns = _floats(trailers, "episodic_return") * cum_scale
+    returns = eval_returns(series)
     if returns.size:
-        unit = f" (per {cum_ref_dt * 1000:.0f} ms)" if cum_scale != 1.0 else ""
+        unit = f" (per {cum_ref_dt * 1000:.0f} ms)" if cum_ref_dt > 0 else ""
         parts.append(f"return{unit} {returns.mean():.1f} +- {returns.std():.1f}")
     stabilized = _floats(trailers, "stabilized")
     if stabilized.size:
@@ -559,14 +593,6 @@ def summary_line(trailers: list[dict], cum_scale: float = 1.0,
     if upright.size:
         parts.append(f"upright fraction {upright.mean():.2f}")
     return "   ".join(parts)
-
-
-def cum_scale(series: list[pd.DataFrame], cum_ref_dt: float) -> float:
-    """Factor that puts a group's per-sample sums on the reference sample period."""
-    if cum_ref_dt <= 0:
-        return 1.0
-    dt = float(np.median([run_dt(s) for s in series]))
-    return dt / cum_ref_dt if np.isfinite(dt) else 1.0
 
 
 def method_line(series: list[pd.DataFrame], n_dropped: int, cum_ref_dt: float,
@@ -583,12 +609,13 @@ def method_line(series: list[pd.DataFrame], n_dropped: int, cum_ref_dt: float,
     return "   ".join(parts)
 
 
-def print_table(rows: list[tuple[str, list[dict], int, float, float]]) -> None:
-    """Compact per-variant summary of the trailer metrics, for the terminal.
+def print_table(rows: list[tuple[str, list[dict], int, float, np.ndarray]]) -> None:
+    """Compact per-variant summary, for the terminal.
 
-    The return is rate-normalized like the cumulative panels, so the 10 ms and
-    50 ms variants can be read off the same column; `upright` (a fraction) and
-    `stab` (a count) are rate-independent already.
+    The return is the eval reward (theta and x) summed and rate-normalized like
+    the cumulative panels, so the 10 ms and 50 ms variants can be read off the
+    same column; `upright` (a fraction) and `stab` (a count) come from the
+    trailers and are rate-independent already.
     """
     if not rows:
         return
@@ -596,8 +623,7 @@ def print_table(rows: list[tuple[str, list[dict], int, float, float]]) -> None:
               f"{'return/50ms':>19}{'upright':>9}{'stab':>7}")
     print("\n" + header)
     print("-" * len(header))
-    for name, trailers, n_dropped, dt, scale in rows:
-        returns = _floats(trailers, "episodic_return") * scale
+    for name, trailers, n_dropped, dt, returns in rows:
         upright = _floats(trailers, "upright_fraction")
         stabilized = _floats(trailers, "stabilized")
         ret = f"{returns.mean():9.2f}+-{returns.std():<7.2f}" if returns.size else " " * 18
@@ -691,7 +717,7 @@ def main() -> None:
     if not directories:
         raise SystemExit("No eval directories with eval_*.csv found.")
 
-    summary: list[tuple[str, list[dict], int, float, float]] = []
+    summary: list[tuple[str, list[dict], int, float, np.ndarray]] = []
     groups: list[tuple[str, list[pd.DataFrame]]] = []
     for directory in directories:
         name = group_name(directory)
@@ -721,7 +747,7 @@ def main() -> None:
         summary.append((
             name, trailers, len(dropped),
             float(np.median([run_dt(s) for s in series])),
-            cum_scale(series, args.cum_ref_dt),
+            eval_returns(series),
         ))
         groups.append((name, series))
 

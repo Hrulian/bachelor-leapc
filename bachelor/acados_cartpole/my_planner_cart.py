@@ -42,6 +42,7 @@ class CartOnlyPlannerConfig:
     T_horizon: float = 0.45
     Fmax: float = 20.0
     x_threshold: float = 0.37
+    use_position_constraint: bool = True  # False = drop |x| <= x_threshold (ablation)
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"
@@ -83,6 +84,7 @@ class CartOnlyPlanner(AcadosPlanner):
             T_horizon=self.cfg.T_horizon,
             Fmax=self.cfg.Fmax,
             x_threshold=self.cfg.x_threshold,
+            use_position_constraint=self.cfg.use_position_constraint,
         )
 
         diff_mpc = AcadosDiffMpcTorch(ocp, export_directory=export_directory)

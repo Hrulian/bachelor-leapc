@@ -35,6 +35,7 @@ class CartPolePlannerConfig:
     T_horizon: float = 0.45 # choosen so that the avg MPC call is less than 15ms
     Fmax: float = 20.0 # -> choosen so that v is below 2 m/s. Faster is not possible for realworld cartpole
     x_threshold: float = 0.37 # for realworld -> 0.45
+    use_position_constraint: bool = True  # False = drop |x| <= x_threshold (ablation)
 
     cost_type: CartPoleAcadosCostType = "NONLINEAR_LS"
     param_interface: CartPoleAcadosParamInterface = "global"
@@ -94,6 +95,7 @@ class CartPolePlanner(AcadosPlanner):
             T_horizon=self.cfg.T_horizon,
             Fmax=self.cfg.Fmax,
             x_threshold=self.cfg.x_threshold,
+            use_position_constraint=self.cfg.use_position_constraint,
         )
 
         diff_mpc = AcadosDiffMpcTorch(ocp, export_directory=export_directory)

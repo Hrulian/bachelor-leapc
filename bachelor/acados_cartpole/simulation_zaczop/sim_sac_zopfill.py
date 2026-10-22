@@ -86,7 +86,7 @@ from bachelor.acados_cartpole.real_sac_zop.my_sac_zop import (
 from bachelor.acados_cartpole.real_sac_zop.my_utils import soft_target_update
 from bachelor.acados_cartpole.real_sac_zop.my_buffer import ReplayBuffer
 from bachelor.acados_cartpole.simulation_zaczop.planner_registry import (
-    build_planner,
+    make_planner,
     PLANNER_REGISTRY,
 )
 from bachelor.acados_cartpole.simulation_zaczop.sim_env import (
@@ -127,6 +127,11 @@ def parse_args():
                    help="Phase-1 buffer-filling policy: 'saczop' = untrained SAC-ZOP actor "
                         "(MPC + param noise), 'mpc' = pure MPC with fixed references "
                         "(deterministic), 'random' = uniform random forces (control)")
+    p.add_argument("--d-max", type=float, default=None,
+                   help="du0 planner only: half-width of the d_u0 box (None = r * Fmax)")
+    p.add_argument("--no-pos-constraint", action="store_true",
+                   help="full/cart planner only: drop the cart position constraint "
+                        "|x| <= x_threshold from the OCP (force bound stays)")
     p.add_argument("--switch-step", type=int, default=10_000,
                    help="Env step at which we switch from Phase-1 filling to Phase-2 "
                         "pure-SAC driving + learning")
@@ -241,8 +246,17 @@ def main():
     controller_wrapped = None
     mpc_actor = None
     default_param_t = None  # fixed default references for the pure-MPC filler
+    planner_overrides = {}
+    if args.d_max is not None:
+        if args.planner != "du0":
+            raise SystemExit("--d-max only applies to --planner du0")
+        planner_overrides["d_max"] = args.d_max
+    if args.no_pos_constraint:
+        if args.planner not in ("full", "cart"):
+            raise SystemExit("--no-pos-constraint only applies to --planner full/cart")
+        planner_overrides["use_position_constraint"] = False
     if uses_solver:
-        planner = build_planner(args.planner, run_dir / "acados_code")
+        planner, _ = make_planner(args.planner, run_dir / "acados_code", **planner_overrides)
         controller_wrapped = ControllerFromPlanner(planner)
         if args.buffer_filler == "saczop":
             # untrained SAC-ZOP actor: MPC + Gaussian noise in param space
@@ -271,6 +285,8 @@ def main():
             "algo": "buffer_fill_then_pure_sac",
             "buffer_filler": args.buffer_filler,
             "planner": args.planner if uses_solver else None,
+            "d_max": args.d_max if uses_solver else None,
+            "pos_constraint": (not args.no_pos_constraint) if uses_solver else None,
             "switch_step": args.switch_step,
             "reward": args.reward,
             "seed": args.seed,

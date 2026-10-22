@@ -1,0 +1,349 @@
+\documentclass[conference]{cssconf}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% Arbeitsmarker - vor der Einreichung entfernen
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\note}[1]{\textcolor{blue}{[#1]}}
+
+\begin{document}
+
+\title{Learning MPC Parameterizations Directly on Hardware:\\
+Constraint Enforcement and Structured Exploration\\
+for Rapid Real-World Reinforcement Learning}
+
+
+\author{\authorblockN{Julian Wurm, \todo{Co-Autoren}}
+\authorblockA{Neurorobotics Lab, Department of Computer Science\\
+University of Freiburg, Germany\\
+\todo{E-Mail}}}
+
+\maketitle
+
+\begin{abstract}
+\begin{itemize}
+\item blabla
+\end{itemize}
+\end{abstract}
+
+%======================================================================
+\section{Introduction}
+% ca. 0.75 Spalten
+\begin{itemize}
+\item Real-world RL Cons: expensive data, hard to explore safely, noise and
+  delays \cite{dulacarnold2019challenges}. Sample-efficient
+  real-world RL exists \cite{smith2022walk,bohlinger2025gait,luo2024serl}, but mostly only in environment  where occasional constraint violations are tolerable and the environment can be well enough described to use simulations for pretraining \note{e.g. pretraining in our simulation environment did not work since too big sim-to-real-gap.}
+\item MPC Cons: performance depends on model accuracy and manual tuning. Computational cost.
+\item MPC-RL: combine both to get the best out of the two worlds with the goal to achieve one of the following:
+
+1. enable safe(r) real world learning where safe exploration is enforced through the MPC constraints
+
+2. improve existing MPC controller
+\item Benchmark: cart-pole, all trained from scratch directly on hardware
+\item Contributions:
+  \begin{enumerate}
+  \item A hardware study of parameter cost interfaces (angle reference, position
+    reference, cost perturbation of $u_0$ \note{if i have time}, reduced cart-only model) as well general guidance for tuning hierachical MPCRL controller (including increasing the sample efficiency)
+  \item faster and safe learning even with complete simplified model of the cartpole system capturing only the bare minimumu of the systrem dynamics 
+  \item way faster and more stable learning than normal RL with less (to no at all) constraint violations for the cartpole controller benchmarking against SAC
+  \item better controller performance than the MPC controller especially with dt set to 50~ms (slightly for 10~ms)
+  \end{enumerate}
+\end{itemize}
+
+
+%======================================================================
+\section{Related Work}
+blabla
+
+%======================================================================
+\section{Background}
+Thinking about just folowing the exact structure of the leapc paper background section
+\begin{itemize}
+\item RL and SAC or maybe just maximum entropy RL
+\item MPC: parametric OCP, receding horizon, MPC as a policy
+  $\pi(s)=u_0^\star(s,\varphi)$ 
+\item MPC-RL and SAC-ZOP: actor sets $\varphi$, parameter critic, no
+  differentiation through the solver \note{with the nice diagramm from your LEAPC paper}
+\end{itemize}
+
+\subsection{MPC as a Policy Prior}
+We build on SAC-ZOP~\todo{Cite}, in which the actor outputs MPC parameters $\varphi$ instead of control inputs and the applied action is the first optimal input,
+\begin{equation} 
+  \pi_\theta(s) = u_0^\star\big(s, \varphi_\theta(s)\big).
+  \label{eq:mpc-policy}
+\end{equation}
+Exploration noise is injected into $\varphi$ before the solve, so every sampled action is an output of the constrained OCP and hence admissible. A parameter critic $Q(s,\varphi)$ treats the MPC as part of the environment, which lifts the problem to an MDP with $\varphi$ as its action space. Standard SAC then applies unchanged, no gradients through the solver are required, and the MPC is solved only during interaction.
+\note{maybe include the nice saczop diagramm here}
+ 
+%======================================================================
+\section{Method}
+\subsection{Paramter Interfaces}
+blabla
+
+
+\subsection{$K$-Step Decimation \note{Action Persistence}}
+\note{maybe keep it more short and just briefly explain it and refer to to Metelli paper}
+We fix the policy decision interval to 50~ms in all experiments and run the MPC at the same rate by default ($K = 1$). This keeps the computational demands within reach of MPC formulations for more complex systems, where real-time solves at high rates are often infeasible, and makes our findings more likely to transfer. When the MPC can be solved faster, as in our cart-pole setup, the control rate can be raised without increasing the policy rate: every $K$ control steps the actor selects a new parameter $\varphi$, which is held constant while the MPC re-solves \todo{ref. ocp} at
+every step. Keeping the policy rate low is deliberate, since at high rates consecutive states differ only marginally and individual transitions carry little learning signal~\cite{sharma2017figar,metelli2020persistence}. In contrast to classical action repetition, only the policy is decimated, so fast feedback and constraint enforcement are retained. \todo{fact check the KI cite and this last sentence}
+
+For $K > 1$, each cycle yields one macro-transition
+$(s_t, \varphi_t, \bar{r}_t, s_{t+K}, d_t)$, where $\bar{r}_t$ \todo{fix to background notation later} is the mean of
+the $K$ per-step rewards. The mean keeps the reward scale independent of $K$
+and does not miss short reward events, as a single boundary sample could. If
+an episode terminates mid-cycle, the mean is taken over the executed steps.
+
+
+\subsection{Real-World Training Procedure}
+\note{maybe remove bolt headings}
+
+\textbf{Sample efficiency.} Since hardware interaction is the scarce resource, we extract as many gradient updates per sample as the compute budget allows. Following~\cite{smith2022walk}, we use a high update-to-data ratio of $20$ critic and $1$ actor updates per transition. Updating the actor less frequently than the critics lets the value estimates settle before the policy exploits them, which limits overestimation bias. Layer normalization \cite{hiraoka2022droq} in the critics keeps training stable at this update ratio.
+
+\note{Maybe add here that the k-step makes th learning more sample efficient and that the choice of the reward function }
+
+\textbf{Asynchronous learning.} To prevent learning from stalling the control loop when a block of gradient updates exceeds one control period, we split control and learning into two concurrent threads coupled only through a shared replay buffer and a counting semaphore. This keeps the control rate independent of the learning load and thus preserves the constraint enforcement provided by the MPC. The acting thread stores each transition and releases a token without waiting for the learner. Learning begins after a warm-up of $1000$ environment steps, and between episodes the acting thread waits until potentially remaining tokens are drained. \note{maybe explain that learning directly instead of acumualting samples and doing big batches beztween the epiaodes is more stable. Maybe state that we do it differently than in thelypanuv paper}
+
+\textbf{Safety and episode management.} Constraints are enforced at two levels. The box constraints in \todo{refer} keep the \emph{planned} trajectory
+admissible. Independently, the microcontroller monitors the cart position at the sensing rate and cuts actuation when a hard travel limit is exceeded. This bounds the consequences of any applied input, including the suboptimal iterates returned when the solver terminates before convergence and the model-free SAC baseline.
+An episode ends on a tripped flag, on reaching the travel limit, or at the maximum
+episode length, after which a reset routine returns the cart to the center and
+the pendulum to rest. \note{Prob. unecesary and should be removed. Maybe include the algorithm from my bachelor here}
+
+ 
+%======================================================================
+\section{Experimental Setup}
+Goal was to keep the manual tuning effort as small as possible so noextensive MPC tuning, no computation delay compensation \todo{check that} as in \cite{paluch2025fpga}, no fancy state estimation.
+
+\subsection{Hardware}
+The plant is a belt-driven cart-pendulum on a $1~m$ linear rail (Fig.~\ref{fig:hardware}), driven by a $24~V$ brushed DC motor via a Pololu~G2 driver. Cart position is measured using a Calt~GHH60 incremental optical encoder, and pendulum angle using an AMS~AS5600 magnetic encoder. Velocities are estimated by finite differences with exponential-moving-average filtering, without further state estimation.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{images/my_setup_numbered.png}
+  \caption{\note{different caption and photo. maybe do it like \cite{paluch2025fpga}}}
+  \label{fig:hardware}
+\end{figure}
+
+Control is distributed across two nodes: An Arduino Due handles sensing, actuation and the low-level safety layer, while a host PC runs the MPC solve and the policy evaluation. Both nodes run non-blocking and independently in time, following~\cite{bohm2022nonblocking}, so that variable delays never stall the control loop \note{did this before i found this Paper}.
+
+\note{Maybe kick that out. Some cartpole Papers mention it some dont, i think its to technical. Also if kept in: change the confusion with $\beta$ and $\hat{\beta}$ etc. and shorten more}
+Since the controller outputs a force but the driver accepts a voltage, we
+identify a lumped actuation model $\dot{v} = \alpha U - \beta v - \gamma\,\mathrm{sgn}(v)$ modeling motor force acting on the car tincluding coulon ind viscous friction. With Data collected from constant-voltage step responses togheter with bound constinaes monlienar leastsquares we can idetify the paramters ($\hat{\alpha}=5.28$, $\hat{\beta}=48.45$, $\hat{\gamma}=7.75$). We then invert it online to $U = (F + bv + c\,\mathrm{sgn}(v))/a$, saturated to the admissible range. Friction is thus compensated at the actuator but absent from the prediction model below.
+
+
+\subsection{System and Prediction Models}
+\note{other papers like \cite{paluch2025fpga} and \cite{boedecker2014approximate} dont talk about that. Since model mismatch compensation is one of the main contributions including the system euqation here and pointing out whats missing and what results in the MPC performance degradation could be benficial.}
+Cartpole schematic and equations. Also introduce the reduces Cart-only model here
+
+\subsection{MPC-Konfiguration}
+\note{also not sure if this here is important or can be summarized somewhere else. Also just include a tablle with the hyperpaetmers espeically with constriant etc and then refer to the MPC formualiton in the background. Maybe also could put the RL Hyperparamters here like leranrates, batchsize etc.? Include 
+Talk about specifix desgin decision like max iteration etc so that the mpc solve time is bounded and remains at a kind of low level. This results in status 2 qp errors during the swingup where the MPC cant find asolution within time and then just returns his current, not perfect/converged solution. MPC: model, horizon, solver, constraints, solve time, multiple shooting, ACADOS/LEAPC as wel as the diffrente solve times for th einterfaces}
+
+\subsection{Task and Reward}
+\label{sec:reward}
+\note{content finished but has to be rewritten more naturally}
+Starting with the pendulum hanging at rest at the rail center, the task is to
+swing it up and stabilize it upright. All methods share the reward
+\begin{equation}
+\begin{aligned}
+  r(\theta,\dot\theta) ={}& \tfrac{1}{2}(1+\cos\theta)
+      \big[1 - \kappa(\theta;\sigma_{\mathrm{top}})
+      \big(1 - \kappa(\dot\theta;\sigma_{\mathrm{calm}})\big)\big] \\
+    &+ 3\,\kappa(\theta;\sigma_\theta)\,\kappa(\dot\theta;\sigma_{\dot\theta}),
+\end{aligned}
+\label{eq:reward}
+\end{equation}
+with $\kappa(z;\sigma) = \exp(-z^2/\sigma^2)$. The first term is a dense
+upright reward whose velocity penalty is gated to the vicinity of the top,
+suppressing continuous rotation without penalizing the fast swings needed for
+the swing-up. The second term is a wide bonus for calm balancing, which
+accelerates learning at the cost of precision, as near-upright and perfectly
+balanced states are rewarded similarly.
+\note{left out: bounded reward for stable q values,}
+
+The MPC-based policies learned reliably on hardware with considerably simpler
+rewards, similar to~\todo{ref}, requiring only minor manual adjustments and no
+simulation. With these rewards, however, unstructured SAC failed to learn any
+useful policy on the hardware. We therefore shaped the reward for SAC in
+simulation, despite the substantial sim-to-real gap of our model
+(Sec.~\ref{sec:intro}), refined it on the hardware, and use the result for all
+methods. Adding a centering term slowed learning for all methods and, although
+it reduced the constraint violations of SAC, did not enable it to learn; it was
+therefore omitted. With the MPC prior, the solver enforces the cart limits, so
+the reward needs to encode only the main task \note{swingup}. Input penalties led to overly conservative behaviour. No policy or model parameters were transferred from
+simulation.
+
+
+
+\subsection{Metrics and Baselines}
+\note{Not sure if this needs an own paragraph. Stuff like seeds, number of policy rollouts, basleine, and explanation od metrices, episode lengtths, control freq. etc. could be added partly in the plot captions or mentioned at the beginning of the result section (e.g All controllers are trained from scratch on hardware for 5~seeds with a fixed episode length of 200~steps...)}
+
+ 
+%======================================================================
+\section{Results}
+\label{sec:results}
+
+All controllers are trained from scratch on the hardware for about $10^4$ RL
+steps. One RL step is one actor decision and corresponds to 50~ms of
+interaction in every variant, so the budget amounts to roughly 8.5~min of
+real-world interaction. Episodes last at most 10~s (200 RL steps), and an
+episode counts as \emph{stabilized} once the pole has stayed within
+$\pm0.15$~rad of upright for 2~s. We compare three parameter interfaces: the
+full cart-pole model with a learned pole-angle reference (full), the full model
+with a learned cart-position reference (fullcart), and the reduced cart-only
+model with a learned cart-position reference (cart). SAC is trained with
+4~seeds, each SAC-ZOP interface at 50~ms with 5~seeds, and the 10~ms variant
+($K=5$) with 3~seeds \note{SAC\_3 stopped at 8.1k steps and is left out until
+the rerun; more seeds for 10~ms?}. Fig.~\ref{fig:learning-curves} shows the
+training metrics and Table~\ref{tab:training} summarizes them. All training
+metrics are recorded with the stochastic exploration policy, whereas the MPC
+references come from 20 deterministic evaluation episodes each, so the
+comparison is conservative for the learned controllers.
+
+\begin{table*}[t]
+  \centering
+  \caption{Training on hardware. Mean over seeds with [min, max] across seeds.
+  First stabilization: RL step at the end of the first stabilized episode.
+  Violations: episodes ended at the track limit or by the hardware safety
+  within the first $10^4$ RL steps. Return, stabilization rate, time to
+  stabilize (failed episodes count as 10~s) and solver success are averaged
+  over the episodes between 8k and 10k RL steps. The MPC rows are deterministic
+  evaluations (20 episodes each) without training.}
+  \label{tab:training}
+  \footnotesize
+  \setlength{\tabcolsep}{3.5pt}
+  \begin{tabular}{lccccccc}
+    \toprule
+    Method & Seeds & First stab.\ [k steps] & Violations & Return
+      & Stab.\ rate & Time to stab.\ [s] & Solver succ. \\
+    \midrule
+    SAC                   & 4 & 5.1, 8.5 (2 of 4)  & 69.5 [53, 95] & 353 [58, 670]
+      & 0.45 [0.00, 1.00] & 7.4 [3.9, 10.0] & -- \\
+    SAC-ZOP (full)        & 5 & 2.2 [1.3, 2.9]     & 10.0 [5, 14]  & 517 [408, 599]
+      & 0.87 [0.73, 1.00] & 5.5 [4.9, 6.7]  & 0.43 [0.20, 0.70] \\
+    SAC-ZOP (fullcart)    & 5 & 0.64 [0.47, 0.87]  & 12.6 [9, 16]  & 370 [244, 507]
+      & 0.66 [0.36, 0.91] & 7.2 [5.7, 8.2]  & 0.43 [0.30, 0.57] \\
+    SAC-ZOP (cart)        & 5 & 4.2 [3.0, 5.1]     & 1.0 [0, 3]    & 598 [454, 649]
+      & 0.96 [0.82, 1.00] & 4.4 [3.7, 6.4]  & 1.00 [1.00, 1.00] \\
+    SAC-ZOP (full, 10 ms) & 3 & 1.8 [1.4, 2.3]     & 1.0 [0, 2]    & 573 [501, 635]
+      & 0.94 [0.82, 1.00] & 4.9 [4.2, 5.5]  & 0.64 [0.54, 0.72] \\
+    \midrule
+    MPC (50 ms)           & -- & -- & -- & 400 & 0.70 & 6.9 & 0.64 \\
+    MPC (10 ms)           & -- & -- & -- & 613 & 1.00 & 4.5 & 0.83 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\subsection{Learning Speed and Safety Compared to SAC}
+Every SAC-ZOP seed stabilizes the pendulum within the first 5.1k steps, and the
+fastest interface does so after 0.64k steps (32~s of interaction) on average.
+SAC stabilizes in only 2 of 4 seeds within the budget, for the first time after
+5.1k and 8.5k steps, and the other two seeds never get the pole up. By the time
+the first SAC seed succeeds, both variants with the angle reference already
+stabilize in more than 80\,\% of their episodes. Over the last 2k steps, the
+mean return of the individual SAC seeds ranges from 58 to 670, whereas all
+SAC-ZOP~(cart) seeds lie between 454 and 649.
+
+The difference in safety is even larger. SAC ends on average 69.5 episodes
+(53--95) at the track limit or by the hardware safety, which is 63\,\% of all
+its episodes. 62 of these violations occur within the first 2k steps (100~s),
+before SAC has learned to stay away from the limit. With the MPC prior, the
+violations drop to 10.0 (full) and 12.6 (fullcart), and to 1.0 for the
+cart-only model and the 10~ms variant; three of five cart seeds and one of
+three 10~ms seeds complete training without a single violation. Because so
+many SAC episodes end early, SAC also needs about twice as many episodes, and
+thus resets, for the same interaction time (114 vs.\ 53--64).
+
+\subsection{Comparison of Parameter Interfaces}
+The violations that remain with SAC-ZOP coincide with solver failures. To
+bound the solve time, the number of solver iterations is limited \todo{ref MPC
+configuration}, so during the swing-up the nonlinear OCP often stops before
+convergence and returns an iterate that need not satisfy the constraints. With
+the full model and the angle reference, only 13\,\% of the solves succeed during
+the first 2k steps and 43\,\% during the last 2k; with the cart reference on the
+full model, the rate stays at about 43\,\% throughout. The cart-only model has
+linear dynamics and a quadratic cost, so its OCP is a QP that converges in
+every step, and the constraints hold during the entire training. At 10~ms, the
+full model also fails often (20\,\% rising to 64\,\%) but violates the
+constraints only once per run on average. We attribute this to the five times
+faster re-solving, which corrects an inadmissible input before the cart reaches
+the limit \note{hypothesis}.
+
+The interfaces also differ in how learning progresses. With the cart reference
+on the full model, the first stabilized episode occurs after only 0.64k steps,
+presumably because the bounded reference ($\pm0.37$~m) leaves the behavior of
+the nominal MPC largely intact from the first episode on \note{check}. This
+interface, however, hardly improves on the nominal MPC: its stabilization rate
+fluctuates between 52\,\% and 87\,\% after the first 0.5k steps and ends at the level of
+the 50~ms MPC (return 370 vs.\ 400). The angle reference spans $\pm\pi$, so the
+initial policy is far from upright and needs 2.2k steps to its first success on
+average, but from 3k steps on the stabilization rate stays between 78\,\% and 100\,\%. The
+cart-only model has to learn the complete swing-up through the cart reference,
+since its MPC knows nothing about the pendulum. It is therefore the slowest to
+its first success (4.2k steps), but after 5k steps its mean stabilization rate
+never drops below 85\,\%, every episode of every seed is stabilized during the
+last 1k steps, and it reaches the highest return and the shortest time to
+stabilize of all methods. The 10~ms variant combines the fast start of the full
+model with reliable stabilization: its mean stabilization rate reaches 100\,\%
+within 3k steps, and its mean return reaches the level of the 10~ms MPC within
+4.5k steps.
+
+\subsection{Final Performance Compared to the MPC Baseline}
+Over the last 2k steps of training, SAC-ZOP at 50~ms outperforms the nominal
+MPC at the same rate despite the exploration noise. The return is 29\,\% (full)
+and 50\,\% (cart) higher, the stabilization rate rises from 70\,\% to 87\,\% and
+96\,\%, and the time to stabilize drops from 6.9~s to 5.5~s and 4.4~s. With the
+most simplified model, SAC-ZOP~(cart) at 50~ms is on par with the MPC at 10~ms
+(over the last 1k steps: return 617 vs.\ 613, time to stabilize 4.1~s vs.\
+4.5~s) while solving the OCP five times less often.
+
+A deterministic evaluation of the final policies \todo{figure or table}
+confirms this. At 50~ms, SAC-ZOP~(full) stabilizes in 21 of 23 runs and
+SAC-ZOP~(fullcart) in 21 of 25, compared with 14 of 20 for the MPC, at a 28\,\%
+and 16\,\% higher return. At 10~ms, the MPC already stabilizes all 20 runs;
+SAC-ZOP also stabilizes all 22 runs, slightly faster (4.4~s vs.\ 4.5~s) and with
+a 3\,\% higher return. The evaluated SAC policy stabilizes in none of its
+5~runs. \note{Eval set: cart checkpoints not evaluated yet; SAC only SAC\_4,
+which never stabilized during training; full 50~ms includes checkpoints of seeds
+not shown in Fig.~\ref{fig:learning-curves}; eval returns scaled with the
+measured period as in plot\_paper.}
+
+Since the MPC structure is fixed and only its parameters are learned, the
+improvement has to come from the learned parameters. We see two plausible
+causes. First, the prediction model neglects friction and the actuator dynamics
+\todo{ref model section}, and a learned reference can shift the target of the
+MPC to counteract the resulting bias \note{partly shown in simulation; add
+numbers or drop}. Second, the MPC does not model the computation and
+communication delay, whereas the critic learns from the delayed closed-loop
+transitions \note{guess}. Both effects weigh more at 50~ms, which is consistent
+with the larger improvement at this rate.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{images/training_overview_minmax.pdf}
+  \caption{Training from scratch on the hardware. Lines show the mean over
+  seeds and shaded areas the min--max range across seeds, in windows of 500 RL
+  steps (25~s). One RL step corresponds to 50~ms of interaction in all
+  variants. Panels: episode return, fraction of stabilized episodes (pole
+  within $\pm0.15$~rad for 2~s), time to stabilize (failed episodes count as
+  10~s), cumulative constraint violations (episodes ended at the track limit
+  or by the hardware safety), mean reward per RL step, and fraction of
+  converged MPC solves. Dashed lines: deterministic evaluation of the nominal
+  MPC at 10~ms and 50~ms (20 episodes each). SAC: 4 seeds; SAC-ZOP at 50~ms:
+  5 seeds each; SAC-ZOP at 10~ms ($K=5$): 3 seeds.}
+  \label{fig:learning-curves}
+\end{figure*}
+ 
+%======================================================================
+\section{Conclusion}
+Limitations \note{MPC already near perfect, simulation partly used..,}.
+ 
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+ 
+\end{document}

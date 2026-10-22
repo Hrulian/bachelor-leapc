@@ -111,6 +111,7 @@ def export_parametric_ocp(
     x_threshold: float = 0.1,
     N_horizon: int = 20,
     T_horizon: float = 1.0,
+    use_position_constraint: bool = True,
 ) -> AcadosOcp:
     ocp = AcadosOcp()
 
@@ -189,13 +190,15 @@ def export_parametric_ocp(
     ocp.constraints.ubu = np.array([+Fmax])
     ocp.constraints.idxbu = np.array([0])
 
-    # Position constraints on the cart temporarily disabled for testing.
-    ocp.constraints.lbx = np.array([-x_threshold])
-    ocp.constraints.ubx = -ocp.constraints.lbx
-    ocp.constraints.idxbx = np.array([0])
-    ocp.constraints.lbx_e = np.array([-x_threshold])
-    ocp.constraints.ubx_e = -ocp.constraints.lbx_e
-    ocp.constraints.idxbx_e = np.array([0])
+    # Position constraints on the cart (|x| <= x_threshold). Can be switched off
+    # for the constraint ablation; the force bound above always stays.
+    if use_position_constraint:
+        ocp.constraints.lbx = np.array([-x_threshold])
+        ocp.constraints.ubx = -ocp.constraints.lbx
+        ocp.constraints.idxbx = np.array([0])
+        ocp.constraints.lbx_e = np.array([-x_threshold])
+        ocp.constraints.ubx_e = -ocp.constraints.lbx_e
+        ocp.constraints.idxbx_e = np.array([0])
 
     ######## Solver configuration ########
     ocp.solver_options.integrator_type = "DISCRETE"
