@@ -5,6 +5,10 @@ The MPC baseline counterpart to `real_sac_zop.run_eval_episode`: it runs
 parameters, no actor, no training) and dumps one CSV + one PNG per run into a
 single eval directory, plus an `eval_summary.csv` with one row per run.
 
+The board has to run saz_zop.ino, the sketch the SAC-ZOP evals run on: it drives
+the cart back to the centre between runs (mode 2) and clears and reports the safety
+trip. acados_main.ino is refused, because it does neither.
+
 CSV schema, reward (`compute_reward`) and termination rule (`done_eval`) are the
 same ones real_sac_zop.py uses for its eval episodes, so the two sets of
 trajectories are directly comparable - the only difference is who picks the MPC
@@ -13,28 +17,33 @@ performance and termination metrics mirror the ones real_sac_zop.py logs to wand
 (minus everything under `learning/`, which has no meaning without training).
 
 Timing is specified in SECONDS (EPISODE_SECONDS, STABILIZATION_SECONDS) and
-converted to env-step counts from the MEASURED control period, so a 10 ms and a
-50 ms session run equally long episodes and use the same 2 s stabilization
-criterion despite differing 5x in step count. The control period comes from the
-Arduino firmware (COMMUNICATION_TIME_MS in saz_zop.ino), NOT from here.
+converted to env-step counts from the control period, so a 10 ms and a 50 ms
+session run equally long episodes and use the same 2 s stabilization criterion
+despite differing 5x in step count. The control period comes from the Arduino
+firmware (COMMUNICATION_TIME_MS in saz_zop.ino), NOT from here.
 
-Run it as a module so the package imports resolve:
+Run it as a module so the package imports resolve. The 10 ms vs 50 ms comparison,
+25 runs each (reflash the board in between):
 
+    # COMMUNICATION_TIME_MS = 50
     python -m bachelor.acados_cartpole.real_acados.MPC_REAL
-
-The 10 ms vs 50 ms comparison, 20 runs each (reflash the board in between):
-
-    TAG=dt10 python -m bachelor.acados_cartpole.real_acados.MPC_REAL
-    TAG=dt50 python -m bachelor.acados_cartpole.real_acados.MPC_REAL
+    # COMMUNICATION_TIME_MS = 10
+    python -m bachelor.acados_cartpole.real_acados.MPC_REAL
 
 Both write to their own eval_logs/mpc_<planner>_<dt>ms_<tag>/ directory. Compare
 the runs on `rl_return`, `episode_s`, `longest_upright_s` and `upright_fraction`
 - NOT on `episodic_return` or any `*_steps` field, which scale with the rate.
 
+Opening the port reboots the board, which zeroes x and theta where they are: before
+every start the cart has to stand in the centre and the pole has to hang still.
+
+Existing run CSVs are skipped, never overwritten, so a session stopped with Ctrl+C
+continues at the first missing run; delete a CSV to repeat that run.
+
 Other environment variables:
 
-    NUM_EVAL_RUNS=20       trials per session
-    CONTROL_DT=auto        measured off the wire; pin with 0.010 / 0.050
+    NUM_EVAL_RUNS=25       trials per session
+    TAG=saz                directory suffix, a new tag starts a new set of runs
     EPISODE_SECONDS=10.0   episode length
     STABILIZATION_SECONDS=2.0
     PLANNER=full  MAX_PWM=150  SHOW_PLOTS=0  EVAL_DIR=...
@@ -78,7 +87,7 @@ from bachelor.acados_cartpole.my_utils_plot import plot_eval_episode_log
 PLANNER_NAME = os.environ.get("PLANNER", "full")
 
 # Number of independent physical trials of the same controller.
-NUM_EVAL_RUNS = int(os.environ.get("NUM_EVAL_RUNS", "20"))
+NUM_EVAL_RUNS = int(os.environ.get("NUM_EVAL_RUNS", "25"))
 
 # Application cap on |PWM|, same value the SAC-ZOP runs actuate with.
 MAX_PWM = int(os.environ.get("MAX_PWM", "150"))
@@ -94,11 +103,11 @@ SHOW_PLOTS = os.environ.get("SHOW_PLOTS", "0") not in ("0", "false", "False")
 # of balancing, even though those are 1000/200 and 200/40 steps respectively.
 #
 # The control period is set by the Arduino FIRMWARE (COMMUNICATION_TIME_MS in
-# saz_zop.ino), never here - this script is purely frame-paced. CONTROL_DT=auto
-# (the default) therefore MEASURES the period off the wire instead of assuming
-# it, so a mismatch between what is flashed and what the run assumes cannot
-# silently produce half-length episodes. Pin it with CONTROL_DT=0.010 / 0.050.
-CONTROL_DT_SETTING = os.environ.get("CONTROL_DT", "auto")
+# saz_zop.ino), never here - this script is purely frame-paced. It therefore
+# MEASURES the period off the wire and snaps it to the nearest supported one, so
+# neither a mismatch between what is flashed and what the run assumes nor host-side
+# jitter (which once turned 50 ms into 49 ms) can produce wrong-length episodes.
+SUPPORTED_CONTROL_DT = (0.010, 0.050)
 
 EPISODE_SECONDS = float(os.environ.get("EPISODE_SECONDS", "10.0"))
 STABILIZATION_SECONDS = float(os.environ.get("STABILIZATION_SECONDS", "2.0"))
@@ -118,9 +127,10 @@ EVAL_MAX_STEPS = None
 STABILIZATION_BUFFER_SIZE = None
 RL_DECISION_STEPS = None
 
-# One directory per session, tagged with the control rate so the 10 ms and 50 ms
-# sessions cannot overwrite each other. Resolved in configure_timing().
-RUN_TAG = os.environ.get("TAG", time.strftime("%Y%m%d_%H%M%S"))
+# One directory per control rate, so the 10 ms and 50 ms sessions cannot mix. The
+# name is stable across restarts, which is what lets a stopped session continue
+# where it left off. Resolved in configure_timing().
+RUN_TAG = os.environ.get("TAG", "saz")
 EVAL_DIR = None
 
 if PLANNER_NAME not in PLANNER_NAMES:
@@ -147,27 +157,16 @@ ser.reset_input_buffer()
 state_que = queue.Queue()  # FIFO queue of parsed state frames
 prev_sent_mode = None  # remembers the last mode sent to the Arduino for logging
 
-# Frame width of the flashed sketch, detected from the first frame that parses:
-#   5 -> saz_zop.ino:      "<x,theta,v,thetadot,tripped>", commands are "<u,mode>"
-#        (has the motor-driven reset, mode 2, and reports the safety trip)
-#   4 -> acados_main.ino:  "<x,theta,v,thetadot>",         commands are "<u>"
-#        (no modes: `tripped` is always logged as 0 and the reset is manual)
-# Detecting instead of hard-coding keeps this script usable with either sketch.
-FRAME_FIELDS = None
-_protocol_detected = threading.Event()
-
 device = "cpu"
 
 
 def listen_to_arduino():
     """
     -reads frames in the background with threading
-    -frames come in the form of <x,theta,v,thetadot[,tripped]>\n
+    -frames come in the form of <x,theta,v,thetadot,tripped>\n
     -units are: <counts, rad, counts/s, rad/s, bool>
     -if a full frame got received -> put it in a que as a 5-tuple
     """
-
-    global FRAME_FIELDS
 
     currently_receiving = False
     buffer = bytearray()
@@ -198,16 +197,12 @@ def listen_to_arduino():
             try:
                 payload = buffer.decode('ascii', errors='strict').strip()
                 parts = payload.split(',')
-                if len(parts) in (4, 5):
+                if len(parts) == 5:
                     x, theta, v, thetadot = map(float, parts[:4])
-                    # legacy sketch has no trip flag -> never tripped from the host's view
-                    tripped = int(float(parts[4])) if len(parts) == 5 else 0
-                    if FRAME_FIELDS is None:
-                        FRAME_FIELDS = len(parts)
-                        _protocol_detected.set()
+                    tripped = int(parts[4])
                     state_que.put((x, theta, v, thetadot, tripped))
                 else:
-                    # malformed payload (or the legacy "ready" handshake), discard
+                    # malformed payload, discard
                     pass
 
             except Exception:
@@ -233,20 +228,20 @@ def listen_to_arduino():
             t0 = None
 
 
-def wait_for_arduino(timeout_s: float = 20.0) -> int:
-    """Block until the first frame parsed, so the wire format is known.
+def wait_for_arduino(timeout_s: float = 20.0) -> None:
+    """Block until the first valid frame, so a wrong or silent board aborts right away.
 
-    Both sketches idle for 4-5 s in setup() before their first frame, and opening
-    the port resets the board - hence the generous timeout.
+    saz_zop.ino idles for 4 s in setup() before its first frame, and opening the port
+    resets the board - hence the generous timeout. Only its 5-field frames parse here,
+    so acados_main.ino (4 fields) ends up in this error as well.
     """
-    if not _protocol_detected.wait(timeout=timeout_s):
+    try:
+        state_que.get(timeout=timeout_s)
+    except queue.Empty:
         raise SystemExit(
-            f"No valid frame on {PORT} within {timeout_s:.0f} s - is the Arduino "
-            f"flashed and is another script holding the port?"
-        )
-    sketch = "saz_zop (modes + trip flag)" if FRAME_FIELDS == 5 else "legacy acados_main (no modes)"
-    print(f"Arduino protocol: {FRAME_FIELDS}-field frames -> {sketch}")
-    return FRAME_FIELDS
+            f"No valid 5-field frame on {PORT} within {timeout_s:.0f} s - is saz_zop.ino "
+            f"flashed (not acados_main.ino) and is another script holding the port?"
+        ) from None
 
 
 def measure_control_dt(n_frames: int = 60) -> float:
@@ -269,14 +264,6 @@ def measure_control_dt(n_frames: int = 60) -> float:
         The measured period in seconds.
     """
     for attempt in (1, 2):
-        # Flush the OS SERIAL buffer, not just the queue. The board streams the
-        # whole time the acados planner is being built at import - seconds, or
-        # minutes on a rebuild - and all of that piles up in the driver buffer.
-        # Clearing only state_que leaves that backlog, which the listener then
-        # drains at parse speed, so the gaps measure the drain and not the frame
-        # period. That is what produced a 36 ms and a 49 ms reading of the same
-        # 50 ms board, and with them 13.9 s and 10.2 s "10 s" episodes.
-        ser.reset_input_buffer()
         # let the listener finish any frame it is mid-way through parsing, and let
         # the wire go genuinely live, then drop whatever that produced
         time.sleep(0.3)
@@ -313,9 +300,25 @@ def measure_control_dt(n_frames: int = 60) -> float:
               f"{dt_raw*1000:.1f} ms) - probably still draining a buffered backlog."
               + ("  Retrying..." if attempt == 1 else ""))
 
-    print("  WARNING: control period could not be measured cleanly. Pin it with "
-          "CONTROL_DT=0.010 / 0.050 if the episode lengths come out wrong.")
+    print("  WARNING: control period could not be measured cleanly.")
     return dt
+
+
+def nominal_control_dt(rel_tol: float = 0.2) -> float:
+    """Snap the measured frame period to the supported one it belongs to.
+
+    Returns:
+        The nominal period in seconds. Aborts if the board sends at any other rate.
+    """
+    measured = measure_control_dt()
+    nominal = min(SUPPORTED_CONTROL_DT, key=lambda dt: abs(dt - measured))
+    if abs(measured - nominal) > rel_tol * nominal:
+        raise SystemExit(
+            f"Arduino sends every {measured * 1000:.1f} ms, expected "
+            f"{' or '.join(f'{dt * 1000:.0f} ms' for dt in SUPPORTED_CONTROL_DT)}. "
+            f"Reflash COMMUNICATION_TIME_MS in saz_zop.ino."
+        )
+    return nominal
 
 
 def configure_timing(dt: float) -> None:
@@ -342,7 +345,7 @@ def configure_timing(dt: float) -> None:
 
 def talk_to_arduino(u: int, mode: int = 0) -> None:
     """
-    -sends <±u,mode> + \n on the saz_zop sketch, <±u> on the legacy one
+    -sends <±u,mode> + \n
     -newline only for debugging
     """
 
@@ -355,12 +358,7 @@ def talk_to_arduino(u: int, mode: int = 0) -> None:
         # be conservative: don't let logging break serial comms
         pass
 
-    if FRAME_FIELDS == 5:
-        ser.write(f"<{int(u)},{int(mode)}>\n".encode('ascii'))
-    else:
-        # legacy sketch drives whatever it receives, so a non-zero mode (stop /
-        # reset) has to be expressed as a zero command
-        ser.write(f"<{int(u) if mode == 0 else 0}>\n".encode('ascii'))
+    ser.write(f"<{int(u)},{int(mode)}>\n".encode('ascii'))
 
 
 class ArduinoSilent(RuntimeError):
@@ -368,11 +366,11 @@ class ArduinoSilent(RuntimeError):
 
 
 class ResetFailed(RuntimeError):
-    """The env never reached the reset condition - usually a jammed or dead cart."""
+    """The cart never got back to the centre - usually a jammed or dead cart."""
 
 
-# Give up on a reset after this long. The motor-driven reset normally takes a few
-# seconds; anything past this means the cart cannot get back to centre on its own.
+# Give up on a reset if the cart stays off-centre this long. The motor-driven reset
+# normally takes a few seconds; anything past this means it cannot get back on its own.
 RESET_TIMEOUT_S = float(os.environ.get("RESET_TIMEOUT_S", "45"))
 
 
@@ -412,18 +410,11 @@ def newest_state() -> tuple:
 def reset_env():
     """
     - brings the cart back to a defined start state (centred, still, pole hanging)
-    - on the saz_zop sketch this is motor-driven (mode 2); on the legacy sketch the
-      motor is stopped and the same condition is simply waited for, i.e. you push
-      the cart to the centre by hand and the run starts on its own
+    - motor-driven: mode 2 makes the sketch drive the cart to the centre
     - drains the state queue and returns once the condition holds
     """
-    if FRAME_FIELDS == 5:
-        talk_to_arduino(0, mode=2)
-        print("resetting env...")
-    else:
-        talk_to_arduino(0, mode=1)
-        print("legacy sketch: no motor-driven reset - please centre the cart by "
-              "hand and let the pole hang, the run starts automatically")
+    talk_to_arduino(0, mode=2)
+    print("resetting env...")
 
     # get rid of old states in a threadsafe way
     try:
@@ -433,7 +424,7 @@ def reset_env():
         pass
 
     last_hint = time.monotonic()
-    t_start = time.monotonic()
+    t_off_centre = time.monotonic()
     while True:
         x, theta, v, thetadot, tripped_flag = newest_state()
 
@@ -447,21 +438,25 @@ def reset_env():
             break
 
         # else: stay in mode 2/reset until conditions are met
-        waited = time.monotonic() - t_start
         if time.monotonic() - last_hint > 3.0:
             last_hint = time.monotonic()
-            print(f"  waiting for reset ({waited:.0f}/{RESET_TIMEOUT_S:.0f} s): "
+            print(f"  waiting for reset: "
                   f"x={x:.0f} counts, theta={theta:.2f} rad, "
                   f"v={v:.0f} counts/s, thetadot={thetadot:.2f} rad/s, "
                   f"tripped={int(tripped_flag)}")
+
+        # A pole that swings out may take its time and is no fault, so only the cart
+        # counts towards the timeout.
+        if abs(x) <= 100:
+            t_off_centre = time.monotonic()
 
         # A reset that cannot complete used to spin here forever with no way out
         # but Ctrl+C - which is exactly what a jammed cart after a border crash
         # looks like, because reset_control() pushes back at PWM 25 while the
         # impact happened at PWM 150. Fail loudly instead of hanging silently.
-        if waited > RESET_TIMEOUT_S:
+        if time.monotonic() - t_off_centre > RESET_TIMEOUT_S:
             raise ResetFailed(
-                f"Env did not reach the reset condition within {RESET_TIMEOUT_S:.0f} s.\n"
+                f"Cart did not get back to the centre within {RESET_TIMEOUT_S:.0f} s.\n"
                 f"  last state: x={x:.0f} counts ({counts_to_meters(x):.3f} m), "
                 f"theta={theta:.2f} rad, v={v:.0f} counts/s, "
                 f"thetadot={thetadot:.2f} rad/s, tripped={int(tripped_flag)}\n"
@@ -575,6 +570,10 @@ def post_swingup_stats(theta_hist, thetadot_hist, u_hist, first_upright, dt) -> 
     }
 
 
+def eval_csv_path(eval_run: int) -> str:
+    return os.path.join(EVAL_DIR, f"eval_mpc_{PLANNER_NAME}_run{eval_run}.csv")
+
+
 def run_eval_episode(eval_run: int = 1, max_steps: int | None = None):
     """Run one MPC evaluation episode and dump the full trajectory to a CSV.
 
@@ -601,7 +600,7 @@ def run_eval_episode(eval_run: int = 1, max_steps: int | None = None):
         max_steps = EVAL_MAX_STEPS
 
     os.makedirs(EVAL_DIR, exist_ok=True)
-    csv_path = os.path.join(EVAL_DIR, f"eval_mpc_{PLANNER_NAME}_run{eval_run}.csv")
+    csv_path = eval_csv_path(eval_run)
 
     print("\n" + "=" * 60)
     print(f"MPC EVAL EPISODE {eval_run}/{NUM_EVAL_RUNS} -> {csv_path}")
@@ -872,6 +871,9 @@ HEALTH_CHECK = os.environ.get("HEALTH_CHECK", "1") not in ("0", "false", "False"
 DEAD_CART_TRAVEL_M = 0.03
 # ...and a pole this close to pi (rad) never left hanging.
 DEAD_POLE_THETA_RAD = 2.8
+# ...although the controller asked for at least this much force. Well above what it
+# takes to move the cart: at PWM ~60 a working motor is visibly driving.
+DEAD_CART_MIN_FORCE_N = 5.0
 
 
 def episode_health_warning(trailer: dict) -> str | None:
@@ -884,18 +886,48 @@ def episode_health_warning(trailer: dict) -> str | None:
     but they measure the rig, not the controller.
 
     A bad controller moves the cart and fails to catch the pole; a dead actuator
-    moves neither. Requiring BOTH conditions is what keeps a genuinely poor
-    swing-up from being misreported as a hardware fault.
+    moves neither, although it is told to. Requiring ALL three conditions is what
+    keeps a genuinely poor swing-up, or a controller stuck at the hanging equilibrium
+    with next to no command, from being misreported as a hardware fault.
     """
     travel = trailer.get('x_range_m', float('nan'))
     theta_mean = trailer.get('theta_abs_mean', float('nan'))
     force = trailer.get('max_force_N', 0.0)
 
-    if travel < DEAD_CART_TRAVEL_M and theta_mean > DEAD_POLE_THETA_RAD:
+    # an episode cut short by Ctrl+C had no time to move anything
+    if trailer.get('steps', 0) <= trailer.get('max_steps', 0):
+        return None
+
+    if (travel < DEAD_CART_TRAVEL_M and theta_mean > DEAD_POLE_THETA_RAD
+            and force > DEAD_CART_MIN_FORCE_N):
         return (f"cart moved {travel*100:.1f} cm all episode while |theta| averaged "
                 f"{theta_mean:.2f} rad (pole never left hanging) at up to {force:.1f} N "
                 f"commanded -> the actuator is not responding")
     return None
+
+
+def _parse_trailer_value(text: str):
+    for cast in (int, float):
+        try:
+            return cast(text)
+        except ValueError:
+            pass
+    return None if text == 'None' else text
+
+
+def read_trailer(path: str) -> dict:
+    """Parse the '# key: value' lines of a finished run back into its trailer dict.
+
+    Returns:
+        The trailer, empty if the run was killed before it could write one.
+    """
+    trailer = {}
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith('# ') and ':' in line:
+                key, _, value = line[2:].partition(':')
+                trailer[key.strip()] = _parse_trailer_value(value.strip())
+    return trailer
 
 
 def write_summary(rows: list[dict]) -> str | None:
@@ -960,31 +992,32 @@ def print_aggregate(rows: list[dict]) -> None:
 
 
 def main():
+    global num_terminations, num_stabilized_steps
+
     print(f"Config: {planner_config_dict(PLANNER_NAME, cfg_planner)}")
+
+    # Flush the OS SERIAL buffer. The board streams the whole time the acados planner
+    # is being built at import - seconds, or minutes on a rebuild - and all of that
+    # piles up in the driver buffer. The listener would drain that backlog at parse
+    # speed, so the gaps measure_control_dt() sees would measure the drain and not the
+    # frame period. That is what produced a 36 ms and a 49 ms reading of the same 50 ms
+    # board, and with them 13.9 s and 10.2 s "10 s" episodes.
+    # Has to happen BEFORE the listener starts: a flush between its select() and its
+    # read() makes pyserial raise SerialException, which kills the thread.
+    ser.reset_input_buffer()
 
     # start the background receiver task
     arduinoThread = threading.Thread(target=listen_to_arduino, args=())
     arduinoThread.daemon = True
     arduinoThread.start()
 
-    # find out which sketch is on the board before sending the first command
+    # make sure saz_zop is on the board before sending the first command
     wait_for_arduino()
 
     # the firmware owns the control period, so measure it rather than assume it -
     # otherwise a board still flashed at 50 ms would silently turn a "10 ms, 10 s"
     # session into 200 steps = 2 s episodes with a 0.4 s stabilization criterion
-    if CONTROL_DT_SETTING == "auto":
-        dt = measure_control_dt()
-    else:
-        dt = float(CONTROL_DT_SETTING)
-        measured = measure_control_dt()
-        if abs(measured - dt) > 0.002:
-            print(f"\n  WARNING: CONTROL_DT={dt*1000:.0f} ms was pinned, but the board "
-                  f"is sending every {measured*1000:.1f} ms.\n"
-                  f"  Episode lengths and the stabilization window will be wrong. "
-                  f"Reflash COMMUNICATION_TIME_MS in saz_zop.ino or drop CONTROL_DT.\n")
-
-    configure_timing(dt)
+    configure_timing(nominal_control_dt())
     os.makedirs(EVAL_DIR, exist_ok=True)
     print(f"Eval directory: {EVAL_DIR}")
 
@@ -992,8 +1025,34 @@ def main():
 
     try:
         for eval_run in range(1, NUM_EVAL_RUNS + 1):
+            # a finished run stays as it is. The one that has no trailer was killed
+            # mid-episode, so it is recorded again.
+            csv_path = eval_csv_path(eval_run)
+            trailer = read_trailer(csv_path) if os.path.exists(csv_path) else {}
+            if trailer:
+                print(f"Eval run {eval_run}/{NUM_EVAL_RUNS}: {csv_path} exists, skipping")
+                summary_rows.append(trailer)
+                num_terminations = trailer['terminations_total']
+                num_stabilized_steps = trailer['stabilized_steps_total']
+                continue
+
             print(f"\n>>> Eval run {eval_run}/{NUM_EVAL_RUNS}")
             csv_path, trailer = run_eval_episode(eval_run=eval_run)
+
+            # stop the session rather than logging more runs of a broken rig. The
+            # .unusable suffix keeps this run out of the summary and the plots, and
+            # the next session records it again.
+            problem = episode_health_warning(trailer) if HEALTH_CHECK else None
+            if problem:
+                os.replace(csv_path, csv_path + ".unusable")
+                print("\n" + "!" * 60)
+                print(f"HARDWARE FAULT after run {eval_run}: {problem}.")
+                print("Aborting the session - further runs would only record this.")
+                print("Free the cart / power-cycle the motor driver, then restart.")
+                print(f"Runs 1-{eval_run - 1} are intact; this run is NOT usable.")
+                print("!" * 60)
+                break
+
             summary_rows.append(trailer)
 
             # one figure per run, saved next to its CSV
@@ -1023,18 +1082,6 @@ def main():
                 print(f"  Episodes are {EPISODE_SECONDS * actual / assumed:.1f} s, not "
                       f"{EPISODE_SECONDS:.1f} s, and every *_s metric is off by "
                       f"{actual / assumed:.2f}x.")
-                print(f"  Restart with CONTROL_DT={round(actual)/1000:.3f} to pin it.")
-
-            # stop the session rather than logging more runs of a broken rig
-            problem = episode_health_warning(trailer) if HEALTH_CHECK else None
-            if problem:
-                print("\n" + "!" * 60)
-                print(f"HARDWARE FAULT after run {eval_run}: {problem}.")
-                print("Aborting the session - further runs would only record this.")
-                print("Free the cart / power-cycle the motor driver, then restart.")
-                print(f"Runs 1-{eval_run - 1} are intact; this run is NOT usable.")
-                print("!" * 60)
-                break
 
     except KeyboardInterrupt:
         print("\nRemaining eval runs skipped.")

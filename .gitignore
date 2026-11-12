@@ -185,10 +185,8 @@ test.gin
 c_generated_code
 
 # Logs and videos
-# allow CSV, image, and video files to be committed
-!*.png
+# allow video files to be committed (CSV, PNG, PDF and NPZ are ignored, see the end)
 !*.mp4
-!*.csv
 
 # Trash
 **/trash
@@ -199,3 +197,17 @@ c_generated_code
 !/bachelor/**/*.pwm
 !/bachelor/***/*.pwm
 !/bachelor/****/*.pwm
+
+# Data and figures: eval logs, plots and cached grids stay local, everywhere in the repo
+# (the two upstream example CSVs in leap_c/examples/hvac/ stay tracked)
+*.csv
+*.png
+*.pdf
+*.npz
+!/leap_c/examples/hvac/*.csv
+
+# LaTeX build files
+*.aux
+*.fls
+*.fdb_latexmk
+*.synctex.gz

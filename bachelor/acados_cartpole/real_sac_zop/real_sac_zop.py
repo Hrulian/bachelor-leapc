@@ -22,9 +22,8 @@ from bachelor.acados_cartpole.my_helpers import (
     sac_state_to_tensor,
     X_TERM_M,
 )
-from bachelor.acados_cartpole.my_utils_plot import plot_policy_heatmap
 
- 
+
 from leap_c.planner import ControllerFromPlanner
 from leap_c.torch.nn.extractor import get_extractor_cls  # optional helper
 
@@ -42,11 +41,36 @@ PLANNER_NAME = os.environ.get("PLANNER", "full")
 
 # Optional per-variant config overrides, e.g. {"tunable": {"M": 0.17444 * 8}} to
 # run the model-mismatch ablation. Empty = use each variant's own defaults.
-PLANNER_OVERRIDES: dict = {}
+# du0: its default d_max (None = textbook r*Fmax = 2.0) leaves the actor almost no
+# authority; 100 is what the sim ablation (cartpole-planner-ablation-sim) ran with.
+PLANNER_OVERRIDES: dict = {"du0": {"d_max": 100.0}}
 
 # Run one deterministic, unlogged evaluation episode on Ctrl+C (see run_eval_episode).
 # Set to False (or PLANNER=... EVAL_ON_EXIT=0) to exit immediately instead.
 RUN_EVAL_ON_EXIT = os.environ.get("EVAL_ON_EXIT", "1") not in ("0", "false", "False")
+
+# Stop training automatically after this many RL steps (= actor decisions = buffer
+# transitions, the wandb step axis) and go into the closing eval exactly as on
+# Ctrl+C. Checked between episodes, so the last episode is played to its end.
+# 0 = no limit, stop with Ctrl+C only.
+MAX_RL_STEPS = int(os.environ.get("MAX_RL_STEPS", "10000"))
+
+
+class TrainingBudgetReached(Exception):
+    """Raised by the main loop once MAX_RL_STEPS is reached."""
+
+
+# Arduino control period = COMMUNICATION_TIME_MS in saz_zop.ino. The host is purely
+# frame-paced, so it cannot set the rate, only has to know it: FRAME_TIMEOUT_S,
+# max_ep_steps, STABILIZATION_BUFFER_SIZE and train_start are derived from it, and
+# main() checks the real frame period on the wire (check_control_period).
+# N_STEP defaults to the value that keeps the RL step at 50 ms (10 ms -> 5, 50 ms -> 1).
+#
+#     PLANNER=du0 CONTROL_PERIOD_MS=50 N_STEP=1 python -m bachelor.acados_cartpole.real_sac_zop.real_sac_zop
+CONTROL_PERIOD_MS = int(os.environ.get("CONTROL_PERIOD_MS", "10"))
+CONTROL_DT = CONTROL_PERIOD_MS / 1000.0
+N_STEP = int(os.environ.get("N_STEP", str(max(1, round(50 / CONTROL_PERIOD_MS)))))
+
 
 if PLANNER_NAME not in PLANNER_NAMES:
     raise SystemExit(
@@ -61,8 +85,8 @@ os.environ['WANDB_API_KEY'] = 'fd053eb0471b83f999819cd4c4e4930ea28de0ea'
 # serial communication parameters
 PORT = "/dev/ttyACM0"
 BAUD = 115200
-FRAME_TIMEOUT_S = 0.01   # partial-frame watchdog: ~1 control period (10 ms), still
-                         # ~3.5x the ~2.8 ms a frame needs on the wire at 115200 baud
+FRAME_TIMEOUT_S = CONTROL_DT  # partial-frame watchdog: 1 control period, at 10 ms still
+                              # ~3.5x the ~2.8 ms a frame needs on the wire at 115200 baud
 MAX_PAYLOAD_LEN = 64
 READ_TIMEOUT_S = 0.002
 
@@ -73,23 +97,28 @@ ser.reset_input_buffer()
 state_que = queue.Queue() # init que that stores states
 prev_sent_mode = None  # remembers last mode sent to Arduino for logging
 
-# Tag for the Arduino control period this script's constants assume (see
-# COMMUNICATION_TIME_MS in saz_zop.ino, FRAME_TIMEOUT_S above, max_ep_steps,
-# STABILIZATION_BUFFER_SIZE and train_start below - all hard-coded for 10 ms,
-# unlike real_acados/MPC_REAL.py, which measures the rate off the wire). Folded
-# into CHECKPOINT_DIR so a 50 ms checkpoint/actor/critic set is never silently
-# loaded into a 10 ms run (shape-compatible, but trained on a different timescale
-# - see N_STEP below) or overwritten by one.
-CONTROL_RATE_TAG = "10ms"
+# Tag for the control period of this run. Folded into CHECKPOINT_DIR so a 50 ms
+# checkpoint/actor/critic set is never silently loaded into a 10 ms run
+# (shape-compatible, but trained on a different timescale - see N_STEP below) or
+# overwritten by one. A _k suffix is only added when the RL step is not 50 ms, so
+# the existing 10 ms / N=5 directories keep their names.
+CONTROL_RATE_TAG = f"{CONTROL_PERIOD_MS}ms" + (
+    "" if CONTROL_PERIOD_MS * N_STEP == 50 else f"_k{N_STEP}"
+)
 
 # checkpoint directory for models - per planner AND per control rate, because the
 # param_space (and with it the critic/actor input shapes) differs between OCP
 # formulations, while the control rate changes what the SAME shapes were trained
 # on. Sharing a directory across either would make load_checkpoints() either fail
 # on a shape mismatch or silently resume into the wrong timescale.
+# The July 50 ms full/cart/fullcart runs used the bare planner name, both for this
+# directory and for the wandb group; new 50 ms runs of those planners keep that
+# layout so they land next to them.
+LEGACY_50MS_LAYOUT = PLANNER_NAME in ("full", "cart", "fullcart") and CONTROL_RATE_TAG == "50ms"
 CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "checkpoints",
-    f"real_sac_zop_{PLANNER_NAME}_{CONTROL_RATE_TAG}",
+    f"real_sac_zop_{PLANNER_NAME}" if LEGACY_50MS_LAYOUT
+    else f"real_sac_zop_{PLANNER_NAME}_{CONTROL_RATE_TAG}",
 )
 
 # timing tracking for training step
@@ -242,7 +271,7 @@ num_terminations = 0  # cumulative episodes that ended in a trip (terminated, no
 num_stabilized_steps = 0  # cumulative steps spent in the balanced/stabilized mode
 
 # stabilization tracking
-STABILIZATION_BUFFER_SIZE = 200  # 2 s of balancing at the 10 ms control rate
+STABILIZATION_BUFFER_SIZE = round(2.0 / CONTROL_DT)  # 2 s of balancing (200 at 10 ms, 40 at 50 ms)
 STABILIZATION_THRESHOLD = 0.15  # rad, ±0.15 rad around upright
 theta_buffer = deque(maxlen=STABILIZATION_BUFFER_SIZE)  # FIFO queue for theta values
 stabilized_this_episode = False  # flag: was pole stabilized this episode
@@ -287,7 +316,7 @@ longest_upright_steps = 0
 # the suffix says which x-axis the metric is meant to be read on.
 
 # max steps per episode (env steps, i.e. Arduino frames - NOT RL decisions)
-max_ep_steps = 1000  # 10 s at the 10 ms control rate
+max_ep_steps = round(10.0 / CONTROL_DT)  # 10 s episode (1000 at 10 ms, 200 at 50 ms)
 
 # N-step (zero-order-hold) cycle length: the actor picks an MPC parameter every
 # N env steps, the MPC re-solves every step with that HELD param, and ONE
@@ -309,7 +338,7 @@ max_ep_steps = 1000  # 10 s at the 10 ms control rate
 # same tokens/s, same gradient-steps/s, and - because the macro reward is the mean
 # rather than the sum - the same reward scale. What actually changes is that the
 # MPC re-solves 5x per hold instead of once, which is the point of the exercise.
-N_STEP = 5
+# (N_STEP itself is set next to CONTROL_PERIOD_MS at the top.)
 
 # device setup
 device = "cpu"
@@ -350,10 +379,11 @@ cfg_saczop.critic_mlp.norm_layer = "layer_norm"
 # collect this many env steps before the first gradient step (same as real_sac.py).
 # With train_start=0 the first updates run on a handful of near-identical transitions
 # from a single episode start, which the critic overfits hard at this UTD.
-# 1000 env steps = 10 s of hardware data at the 10 ms control rate = 200 buffered
-# N-step transitions, comfortably above batch_size (64), so the first block after
-# the gate actually trains instead of running 20 no-ops.
-cfg_saczop.train_start = 1000
+# 10 s of hardware data, in env steps: 1000 at 10 ms (= 200 buffered N-step
+# transitions), 200 at 50 ms / N=1 (= 200 transitions) - comfortably above
+# batch_size (64), so the first block after the gate actually trains instead of
+# running 20 no-ops.
+cfg_saczop.train_start = round(10.0 / CONTROL_DT)
 
 # Replay Buffer init
 replay_buffer = ReplayBuffer(buffer_limit=cfg_saczop.buffer_size, device=device)
@@ -738,7 +768,7 @@ EVAL_N = N_STEP
 
 # Number of repeated closing eval episodes (same frozen policy, independent physical
 # trials on hardware) run on exit.
-NUM_EVAL_RUNS = 20
+NUM_EVAL_RUNS = int(os.environ.get("NUM_EVAL_RUNS", "23"))
 
 
 def _fmt_param(param_t):
@@ -959,9 +989,44 @@ def run_eval_episode(
     return csv_path
 
 
+def check_control_period(n_frames: int = 40, rel_tol: float = 0.2):
+    """Measure the Arduino's frame period off the wire and abort on a mismatch.
+
+    Only the firmware sets the rate, but every step-counted constant here is
+    derived from CONTROL_PERIOD_MS: a board still flashed at 10 ms under
+    CONTROL_PERIOD_MS=50 would make 2 s episodes. Same total-over-N estimator as
+    real_acados/MPC_REAL.py:measure_control_dt.
+    """
+    # flush the serial backlog that piled up while the planner was built, otherwise
+    # the listener drains it at parse speed and the gaps measure the drain
+    ser.reset_input_buffer()
+    time.sleep(0.3)
+    with state_que.mutex:
+        state_que.queue.clear()
+
+    stamps = []
+    try:
+        for _ in range(n_frames):
+            state_que.get(timeout=1.0)
+            stamps.append(time.monotonic())
+    except queue.Empty:
+        raise SystemExit("No frames from the Arduino - is it connected and flashed?")
+
+    measured_ms = (stamps[-1] - stamps[0]) / (len(stamps) - 1) * 1000.0
+    print(f"Measured control period: {measured_ms:.1f} ms (CONTROL_PERIOD_MS="
+          f"{CONTROL_PERIOD_MS}, N_STEP={N_STEP}, max_ep_steps={max_ep_steps}, "
+          f"stabilization window={STABILIZATION_BUFFER_SIZE} steps)")
+    if abs(measured_ms - CONTROL_PERIOD_MS) > rel_tol * CONTROL_PERIOD_MS:
+        raise SystemExit(
+            f"Arduino sends every {measured_ms:.1f} ms, but CONTROL_PERIOD_MS="
+            f"{CONTROL_PERIOD_MS}. Reflash COMMUNICATION_TIME_MS in saz_zop.ino or "
+            f"set CONTROL_PERIOD_MS to match."
+        )
+
+
 def main():
     # seeding
-    seed = 2
+    seed = 9
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  
@@ -970,7 +1035,14 @@ def main():
     
     # torch.backends.cudnn.deterministic = True
     # torch.backends.cudnn.benchmark = False
-    
+
+    # start the background receiver task - before wandb, so a board flashed with a
+    # different COMMUNICATION_TIME_MS aborts the run before it creates a wandb entry
+    arduinoThread = threading.Thread(target=listen_to_arduino, args=())
+    arduinoThread.daemon = True
+    arduinoThread.start()
+    check_control_period()
+
     # load checkpoints/trained models if available
     # this means training progress persists across restarts
     # it consists of actor, critic, target_critic, log_alpha + meta info. Not the buffer
@@ -990,13 +1062,15 @@ def main():
         "gamma": cfg_saczop.gamma,
         "tau": cfg_saczop.tau,
         "max_ep_steps": max_ep_steps,
+        "control_period_ms": CONTROL_PERIOD_MS,
+        "n_step": N_STEP,
         **planner_config_dict(PLANNER_NAME, cfg_planner),
     }
 
     if wandb_run_id:
         print(f"Resuming wandb run: {wandb_run_id}")
         wandb.init(
-            project="cartpole-sac-zop-1",
+            project="Paper-Real_SAC-ZOP",
             id=wandb_run_id,
             resume="allow",
             config=wandb_config,
@@ -1006,6 +1080,12 @@ def main():
         run = wandb.init(
             project="Paper-Real_SAC-ZOP",
             name=f"{PLANNER_NAME}_ocp_s{int(seed)}",
+            # paper groups: 10 ms / N_STEP=5 full -> "K-step" (ZOP-Angle-10 in
+            # plot_training_curves.py), 50 ms full/cart/fullcart -> the planner name,
+            # like the July runs; anything else gets its own group, e.g. du0_50ms
+            group=("K-step" if PLANNER_NAME == "full" and CONTROL_RATE_TAG == "10ms"
+                   else PLANNER_NAME if LEGACY_50MS_LAYOUT
+                   else f"{PLANNER_NAME}_{CONTROL_RATE_TAG}"),
             config=wandb_config,
         )
         wandb_run_id = run.id
@@ -1016,11 +1096,6 @@ def main():
 
     # env-throughput timing (for episode/steps_per_second, like the sim scripts)
     t_start = time.perf_counter()
-
-    # start the background receiver task
-    arduinoThread = threading.Thread(target=listen_to_arduino, args=())
-    arduinoThread.daemon = True
-    arduinoThread.start()
 
     # start the background learning task (use proper args)
     learningThread = threading.Thread(
@@ -1079,53 +1154,6 @@ def main():
             if episode_count == 0 or episode_count % 50 == 0:
                 print(f"Saving checkpoints at episode {episode_count}...")
                 save_checkpoints()
-                
-                # generate and save policy heatmaps
-                print(f"Generating policy heatmaps at episode {episode_count}...")
-                try:
-                    actor_path = os.path.join(CHECKPOINT_DIR, 'actor.pth')
-                    # plot_policy_heatmap now saves PDFs automatically to checkpoint dir
-                    plot_policy_heatmap(
-                        actor_path=actor_path,
-                        v_fixed=0.0,
-                        thetadot_fixed=0.0,
-                        x_range=(-0.35, 0.35),
-                        theta_range=(-np.pi, np.pi),
-                        resolution=50,
-                        plt_show=False,
-                        save_path=None,  # not used anymore, PDFs saved to checkpoint dir
-                        episode_num=episode_count  # add episode number for filename
-                    )
-                    print(f"Saved policy heatmap PDFs to {CHECKPOINT_DIR}")
-                    
-                    # log PDFs to wandb as artifacts
-                    try:
-                        artifact = wandb.Artifact(
-                            name=f'policy_heatmaps_ep{episode_count}',
-                            type='plots',
-                            description=f'Policy heatmap visualizations at episode {episode_count}'
-                        )
-                        
-                        pdf_files = [
-                            f'policy_heatmap_theta_ref_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_force_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_critic_grid_ep{episode_count}.pdf',
-                            f'policy_heatmap_mpc_force_grid_ep{episode_count}.pdf',
-                        ]
-                        
-                        # add each PDF file to the artifact
-                        for pdf_name in pdf_files:
-                            pdf_path = os.path.join(CHECKPOINT_DIR, pdf_name)
-                            if os.path.exists(pdf_path):
-                                artifact.add_file(pdf_path, name=pdf_name)
-                        
-                        # log the artifact
-                        wandb.log_artifact(artifact)
-                        print(f"Logged policy heatmap PDFs to wandb as artifact")
-                    except Exception as e:
-                        print(f"Failed to log PDFs to wandb: {e}")
-                except Exception as e:
-                    print(f"Failed to generate policy heatmaps: {e}")
 
             # reset state_que
             state_que.queue.clear()
@@ -1426,7 +1454,12 @@ def main():
                     except Exception:
                         pass
 
-    except KeyboardInterrupt:
+            if MAX_RL_STEPS and rl_step_count >= MAX_RL_STEPS:
+                print(f"Reached {rl_step_count} RL steps (MAX_RL_STEPS={MAX_RL_STEPS}) "
+                      f"- stopping training")
+                raise TrainingBudgetReached
+
+    except (KeyboardInterrupt, TrainingBudgetReached):
         # try to stop actuator and plot
         try:
             talk_to_arduino(0, mode=1)  # tell arduino to stop

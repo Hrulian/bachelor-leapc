@@ -1,0 +1,17 @@
+\begin{table}[t]
+  \centering
+  \caption{Evaluation on hardware, mean $\pm$ std over 20 runs per controller. Symmetric reward $r = 1 - |\theta|/\pi$ in $[0, 1]$, taken every 50~ms (the sample closest to each 50~ms instant, i.e.\ every fifth sample at 10~ms) and summed over the bins (maximum 20 per second, 200 for the full episode). Where no further run was available, the tripped run counts with the reward collected until the trip (MPC (50 ms): 1).}
+  \label{tab:eval_linear_sampled}
+  \footnotesize
+  \begin{tabular}{lccc}
+    \toprule
+    Controller & Total (0--10~s) & Swing-up (0--5~s) & Balancing (5--10~s) \\
+    \midrule
+    MPC (10 ms)    & $167.5 \pm 9.6$ & $68.2 \pm 9.6$ & $99.3 \pm 0.1$ \\
+    MPC (50 ms)    & $122.8 \pm 63.3$ & $47.4 \pm 25.7$ & $75.4 \pm 38.9$ \\
+    ZOP-Angle-10   & $167.9 \pm 7.9$ & $68.2 \pm 7.8$ & $\mathbf{99.7} \pm 0.1$ \\
+    ZOP-Angle      & $150.1 \pm 24.2$ & $54.4 \pm 17.2$ & $95.7 \pm 10.1$ \\
+    ZOP-Cart       & $\mathbf{172.3} \pm 3.4$ & $\mathbf{72.8} \pm 3.4$ & $99.5 \pm 0.1$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
