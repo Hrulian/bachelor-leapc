@@ -116,6 +116,8 @@ def parse_args():
     p.add_argument("--steps", type=int, default=200_000, help="Total env steps")
     p.add_argument("--max-ep-steps", type=int, default=1000)
     p.add_argument("--dt", type=float, default=0.01, help="Sim time step [s] (real control freq: 10 ms)")
+    p.add_argument("--x-threshold", type=float, default=None,
+                   help="Track half-width [m]: episode trips when |x| > this. None = env default (0.4); for mpc/saczop fillers it also sets the OCP position constraint (planner default 0.37)")
     p.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
     p.add_argument("--torch-threads", type=int, default=0,
                    help="torch.set_num_threads; 0 = leave default. Use 1-2 for parallel sweeps.")
@@ -184,6 +186,8 @@ def main():
 
     # Environment ##############################################################
     sim_cfg = RealCartPoleSimConfig(dt=args.dt)
+    if args.x_threshold is not None:
+        sim_cfg.x_threshold = args.x_threshold
     reward_fn = get_reward_fn(args.reward)
     env = RealCartPoleSimEnv(reward_fn, cfg=sim_cfg, max_episode_steps=args.max_ep_steps)
 
@@ -255,6 +259,8 @@ def main():
         if args.planner not in ("full", "cart"):
             raise SystemExit("--no-pos-constraint only applies to --planner full/cart")
         planner_overrides["use_position_constraint"] = False
+    if args.x_threshold is not None:
+        planner_overrides["x_threshold"] = args.x_threshold
     if uses_solver:
         planner, _ = make_planner(args.planner, run_dir / "acados_code", **planner_overrides)
         controller_wrapped = ControllerFromPlanner(planner)
@@ -287,11 +293,13 @@ def main():
             "planner": args.planner if uses_solver else None,
             "d_max": args.d_max if uses_solver else None,
             "pos_constraint": (not args.no_pos_constraint) if uses_solver else None,
+            "mpc_x_threshold": getattr(planner.cfg, "x_threshold", None) if uses_solver else None,
             "switch_step": args.switch_step,
             "reward": args.reward,
             "seed": args.seed,
             "steps": args.steps,
             "dt": args.dt,
+            "x_threshold": sim_cfg.x_threshold,
             "max_ep_steps": args.max_ep_steps,
             "updates_per_step": args.updates_per_step,
             "actor_update_freq": args.actor_update_freq,
